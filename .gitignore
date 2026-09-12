@@ -1,0 +1,64 @@
+# macOS and temporary editor files
+.DS_Store
+._*
+*.swp
+*.swo
+*~
+
+# Local environment settings; keep documented examples versionable
+.env
+.env.*
+!.env.example
+!.env.*.example
+!.env.sample
+!.env.template
+
+# Optional local scratch data and databases created at the repository root
+# Database fixtures elsewhere remain versionable.
+/.local/
+/*.db
+/*.db-*
+/*.sqlite
+/*.sqlite-*
+/*.sqlite3
+/*.sqlite3-*
+
+# Rust build output; Cargo.lock stays versioned
+/target/
+/crates/*/target/
+
+# Bun / Next.js dependencies, builds and generated test output
+# Keep bun.lock, bun.lockb and source configuration files.
+node_modules/
+/apps/web/.next/
+/apps/web/out/
+/apps/web/.turbo/
+/apps/web/*.tsbuildinfo
+/apps/web/coverage/
+/apps/web/playwright-report/
+/apps/web/test-results/
+
+# Swift / Xcode build output and per-user state
+# Keep shared Xcode projects, schemes and Package.resolved.
+/apps/macos/.build/
+/apps/macos/build/
+/apps/macos/DerivedData/
+/packaging/macos/dist/
+xcuserdata/
+*.xcuserstate
+*.xcresult/
+
+# Unreal generated output; preserve Content, Config, Source and plugin binaries
+/games/NiihonGames/Binaries/
+/games/NiihonGames/DerivedDataCache/
+/games/NiihonGames/Intermediate/
+/games/NiihonGames/Saved/
+/games/NiihonGames/Plugins/**/Intermediate/
+/games/NiihonGames/*.xcodeproj/
+/games/NiihonGames/*.xcworkspace/
+
+# Blender automatic backups; preserve original .blend files and exported assets
+*.blend[0-9]
+*.blend[0-9][0-9]
+
+# AGENTS.md, .codex/, .sqlx/, migrations, fixtures and asset sources stay versionable.
