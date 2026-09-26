@@ -1,0 +1,203 @@
+{
+  "recorded": "2026-09-26",
+  "purpose": "Existing Web design references for issues #1–#10; no implemented UI.",
+  "themes": [
+    {
+      "id": "AM",
+      "name": "Sakura Milk",
+      "description": "Nearly uniform pale sakura pink background. Deep ink-plum labels, dark berry secondary text, vivid raspberry accent. No scenic elements."
+    },
+    {
+      "id": "AQ",
+      "name": "Neon Sorbet",
+      "description": "Exact approved dark plum to fuchsia gradient. Warm white main labels, light mauve secondary text, hot pink accents. No scenic elements."
+    },
+    {
+      "id": "AH",
+      "name": "Bloom Hour",
+      "description": "Approved light sakura lake scene: light lavender/rose sky, blossoms framing edges, torii LEFT, Fuji LEFT of centre, sun right of centre, Tokyo skyline RIGHT. Dark ink-plum labels and berry accents. Keep original scene placement."
+    },
+    {
+      "id": "AL",
+      "name": "Petal Afterglow",
+      "description": "Approved dark sakura lake scene: night-plum/rose sky, blossoms framing edges, torii LEFT, Fuji and Tokyo tower RIGHT, low sun and reflections. Warm-white main labels, pale mauve secondary labels, pink accents. Keep original scene placement."
+    }
+  ],
+  "pages": [
+    {
+      "id": "00-home",
+      "title": "Home — approved BH reference",
+      "issues": [
+        1,
+        5
+      ],
+      "images": {
+        "AM": {
+          "file": "00-home/am.png",
+          "sha256": "8bf9aa9cdbc9354aba565429d89c200aee95cd98228b8e8682a2a7b165a56d12",
+          "bytes": 1190257
+        },
+        "AQ": {
+          "file": "00-home/aq.png",
+          "sha256": "3c75bb643a44efe0c30d72319d655d37105c2967c568bde1cbadd3a711014e67",
+          "bytes": 1409508
+        },
+        "AH": {
+          "file": "00-home/ah.png",
+          "sha256": "195f746a9b2ef878700fdd98ef3f200729ca4b6d49e5c026bfa02a902b9f1533",
+          "bytes": 2267735
+        },
+        "AL": {
+          "file": "00-home/al.png",
+          "sha256": "9e7fa4da6bfdf4bb4c5b8a9c36ca03a1df313cfd61dc2d5072cd575848910ea9",
+          "bytes": 2162537
+        }
+      }
+    },
+    {
+      "id": "01-sign-in",
+      "title": "Sign in",
+      "issues": [
+        7
+      ],
+      "images": {
+        "AM": {
+          "file": "01-sign-in/am.png",
+          "sha256": "81ad9ac81e3f1116cafff27702a0ed3116bb0d571e2b1a163632dd6f8063f07a",
+          "bytes": 1114581
+        },
+        "AQ": {
+          "file": "01-sign-in/aq.png",
+          "sha256": "5c91d2ba25553ae6836ea41d429798bc2e69203ad08fa10d22f99d9ef7bf8b43",
+          "bytes": 1480200
+        },
+        "AH": {
+          "file": "01-sign-in/ah.png",
+          "sha256": "598c0a009831291f44782ea99a17bf1823c767863e36e48c739e7b6cf4a1c272",
+          "bytes": 2183055
+        },
+        "AL": {
+          "file": "01-sign-in/al.png",
+          "sha256": "eb46d4609093254c4887040249d8d4c7eec631909024d508748f74ea0ab0266d",
+          "bytes": 2131198
+        }
+      }
+    },
+    {
+      "id": "02-create-account",
+      "title": "Create account",
+      "issues": [
+        7
+      ],
+      "images": {
+        "AM": {
+          "file": "02-create-account/am.png",
+          "sha256": "5a2b30d458f9396757d0c153e919d0d41259d8db2d4f306c3e752671740d418b",
+          "bytes": 1143187
+        },
+        "AQ": {
+          "file": "02-create-account/aq.png",
+          "sha256": "672b3f689fadeb9ba937bfa71648f523ada35835cd0fe563819fa4ad703cc38a",
+          "bytes": 1451068
+        },
+        "AH": {
+          "file": "02-create-account/ah.png",
+          "sha256": "6588b59a0e00c5ce8fd38719eae2cbbd02b46193ca96cc456a7a319a599aa729",
+          "bytes": 2162549
+        },
+        "AL": {
+          "file": "02-create-account/al.png",
+          "sha256": "de6bcdc0806e4da6b01cd4ae53e1e64222316ae375c0c00643a2b124549caa0a",
+          "bytes": 2083765
+        }
+      }
+    },
+    {
+      "id": "15-edit-profile",
+      "title": "Profile and personal visuals",
+      "issues": [
+        9
+      ],
+      "images": {
+        "AM": {
+          "file": "15-edit-profile/am.png",
+          "sha256": "6fd93d37d13c35db2bc06ff367d5b57ca381f5c718bab398306c719ed307f609",
+          "bytes": 1399925
+        },
+        "AQ": {
+          "file": "15-edit-profile/aq.png",
+          "sha256": "3cb7490eb44d9ca93aca178f9a56f0eda0072fca8ec9646b4aa61b39abce99a8",
+          "bytes": 1644473
+        },
+        "AH": {
+          "file": "15-edit-profile/ah.png",
+          "sha256": "e9067b25082ac986bbfd4e78e9efa47890f6f38e1f37e82c807c517f56cc574c",
+          "bytes": 2254807
+        },
+        "AL": {
+          "file": "15-edit-profile/al.png",
+          "sha256": "faf371f64a71abfd3c93c929efd59978d43c8101c28d21853d4e61c1e53d5cb8",
+          "bytes": 2192380
+        }
+      }
+    },
+    {
+      "id": "16-preferences",
+      "title": "Preferences",
+      "issues": [
+        10
+      ],
+      "images": {
+        "AM": {
+          "file": "16-preferences/am.png",
+          "sha256": "711afaf7bbdc7b1059a404957985de40591ddba2d98f6bc3083b20967058ffc3",
+          "bytes": 1184691
+        },
+        "AQ": {
+          "file": "16-preferences/aq.png",
+          "sha256": "e94a9423af1f8ba67e444c50ab92d490eb44f940147042e1c2dd1de6826e510a",
+          "bytes": 1528252
+        },
+        "AH": {
+          "file": "16-preferences/ah.png",
+          "sha256": "a024ef7ef320d13934389e50d427fe294e21a132b70f893f51ffefd8c6e87af5",
+          "bytes": 2164990
+        },
+        "AL": {
+          "file": "16-preferences/al.png",
+          "sha256": "bf08afe2056d1a586862ee972c93ffff7956db3c883199f66a0ab608f2c07603",
+          "bytes": 2156132
+        }
+      }
+    },
+    {
+      "id": "17-account-security",
+      "title": "Password and session security",
+      "issues": [
+        9
+      ],
+      "images": {
+        "AM": {
+          "file": "17-account-security/am.png",
+          "sha256": "b403a508a43ef77996648d19edaeb8e51226536790955360afe0e6d5f625aed2",
+          "bytes": 1236151
+        },
+        "AQ": {
+          "file": "17-account-security/aq.png",
+          "sha256": "22db8732b1b5eef316214511ae7cf07f026c28651f5461f1eb07bc754a66a9ac",
+          "bytes": 1508177
+        },
+        "AH": {
+          "file": "17-account-security/ah.png",
+          "sha256": "d3ef129cfe61e621c2d31954f3502985a4b5c259027e66e23a6db5e101b56c8d",
+          "bytes": 2054752
+        },
+        "AL": {
+          "file": "17-account-security/al.png",
+          "sha256": "10aab7895d98e1102e476a0f40e742435adda48d6f0528098a0fff3f36ee5ed5",
+          "bytes": 2046746
+        }
+      }
+    }
+  ]
+}
