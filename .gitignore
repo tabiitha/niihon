@@ -61,10 +61,14 @@ xcuserdata/
 *.blend[0-9]
 *.blend[0-9][0-9]
 
-# Local agent configuration and contribution guidelines
-/.codex/
-/.github/
-/AGENTS.md
-/GIT_RULES.md
+# Publish shared agent configuration and the PR template; keep local additions private.
+/.codex/*
+!/.codex/README.md
+!/.codex/config.toml
+!/.codex/agents/
+/.codex/agents/*
+!/.codex/agents/*.toml
+/.github/*
+!/.github/pull_request_template.md
 
 # .sqlx/, migrations, fixtures and asset sources stay versionable.

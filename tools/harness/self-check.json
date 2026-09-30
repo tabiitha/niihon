@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "scope": "harness",
+  "issue": "no-issue",
+  "goal": "Verify the development evidence harness, without validating or implementing the Niihon application.",
+  "criteria": [
+    { "id": "H1", "description": "Source and specification changes invalidate prior evidence", "checkIds": ["harness-tests"] },
+    { "id": "H2", "description": "Failures, missing tools, and missing criteria cannot silently pass", "checkIds": ["harness-tests"] },
+    { "id": "H3", "description": "Logs, process timeouts, and cancellation have tested bounds", "checkIds": ["harness-tests"] },
+    { "id": "H4", "description": "Evidence records commands without fabricating reviewer approval", "checkIds": ["harness-tests"] }
+  ],
+  "checks": [
+    {
+      "id": "harness-tests",
+      "required": true,
+      "configured": true,
+      "argv": ["node", "--test", "tools/harness/harness.test.mjs"],
+      "cwd": ".",
+      "requires": ["tools/harness/harness.mjs", "tools/harness/harness.test.mjs"],
+      "timeoutMs": 30000,
+      "maxLogBytes": 65536
+    }
+  ]
+}
