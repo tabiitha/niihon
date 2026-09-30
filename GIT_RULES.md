@@ -1,4 +1,4 @@
-# Git Rules — Niihon
+# Git Rules — Nihon
 
 These rules apply to all contributors and agents. Preserve existing published history, including legacy `[ADD]: ...` commits.
 
@@ -8,7 +8,7 @@ Use English for branch names, complete commit messages, PR titles, review commen
 
 Follow [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/) and [GitHub flow](https://docs.github.com/en/get-started/using-github/github-flow): a short-lived branch, a PR targeting `main`, review, then merge.
 
-English, mandatory scopes, the length limit, and branch naming below are Niihon policies. Conventional Commits does not standardize branch names or PR descriptions.
+English, mandatory scopes, the length limit, and branch naming below are Nihon policies. Conventional Commits does not standardize branch names or PR descriptions.
 
 | Item | Required format | Example |
 | --- | --- | --- |
@@ -55,7 +55,7 @@ that the local process responds.
 Refs: #2
 ```
 
-For a breaking change to an existing contract, Niihon requires both `type(scope)!: description` and a `BREAKING CHANGE: ...` footer explaining impact and migration. For a reversal, use `revert(scope): revert ...` and identify the reverted SHA in the body.
+For a breaking change to an existing contract, Nihon requires both `type(scope)!: description` and a `BREAKING CHANGE: ...` footer explaining impact and migration. For a reversal, use `revert(scope): revert ...` and identify the reverted SHA in the body.
 
 ## Branch Names
 
@@ -106,7 +106,7 @@ The [Protect main ruleset](https://github.com/Bryan-da-silvaa/niihon/rules/23107
 
 GitHub requires at least **one approving review**. Approvals are dismissed when new reviewable commits change the diff. An eligible GitHub reviewer other than the PR author must approve; a local agent report alone does not count. The ruleset does not mandate a specific reviewer identity and does not require CI checks yet. Additional maintainer integration checks are managed separately; contributors do not need to reproduce the maintainer's local AI setup. Recheck current protection and outstanding reviews before integration.
 
-The `nihon-ia` GitHub App is installed on this repository. The maintainer's Codex agents share `nihon-ia[bot]` and use the locally configured `codex-github` launcher for their commits and Git/GitHub network operations. Other contributors use their own identities. The launcher supplies repository-scoped installation credentials and bot commit metadata without changing personal Git/GitHub settings. See the [authentication guide](docs/engineering/GITHUB_IDENTITY.md). Maintainer automation must not fall back to the owner's CLI credentials or an owner-authenticated connector. The shared bot cannot approve its own PR. Counted approval eligibility must still be verified on an actual owner-authored PR; installing the App alone does not prove that a review satisfies protection. See [GitHub review requirements](https://docs.github.com/en/pull-requests/how-tos/review-pull-requests/approving-a-pull-request-with-required-reviews).
+The `nihon-ia` GitHub App is installed on this repository. The maintainer's Codex agents share `nihon-ia[bot]` and use the locally configured `nihon-github` launcher for their commits and Git/GitHub network operations. Other contributors use their own identities. The launcher supplies repository-scoped installation credentials and bot commit metadata without changing personal Git/GitHub settings. See the [authentication guide](docs/engineering/GITHUB_IDENTITY.md). Maintainer automation must not fall back to the owner's CLI credentials or an owner-authenticated connector. The shared bot cannot approve its own PR. Counted approval eligibility must still be verified on an actual owner-authored PR; installing the App alone does not prove that a review satisfies protection. See [GitHub review requirements](https://docs.github.com/en/pull-requests/how-tos/review-pull-requests/approving-a-pull-request-with-required-reviews).
 
 ## Applying These Rules
 

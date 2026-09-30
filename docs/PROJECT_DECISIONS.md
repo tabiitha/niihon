@@ -4,7 +4,7 @@ Originally recorded on **2026-09-26**, updated on **2026-09-30** for the owner's
 
 ## Authority and Scope
 
-Niihon should demonstrate professional delivery and maintainability for the owner's freelance career while remaining a locally deployed product.
+Nihon should demonstrate professional delivery and maintainability for the owner's freelance career while remaining a locally deployed product.
 
 These decisions supersede older Rust/Unreal, Next.js, game, macOS-only, and optional-development-only Docker assumptions. Read the historical `NIIHON_PASSATION.md` for unchanged functional context, then apply these corrections. Existing GitHub issues remain the detailed task inventory; obsolete stack, platform, and game assumptions must be reconciled before affected work starts. This documentation update does not update GitHub issues.
 
@@ -26,7 +26,7 @@ Reconcile obsolete stack requirements and game-related dependencies before imple
 
 The owner authorized adding optional Google/GitHub OAuth registration and sign-in to the existing authentication backlog, plus an optional ChatGPT connection for future AI. This supersedes the historical social-login exclusion. Local username/password access and core learning remain usable offline; external authentication and remote AI require Internet.
 
-Keep one local Niihon profile and backend-owned opaque sessions. Never merge profiles automatically by email or grant administrator rights from provider claims. Account linking requires verified ownership and reauthentication; prevent removal of the last usable sign-in method and allow an OAuth-created account to establish a local password for offline access.
+Keep one local Nihon profile and backend-owned opaque sessions. Never merge profiles automatically by email or grant administrator rights from provider claims. Account linking requires verified ownership and reauthentication; prevent removal of the last usable sign-in method and allow an OAuth-created account to establish a local password for offline access.
 
 ChatGPT identity and authorization to use an eligible ChatGPT plan are separate. Connecting AI does not silently replace the active profile or add a login method. Validate eligibility, consent, loopback callbacks, and distribution terms against the current official local/open-source documentation before implementation. No AI learning feature, model, prompt, billing mechanism, or authentication library is selected by this decision.
 
@@ -74,7 +74,7 @@ Provide a short, verified installation path and versioned releases. Explain requ
 Build reusable components progressively with the implemented features. Document:
 
 - Semantic color roles, typography for Latin and Japanese text, spacing, shapes, icon conventions, and readable content surfaces.
-- Primary and secondary actions, form controls, badges, tabs, dialogs, notifications, and paginated lists, followed by Niihon-specific learning and media components.
+- Primary and secondary actions, form controls, badges, tabs, dialogs, notifications, and paginated lists, followed by Nihon-specific learning and media components.
 - Relevant states: default, hover, keyboard focus, pressed, loading, disabled, error, success, empty, and recovery. Prevent accidental repeat activation and preserve layout and user input while work is pending; the Express.js backend owns mutation guarantees.
 - Responsive layouts, translated labels, text enlargement, keyboard navigation, assistive-technology behavior, and a WCAG 2.2 AA accessibility target to verify on the implementation.
 - Animation purpose, timing, interruption, reduced-motion behavior, and suspension of unnecessary decorative activity when hidden. Preserve the chosen visual identity without delaying input or moving controls during activation.

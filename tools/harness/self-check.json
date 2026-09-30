@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "scope": "harness",
   "issue": "no-issue",
-  "goal": "Verify the development evidence harness, without validating or implementing the Niihon application.",
+  "goal": "Verify the development evidence harness, without validating or implementing the Nihon application.",
   "criteria": [
     { "id": "H1", "description": "Source and specification changes invalidate prior evidence", "checkIds": ["harness-tests"] },
     { "id": "H2", "description": "Failures, missing tools, and missing criteria cannot silently pass", "checkIds": ["harness-tests"] },

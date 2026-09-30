@@ -12,7 +12,7 @@ node tools/harness/harness.mjs snapshot
 node tools/harness/harness.mjs run tools/harness/self-check.json
 ```
 
-The self-check tests the harness in temporary repositories. Its green result says nothing about Niihon application readiness. `doctor` reports Bun and application-manifest presence, not a validated build or successful subagent launch. Node commands here are developer-tool commands; Bun's application role remains unchanged.
+The self-check tests the harness in temporary repositories. Its green result says nothing about Nihon application readiness. `doctor` reports Bun and application-manifest presence, not a validated build or successful subagent launch. Node commands here are developer-tool commands; Bun's application role remains unchanged.
 
 ## Issue-Specific Checks
 

@@ -1,6 +1,6 @@
 # Resume After Interruption
 
-Resume the original Niihon task using <task packet/checkpoint path>. My latest steering is <instruction or unchanged>. Preserve prior authorization and constraints.
+Resume the original Nihon task using <task packet/checkpoint path>. My latest steering is <instruction or unchanged>. Preserve prior authorization and constraints.
 
 Inspect current Git state, the issue revision, task packet, run reports, and any still-running/partially executed commands. Reconcile them before repeating an operation. Recover the Goal, non-goals, file ownership, last verified version, unresolved findings, and next bounded action.
 

@@ -1,6 +1,6 @@
 # Repository Guidelines
 
-Niihon is a local Japanese-learning product for Windows, Linux, and macOS. These requirements apply regardless of contributor tooling; AI use, models, and delegation are optional.
+Nihon is a local Japanese-learning product for Windows, Linux, and macOS. These requirements apply regardless of contributor tooling; AI use, models, and delegation are optional.
 
 ## Project Structure and Architecture
 

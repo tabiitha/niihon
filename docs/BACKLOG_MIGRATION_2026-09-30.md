@@ -1,6 +1,6 @@
 # Backlog Stack Migration and Game Pause
 
-Verified on **2026-09-30** after the owner's explicit authorization. All GitHub operations used `nihon-ia[bot]` through the Niihon launcher. This maintenance implements no application feature and creates no new issues.
+Verified on **2026-09-30** after the owner's explicit authorization. All GitHub operations used `nihon-ia[bot]` through the Nihon launcher. This maintenance implements no application feature and creates no new issues.
 
 ## Outcome
 

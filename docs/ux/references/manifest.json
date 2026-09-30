@@ -1,5 +1,5 @@
 {
-  "title": "Niihon — BH Web Page Studies",
+  "title": "Nihon — BH Web Page Studies",
   "generated": "2026-09-25",
   "mode": "Built-in Imagegen; reference-based raster mockups",
   "new_screens": 26,
@@ -72,7 +72,7 @@
         75,
         76
       ],
-      "brief": "Compact centered open sign-in form, small blossom Niihon at top left and Create account text link top right, no authenticated navigation. Heading Welcome back; text Your Japanese practice, on this Mac. Username field tabitha; Password masked with reveal icon; pink pill Sign in with right arrow; plain Create an account link; local-account note. No email, social sign-in, cloud sync, forgot-password email link, or public profile selector.",
+      "brief": "Compact centered open sign-in form, small blossom Nihon at top left and Create account text link top right, no authenticated navigation. Heading Welcome back; text Your Japanese practice, on this Mac. Username field tabitha; Password masked with reveal icon; pink pill Sign in with right arrow; plain Create an account link; local-account note. No email, social sign-in, cloud sync, forgot-password email link, or public profile selector.",
       "category": "Access",
       "images": {
         "AM": {
@@ -633,7 +633,7 @@
         20,
         153
       ],
-      "brief": "Page Reset learning with a concise serious confirmation, matching elegant Niihon typography and sparse layout. Clearly contrasted lists under Will be reset: Practice sessions and answers; History and statistics; Review schedules and kana mastery; Game learning progress. Under Will be kept: Account and preferences; Saved vocabulary; Library, tags and media; Playback positions; Garden and cosmetics. Final pink-danger Reset learning button and equally legible Cancel text; no prechecked confirmation. No delete-account claims and no loss of library. Render as a full focused confirmation within settings, not multiple overlapping dialogs.",
+      "brief": "Page Reset learning with a concise serious confirmation, matching elegant Nihon typography and sparse layout. Clearly contrasted lists under Will be reset: Practice sessions and answers; History and statistics; Review schedules and kana mastery; Game learning progress. Under Will be kept: Account and preferences; Saved vocabulary; Library, tags and media; Playback positions; Garden and cosmetics. Final pink-danger Reset learning button and equally legible Cancel text; no prechecked confirmation. No delete-account claims and no loss of library. Render as a full focused confirmation within settings, not multiple overlapping dialogs.",
       "category": "Profile & settings",
       "images": {
         "AM": {
@@ -864,7 +864,7 @@
         151,
         152
       ],
-      "brief": "Admin > Maintenance. Page Backup & restore. Two structured calm horizontal sections, Make a backup showing Includes all local profiles, media and learning data, plus garden and cosmetics; Create backup pink pill. Restore a backup shows Choose backup file, selected niihon-backup.zip, validation status Ready to restore, summary2profiles ·12media, required content packs shown available. Explicit warning Restoring replaces this entire installation and signs everyone out. Restore backup secondary outline and Cancel. Separate validation before restore visually clear. No cloud destinations, schedule options, SQL controls or OS path fields.",
+      "brief": "Admin > Maintenance. Page Backup & restore. Two structured calm horizontal sections, Make a backup showing Includes all local profiles, media and learning data, plus garden and cosmetics; Create backup pink pill. Restore a backup shows Choose backup file, selected nihon-backup.zip, validation status Ready to restore, summary2profiles ·12media, required content packs shown available. Explicit warning Restoring replaces this entire installation and signs everyone out. Restore backup secondary outline and Cancel. Separate validation before restore visually clear. No cloud destinations, schedule options, SQL controls or OS path fields.",
       "category": "Maintenance & recovery",
       "images": {
         "AM": {

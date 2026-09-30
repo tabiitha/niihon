@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import { compareReport, run, runCheck, snapshot, summarize, validateSpec } from './harness.mjs';
 
 async function fixture(t) {
-  const root = await mkdtemp(resolve(tmpdir(), 'niihon-harness-'));
+  const root = await mkdtemp(resolve(tmpdir(), 'nihon-harness-'));
   t.after(() => rm(root, { recursive: true, force: true }));
   const git = (...args) => {
     const result = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8' });
@@ -79,7 +79,7 @@ test('missing files and executables remain unavailable instead of being reported
   const { root } = await fixture(t);
   const missingFile = await runCheck(root, check({ requires: ['absent.json'] }), resolve(root, 'missing.log'));
   assert.equal(missingFile.status, 'unavailable');
-  const missingCommand = await runCheck(root, check({ argv: ['niihon-nonexistent-fixture-command'] }), resolve(root, 'command.log'));
+  const missingCommand = await runCheck(root, check({ argv: ['nihon-nonexistent-fixture-command'] }), resolve(root, 'command.log'));
   assert.equal(missingCommand.status, 'unavailable');
 });
 

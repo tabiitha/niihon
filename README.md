@@ -1,6 +1,6 @@
-# Niihon
+# Nihon
 
-Niihon is a local Japanese-learning product targeting Windows, Linux, and macOS. The backend exposes an Express.js/TypeScript REST API on Node.js, with Prisma and SQLite. React and native Swift/SwiftUI consume the same HTTP/JSON contract. The Web client uses TypeScript, HTML, and CSS. Bun handles dependencies and build scripts; Docker packages the backend and Web delivery. Swift/SwiftUI remains native to macOS.
+Nihon is a local Japanese-learning product targeting Windows, Linux, and macOS. The backend exposes an Express.js/TypeScript REST API on Node.js, with Prisma and SQLite. React and native Swift/SwiftUI consume the same HTTP/JSON contract. The Web client uses TypeScript, HTML, and CSS. Bun handles dependencies and build scripts; Docker packages the backend and Web delivery. Swift/SwiftUI remains native to macOS.
 
 Rust and Unreal are removed from the active stack. Games are deferred and excluded from the current application scope.
 

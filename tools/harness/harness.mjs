@@ -253,7 +253,7 @@ export async function doctor(root) {
     guidance: { agents: await exists('AGENTS.md'), decisions: await exists('docs/PROJECT_DECISIONS.md'), roles: await exists('.codex/agents') },
     application: await exists('apps/api/package.json') ? 'manifest_present_commands_must_be_qualified' : 'not_configured',
     subagents: 'Configuration presence does not establish runtime discovery or a successful independent review.',
-    identity: 'Niihon contributions require codex-github; this harness makes no GitHub calls.',
+    identity: 'Nihon contributions require nihon-github; this harness makes no GitHub calls.',
   };
 }
 

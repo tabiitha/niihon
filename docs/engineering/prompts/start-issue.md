@@ -1,6 +1,6 @@
 # Start an Issue
 
-Work on existing Niihon issue #<number> only. My intended outcome is <outcome>; priority is <priority>. My current authorization is <inspect / implement / additionally publish>, with these constraints: <constraints>.
+Work on existing Nihon issue #<number> only. My intended outcome is <outcome>; priority is <priority>. My current authorization is <inspect / implement / additionally publish>, with these constraints: <constraints>.
 
 Read AGENTS.md, the accepted decisions, current issue/dependencies, and docs/engineering/. Inspect Git and preserve unrelated work. Prepare a local task packet with one responsibility, Goal, non-goals, allowed files, and an acceptance-to-evidence map. Qualify actual commands; do not invent application scripts.
 
