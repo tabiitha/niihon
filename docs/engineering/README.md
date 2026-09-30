@@ -7,7 +7,7 @@ Niihon's development harness combines durable context, bounded verification tool
 | Need | Entry point |
 | --- | --- |
 | Architecture, scope, and decisions | [Accepted decisions](../PROJECT_DECISIONS.md) |
-| Model routing and agent responsibilities | [Existing agent workflow](../../.codex/README.md) |
+| Optional personal AI setup | [Local workflow boundary](LOCAL_AI_WORKFLOW.md) |
 | Tools and evidence semantics | [Harness guide](HARNESS.md) |
 | Prompt-driven iteration and recovery | [Loop guide](LOOP.md) |
 | One bounded issue assignment | [Task packet](templates/task-packet.md) |
@@ -18,7 +18,7 @@ Niihon's development harness combines durable context, bounded verification tool
 
 The repository has no runnable Niihon application yet. The harness itself can be tested now with Node and Git; no dependency installation, OpenAI API key, or background automation is needed. Product build, type-check, lint, runtime tests, and performance fixtures must be established by their owning issues. Bun remains the accepted project tooling and was unavailable on the preparation machine; this does not change the stack.
 
-`tools/harness/`, this documentation, `AGENTS.md`, `GIT_RULES.md`, the shared `.codex/` configuration/roles, and the PR template are versioned for reuse from a fresh clone. Generated runs and task state stay in the ignored `.local/harness/`; additional local Codex settings and GitHub workflow files remain ignored. Bot credentials and its launcher are external prerequisites, described in the [identity guide](GITHUB_IDENTITY.md). Configuration presence does not prove runtime discovery or authorize implementation/publication.
+`tools/harness/`, this documentation, `AGENTS.md`, `GIT_RULES.md`, and the PR template are versioned for reuse from a fresh clone. Generated runs and task state stay in ignored `.local/harness/`. The entire `.codex/` directory is personal, ignored, and optional; the shared guides impose no model, named-role, or subagent-count requirement. GitHub workflow files remain ignored until their owning CI issue. The maintainer bot launcher and credentials are external prerequisites only for that automation, as described in the [identity guide](GITHUB_IDENTITY.md). Configuration presence does not prove runtime discovery or authorize implementation/publication.
 
 ## Sources and Interpretation
 

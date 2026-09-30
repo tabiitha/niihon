@@ -35,7 +35,7 @@ Use these lowercase types:
 | `chore` | Repository or tooling maintenance outside the other categories |
 | `revert` | Explicit reversal of a change |
 
-Choose one scope matching the primary responsibility: `core`, `server`, `db`, `api`, `web`, `macos`, `assets`, `packaging`, `ci`, `deps`, `repo`, or `agents`. Use `repo` for shared conventions and `agents` for `.codex/`. Games are deferred; do not use `games` for active implementation. Add a scope only when none fits, updating this list.
+Choose one scope matching the primary responsibility: `core`, `server`, `db`, `api`, `web`, `macos`, `assets`, `packaging`, `ci`, `deps`, `repo`, or `agents`. Use `repo` for shared conventions and `agents` for shared AI guidance or tooling. Active `.codex/` configuration is personal and ignored. Games are deferred; do not use `games` for active implementation. Add a scope only when none fits, updating this list.
 
 ## Commit Messages
 
@@ -90,20 +90,11 @@ Place the issue reference once in a shared footer after `</details>`. Use `Close
 
 Before publication, inspect `git status --short`, the working diff, and `git diff --cached`. Stage the relevant files explicitly; preserve other contributors' changes and exclude secrets and generated files.
 
-Apply these review requirements to every PR, including documentation changes:
+Every PR needs an independent review of its final diff and one eligible formal GitHub approval from someone other than the PR author. Record the reviewed SHA, findings, executed/skipped checks, and actual approval evidence. A local report or an implementation author's self-check does not count as a formal approval. Resolve blocking findings and refresh affected checks and reviews after changes.
 
-| Contribution author | Required reviewers before merging |
-| --- | --- |
-| Owner working personally (`tabitha/`) | `reviewer_final` must independently review and approve the final diff. |
-| Codex or another AI (`codex/`) | The owner must personally review and approve, and independent `reviewer_final` must review and approve the final diff. Both are mandatory. |
+The maintainer arranges additional integration reviews, including their personal AI review workflow. Contributors are not required to install Codex, select particular models, use named agents, or impose a concurrency limit. For AI-authored contributions, the maintainer reviews and approves personally; record authorship honestly and leave outstanding maintainer checks pending. Branch prefixes do not establish authorship or approval eligibility. Never publish an approval on someone else's behalf.
 
-Record the `reviewer_final` verdict and reviewed SHA for either route. For AI-authored PRs, also record the owner's personal approval and its evidence; a positive AI verdict alone is insufficient. Wait for all required reviews and resolve blocking findings before merging, even if GitHub already enables the merge button. The orchestrator coordinates implementation, collects evidence, and integrates changes; its summary is not an independent review and cannot replace either required reviewer.
-
-GitHub still requires only one eligible formal approval from an identity other than the PR author. For owner-authored PRs, publish the actual `reviewer_final` verdict under a separate eligible reviewer identity to satisfy that minimum. For PRs published under an AI identity, the owner's personal GitHub approval can satisfy the minimum, with the independent AI verdict recorded alongside it; a second formal GitHub approval is not required by the ruleset. A local AI report alone does not count as a GitHub approval.
-
-Select the review route from who authored the contribution and verify the actual GitHub PR author for approval eligibility. Branch prefixes do not establish identity. AI work published with the owner's credentials still requires both reviews; do not use that credential mismatch to waive the owner's review or submit a self-approval. Resolve identity and eligibility issues before treating the approval workflow as complete.
-
-Follow the validation workflow in [AGENTS.md](AGENTS.md) and [.codex/README.md](.codex/README.md). Resolve blocking findings and refresh affected checks and reviews before merging. Record the reviewed SHA, findings, and actual approval evidence. Never publish an approval on the owner's behalf or convert a coder's self-report into an independent approval.
+Follow [AGENTS.md](AGENTS.md) and the [engineering guide](docs/engineering/README.md) for scope and evidence. Automated success does not authorize publication or merge. Keep a PR in draft when required acceptance or integration evidence is missing.
 
 Prefer **Squash and merge** to produce one coherent commit per PR on `main`. Check the proposed message: reuse the conventional PR title and retain useful explanations and footers in English. Exclude the French translation and its HTML wrapper from the squash message. GitHub's `(#PR-number)` suffix is allowed outside the 100-character limit. Message defaults depend on the repository's [squash settings](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/configuring-commit-squashing-for-pull-requests).
 
@@ -113,9 +104,9 @@ Delete the completed topic branch after merging. Correct `main` through a PR con
 
 The [Protect main ruleset](https://github.com/Bryan-da-silvaa/niihon/rules/23107348) is active for `refs/heads/main`. It requires a PR for changes and blocks force pushes and branch deletion. The bypass list is empty, including for administrators and integrations.
 
-GitHub requires at least **one approving review**. Approvals are dismissed when new reviewable commits change the diff. An eligible GitHub reviewer other than the PR author must approve; a local agent report alone does not count. The ruleset does not mandate a specific reviewer identity and does not require CI checks yet. It does not enforce the author-dependent review policy above: the orchestrator must check the required AI verdict and, for AI-authored PRs, the owner's personal approval before merging. This conditional requirement is currently enforced through local workflow instructions, not an automated GitHub check.
+GitHub requires at least **one approving review**. Approvals are dismissed when new reviewable commits change the diff. An eligible GitHub reviewer other than the PR author must approve; a local agent report alone does not count. The ruleset does not mandate a specific reviewer identity and does not require CI checks yet. Additional maintainer integration checks are managed separately; contributors do not need to reproduce the maintainer's local AI setup. Recheck current protection and outstanding reviews before integration.
 
-The `nihon-codex` GitHub App is installed on this repository. All Codex agents share `nihon-codex[bot]`; use the locally configured `codex-github` launcher for AI commits and Git/GitHub network operations. The launcher supplies repository-scoped installation credentials and bot commit metadata without changing personal Git/GitHub settings. See the [authentication guide](docs/engineering/GITHUB_IDENTITY.md). Do not publish through the owner's CLI credentials or a connector authenticated as the owner. The shared bot cannot approve its own PR. Counted approval eligibility must still be verified on an actual owner-authored PR; installing the App alone does not prove that a review satisfies protection. See [GitHub review requirements](https://docs.github.com/en/pull-requests/how-tos/review-pull-requests/approving-a-pull-request-with-required-reviews).
+The `nihon-codex` GitHub App is installed on this repository. The maintainer's Codex agents share `nihon-codex[bot]` and use the locally configured `codex-github` launcher for their commits and Git/GitHub network operations. Other contributors use their own identities. The launcher supplies repository-scoped installation credentials and bot commit metadata without changing personal Git/GitHub settings. See the [authentication guide](docs/engineering/GITHUB_IDENTITY.md). Maintainer automation must not fall back to the owner's CLI credentials or an owner-authenticated connector. The shared bot cannot approve its own PR. Counted approval eligibility must still be verified on an actual owner-authored PR; installing the App alone does not prove that a review satisfies protection. See [GitHub review requirements](https://docs.github.com/en/pull-requests/how-tos/review-pull-requests/approving-a-pull-request-with-required-reviews).
 
 ## Applying These Rules
 

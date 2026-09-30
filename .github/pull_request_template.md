@@ -26,21 +26,18 @@ Put the actual issue reference in the shared footer after the French section. --
 - Verified commit: <!-- SHA; identify any additional uncommitted diff. -->
 - Contribution author and GitHub PR author: <!-- Owner working personally or Codex/AI; actual GitHub login. Explain any mismatch. -->
 - Required GitHub approval: <!-- One eligible reviewer other than the PR author and review URL, or pending. The owner approves personally when acting as reviewer. -->
-- Independent AI review: <!-- Required for every PR: reviewer_final verdict, report and SHA; GitHub review URL if published. -->
+- Independent review: <!-- Actual reviewer, verdict, report and reviewed SHA; pending until evidenced. -->
+- Maintainer integration checks: <!-- Completed or pending; additional AI reviews are arranged by the maintainer, not a contributor setup requirement. -->
 - Owner review and approval: <!-- Required for Codex/AI contributions: personal approval evidence and reviewed SHA, or pending. For the owner's own work: Not applicable — owner-authored contribution. -->
 
 | Command or Scenario | Observed Result |
 | --- | --- |
 | Replace with an actual check | Passed, failed, or not run with a reason |
 
-<!-- Owner-authored contribution: reviewer_final must review and approve the final diff.
-Codex/AI-authored contribution: both the owner personally and independent reviewer_final must review and approve.
-Wait for all required reviews, even if GitHub enables merging after its single required formal approval.
-For owner-authored PRs, the AI verdict must be published as an eligible formal approval under a separate reviewer identity.
-For PRs published under an AI identity, the owner's GitHub approval can satisfy the minimum alongside the AI report.
-Verify the actual GitHub PR author for approval eligibility; prefixes do not establish identity.
-AI work published with owner credentials still requires both reviews. Local reports alone do not count as GitHub approvals.
-Identify missing checks and approvals. Never mark a pending review as approved. -->
+<!-- Resolve blocking findings and required maintainer checks before merge.
+One eligible formal GitHub approval is required; local reports alone do not count.
+AI-authored work also needs the maintainer's personal approval.
+Contributors may use any tools or no AI; never invent a review or approval. -->
 
 ## Performance
 
@@ -78,22 +75,18 @@ Conserver les chemins, identifiants et valeurs à l'identique. -->
 - Commit vérifié : <!-- Même SHA ; préciser le même diff non commité supplémentaire. -->
 - Auteur de la contribution et auteur de la PR GitHub : <!-- Propriétaire travaillant personnellement ou Codex/IA ; identifiant GitHub réel. Expliquer toute différence. -->
 - Approbation GitHub requise : <!-- Un reviewer éligible distinct de l'auteur de la PR et lien de la revue, ou en attente. Le propriétaire approuve personnellement lorsqu'il intervient comme reviewer. -->
-- Revue IA indépendante : <!-- Obligatoire pour toute PR : même verdict, rapport de reviewer_final et SHA ; lien de la revue GitHub si publiée. -->
+- Revue indépendante : <!-- Reviewer réel, même verdict, rapport et SHA relu ; en attente sans preuve. -->
+- Contrôles d’intégration du mainteneur : <!-- Terminés ou en attente ; les revues IA supplémentaires sont organisées par le mainteneur, sans imposer sa configuration aux contributeurs. -->
 - Revue et approbation du propriétaire : <!-- Obligatoires pour les contributions Codex/IA : preuve de l'approbation personnelle et SHA relu, ou en attente. Pour le travail personnel du propriétaire : Sans objet — contribution du propriétaire. -->
 
 | Commande ou scénario | Résultat observé |
 | --- | --- |
 | Reprendre le même contrôle | Réussi, échec ou non exécuté avec la même raison |
 
-<!-- Contribution du propriétaire : reviewer_final doit relire et approuver le diff final.
-Contribution de Codex/IA : le propriétaire personnellement et reviewer_final indépendant doivent tous deux relire et approuver.
-Attendre toutes les revues requises, même si GitHub autorise la fusion après son unique approbation formelle obligatoire.
-Pour les PR du propriétaire, le verdict IA doit être publié comme approbation formelle éligible sous une identité de reviewer distincte.
-Pour les PR publiées sous une identité IA, l'approbation GitHub du propriétaire peut satisfaire le minimum avec le rapport IA.
-Vérifier l'auteur réel de la PR GitHub pour l'éligibilité des approbations ; les préfixes ne prouvent pas l'identité.
-Le travail IA publié avec les identifiants du propriétaire exige toujours les deux revues. Les rapports locaux seuls ne comptent pas comme approbations GitHub.
-Reprendre les contrôles et approbations manquants de la version anglaise.
-Ne jamais présenter une revue en attente comme approuvée. -->
+<!-- Résoudre les constats bloquants et les contrôles requis du mainteneur avant fusion.
+Une approbation GitHub formelle éligible est requise ; les rapports locaux seuls ne comptent pas.
+Le travail produit par IA exige aussi l'approbation personnelle du mainteneur.
+Les contributeurs peuvent choisir leurs outils ou ne pas utiliser d'IA ; ne jamais inventer une revue ou approbation. -->
 
 ## Performance
 

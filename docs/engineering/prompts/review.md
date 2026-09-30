@@ -1,6 +1,6 @@
 # Review the Final Version
 
-Independently review existing issue #<number> against <commit SHA / precise dirty-tree fingerprint>, its diff, current acceptance map, task packet, and verification reports. Run in the read-only reviewer role; do not change files or publish a GitHub review.
+Independently review existing issue #<number> against <commit SHA / precise dirty-tree fingerprint>, its diff, current acceptance map, task packet, and verification reports. Keep this review read-only; do not change files or publish a GitHub review.
 
 Inspect source and original evidence directly. Verify scope, observable behavior, failure/recovery paths, backend/client authority, applicable resource limits, test quality, and correspondence to the version reviewed. Check for missing runtime/manual/performance evidence; configuration or a coder's report is not proof of execution.
 

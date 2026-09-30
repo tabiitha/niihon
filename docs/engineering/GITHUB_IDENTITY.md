@@ -2,9 +2,9 @@
 
 ## Repository Scope
 
-Identify Niihon by its Git remote: `Bryan-da-silvaa/niihon`. For this repository and its worktrees, all Codex agents contribute as `nihon-codex[bot]`. Other repositories follow their own authentication rules.
+Identify Niihon by its Git remote: `Bryan-da-silvaa/niihon`. For this repository and its worktrees, the maintainer's Codex agents contribute as `nihon-codex[bot]`. Other contributors use their own identities and do not need the maintainer's launcher or App credentials. Other repositories follow their own authentication rules.
 
-Use the maintainer-provided `codex-github` launcher for agent-authored commits, Git network operations, and GitHub CLI/API operations. It supplies repository-scoped GitHub App installation credentials and bot commit metadata without changing personal Git/GitHub settings. It is an authentication adapter, not publication authorization or a sandbox.
+For maintainer automation, use the locally configured `codex-github` launcher for agent-authored commits, Git network operations, and GitHub CLI/API operations. It supplies repository-scoped GitHub App installation credentials and bot commit metadata without changing personal Git/GitHub settings. It is an authentication adapter, not publication authorization or a sandbox.
 
 ## Local Setup
 
@@ -27,6 +27,6 @@ These are examples. Commit, publication, review, and merge require the owner's t
 
 ## Review and Integration
 
-Review roles remain read-only and return actual reports to an authorized orchestrator. The shared bot cannot approve its own PR. AI-authored contributions require independent final review plus the owner's personal approval; owner-authored contributions require independent final review and an eligible formal approval. Verify current protection and approval eligibility before integration. Follow [Git rules](../../GIT_RULES.md); never approve for the owner or bypass protection.
+Reviewers inspect the final version and supply actual evidence. The shared bot cannot approve its own PR. The maintainer arranges additional integration reviews in their local workflow; AI-authored contributions also need their personal approval. Contributors do not need a specific AI tool or model. Verify current protection and formal approval eligibility before integration. Follow [Git rules](../../GIT_RULES.md); never approve for the owner or bypass protection.
 
 See GitHub's documentation for [installation authentication](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/authenticating-as-a-github-app-installation) and [required PR approvals](https://docs.github.com/en/pull-requests/how-tos/review-pull-requests/approving-a-pull-request-with-required-reviews).

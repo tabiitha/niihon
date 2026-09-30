@@ -2,7 +2,7 @@
 
 ## Responsibilities
 
-The harness supplies reliable context and feedback around one existing GitHub issue. `AGENTS.md` is the short routing entry point; accepted decisions hold durable architecture; GitHub holds the task inventory; a local task packet records the current assignment. Existing roles implement and independently verify bounded work. The CLI records automated evidence; it does not dispatch models, call GitHub, publish contributions, or approve a merge.
+The harness supplies reliable context and feedback around one existing GitHub issue. `AGENTS.md` is the short routing entry point; accepted decisions hold durable architecture; GitHub holds the task inventory; a local task packet records the current assignment. Contributors implement bounded work and obtain independent review; AI delegation is optional. The CLI records automated evidence; it does not dispatch models, call GitHub, publish contributions, or approve a merge.
 
 Use Node 22 or newer and Git. No npm package or product manifest is required. Run from the checkout:
 
@@ -46,4 +46,4 @@ Limits: 32 checks, 128 criteria, five minutes maximum per check, 1 MiB maximum r
 
 Logs are local and capped, with owner-only permissions on POSIX. Commands must not print secrets or put them in argv; the runner cannot guarantee redaction. Do not commit evidence or alter the live product database to run checks. Snapshot consistency assumes exclusive file ownership while testing; before/after hashing is not an immutable filesystem mount or tamper-proof attestation. Inspect original logs and reports during review.
 
-Preparation tests qualify this tool on the observed macOS/Node environment. Windows/Linux execution, product verification, and actual agent discovery remain separate checks. Preserve existing model selections and the three-subagent limit. If delegation tools are absent, record independent verification as pending; an orchestrator's own check does not become `tester` or `reviewer_final` evidence.
+Preparation tests qualify this tool on the observed macOS/Node environment. Windows/Linux execution and product verification remain separate checks. Optional AI configuration and discovery belong to the user's local setup. If a requested reviewer or tool is unavailable, report the gap; an implementation author's own check never becomes an independent review. The harness works without `.codex/` files, an AI account, or delegation tools.

@@ -12,9 +12,9 @@
 
 - Actual owner instruction and any continuing authorization:
 - Allowed files / existing unrelated changes:
-- Orchestrator, coder, tester, independent reviewer:
-- Specialist assignment and reason, if applicable:
-- Actual delegation availability and observed model/effort; never infer a launch from configuration:
+- Implementation, validation, and independent-review owners:
+- Specialist input and reason, if applicable:
+- Optional AI use: actual delegation availability and observed model/effort; omit when unused and never infer a launch from configuration:
 - Complex test-design owner and exclusively assigned files, if applicable:
 - Delivery implementation owner and fresh-checkout/CI validation owner, if the issue owns delivery:
 - Publication / review / merge authority and pending requirements:
@@ -38,7 +38,7 @@
 - Latest run report and observed output:
 - Completed changes and evidence; skipped checks with reasons:
 - Hypothesis, failures, repair, and review findings:
-- Routing observations: task type, actual model/effort, duration, available resource usage, failed verification iterations, and blocking review findings (unknown values stay unknown):
+- Execution observations: task type, duration, available resource usage, failed verification iterations, and blocking review findings; optionally include actual AI model/effort (unknown values stay unknown):
 - Active commands / processes / partial mutations / safe cleanup:
 - Next bounded action:
 - Independent final review, owner approval, and reviewed SHA: pending until evidenced.
