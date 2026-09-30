@@ -14,7 +14,7 @@ English, mandatory scopes, the length limit, and branch naming below are Nihon p
 | --- | --- | --- |
 | Commit | `type(scope): description` | `feat(server): add the local HTTP server foundation` |
 | Owner branch | `tabitha/<type>/<issue>-<slug>` | `tabitha/feat/2-server-foundation` |
-| Agent branch | `codex/<type>/<issue>-<slug>` | `codex/feat/2-server-foundation` |
+| Agent branch | `nihon-ai/<type>/<issue>-<slug>` | `nihon-ai/feat/2-server-foundation` |
 | PR title | `type(scope): description` | `feat(server): add the local HTTP server foundation` |
 
 ## Types and Scopes
@@ -61,9 +61,9 @@ For a breaking change to an existing contract, Nihon requires both `type(scope)!
 
 Branch from an up-to-date `main`. Use the real issue number without `#`, followed by a short English slug in lowercase ASCII with hyphen-separated words. The type describes the intended PR outcome; individual commits may use different types.
 
-Use `tabitha/` for tasks the owner undertakes personally and `codex/` for tasks assigned to agents. These prefixes identify task ownership only: they do not select credentials, change the PR author, or create a bot identity. When assisting with an existing owner branch, preserve its name and ownership unless the owner requests a handoff. Do not create duplicate branches for the same task by default.
+Use `tabitha/` for tasks the owner undertakes personally and `nihon-ai/` for tasks assigned to agents. These prefixes identify task ownership only: they do not select credentials, change the PR author, or create a bot identity. When assisting with an existing owner branch, preserve its name and ownership unless the owner requests a handoff. Do not create duplicate branches for the same task by default. Apply `nihon-ai/` to new agent branches. Preserve an existing open PR’s head branch until merge: [renaming that branch closes the PR](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-branches-in-your-repository/renaming-a-branch#about-renaming-branches).
 
-Keep one responsibility and one selected issue per branch. Respect its Goal and scope; never recreate the backlog. For explicitly requested maintenance without an existing issue, use `no-issue`: `tabitha/docs/no-issue-git-rules` or `codex/docs/no-issue-git-rules`, according to task ownership.
+Keep one responsibility and one selected issue per branch. Respect its Goal and scope; never recreate the backlog. For explicitly requested maintenance without an existing issue, use `no-issue`: `tabitha/docs/no-issue-git-rules` or `nihon-ai/docs/no-issue-git-rules`, according to task ownership.
 
 ## PR Titles and Descriptions
 

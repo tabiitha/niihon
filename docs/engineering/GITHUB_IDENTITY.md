@@ -19,7 +19,7 @@ Run inside the target checkout. For GitHub commands outside it, pass `--repo Bry
 
 ```sh
 "$NIHON_GITHUB_LAUNCHER" gh api /repos/Bryan-da-silvaa/niihon --jq .full_name
-"$NIHON_GITHUB_LAUNCHER" git push -u origin codex/chore/no-issue-agent-harness
+"$NIHON_GITHUB_LAUNCHER" git push -u origin nihon-ai/chore/no-issue-agent-harness
 "$NIHON_GITHUB_LAUNCHER" gh pr create --draft --base main --title 'chore(agents): publish the agent workflow and verification harness' --body-file /absolute/path/pr-body.md
 ```
 
