@@ -27,7 +27,7 @@ Use strict TypeScript, two-space indentation, `camelCase` members, and `PascalCa
 
 Use behavior-based tests for applicable success, failure, and recovery paths. Coverage thresholds remain unset. Record executed/skipped checks and the exact version. Plan pagination, streaming, bounded memory/concurrency, and cancellation where applicable; preserve confirmed mutations and tune after measurement.
 
-Follow retained `docs/ux/references/`, reusable components, responsive states, keyboard access, readable Japanese typography, reduced motion, and the WCAG 2.2 AA target.
+Follow accepted design requirements, reusable components, responsive states, keyboard access, readable Japanese typography, reduced motion, and the WCAG 2.2 AA target. The maintainer's mockups remain local and unversioned; obtain relevant references when an interface task needs them.
 
 ## Contributions and Review
 

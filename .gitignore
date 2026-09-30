@@ -16,6 +16,10 @@
 # Optional local scratch data and databases created at the repository root
 # Database fixtures elsewhere remain versionable.
 /.local/
+
+# Personal UX exploration and mockup gallery remain local.
+/docs/ux/
+
 /*.db
 /*.db-*
 /*.sqlite
