@@ -82,6 +82,8 @@ Build reusable components progressively with the implemented features. Document:
 
 The approved homepage reference uses a rounded pink **Start review** primary button and a separate **Discover new kana** text-and-icon action. Preserve its hierarchy and compact layout when translating the design into code. Evaluate readability on the four retained backgrounds: AM / Sakura Milk, AQ / Neon Sorbet, AH / Bloom Hour, and AL / Petal Afterglow. These are retained design alternatives, not automatic authorization for four new product theme settings.
 
+The owner keeps UX exploration, reference images, and the gallery exclusively local under `docs/ux/`, excluded from Git. These files are not available from a fresh clone and are not a shared contribution prerequisite. Provide the relevant design brief and references when an interface issue needs them; keep reusable implementation and accessibility requirements in the versioned guides.
+
 The standalone **Service unavailable** mockup remains removed from the gallery. Its original removal reflected the previous shared Rust Web/API container: a fresh navigation could not obtain that page if the container was down. Frontend hosting is now unresolved; this stack change does not reinstate the mockup. An already loaded interface may show a connection-loss state, keep the current screen and input, and retry service access. Do not add an offline cache solely to justify the discarded mockup. A failed transcription alone should not replace the entire application with an unavailable screen.
 
 ### Reproducible Delivery
@@ -124,6 +126,8 @@ The owner subsequently authorized translation of issues #1–#10 and publication
 Scope-review notes identify obsolete platform, Docker, service-control, administrator-channel, and unavailable-page assumptions without silently rewriting the original acceptance criteria. Issue #10 also records the unresolved difference between English mockup copy and French/Japanese product-language requirements; the latter were not changed by translating the backlog.
 
 The initial 24 visual references were published through immutable commit `b36c16b4912469f60dead46185471394be1a18e2` and [PR #196](https://github.com/Bryan-da-silvaa/niihon/pull/196), covering six screens in AM/AQ/AH/AL and referenced by #1, #5, #7, #9, and #10. That PR subsequently completed the gallery to 108 PNGs and was merged into `main` as `3dd5ddd`, verified from Git on 2026-09-30. Issue edits at the original translation step were limited to #1–#10; later maintenance is recorded below.
+
+On 2026-09-30, the owner superseded the gallery publication decision: keep all 111 gallery files, including 108 PNGs, on the local machine and remove `docs/ux/` from the tracked tree. Earlier publication records and commits remain historical; the current contribution guides do not require access to that local gallery.
 
 ## Backlog Migration Record — 2026-09-30
 
