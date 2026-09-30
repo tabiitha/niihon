@@ -6,7 +6,7 @@ Originally recorded on **2026-09-26**, updated on **2026-09-30** for the owner's
 
 Nihon should demonstrate professional delivery and maintainability for the owner's freelance career while remaining a locally deployed product.
 
-These decisions supersede older Rust/Unreal, Next.js, game, macOS-only, and optional-development-only Docker assumptions. Read the historical `NIIHON_PASSATION.md` for unchanged functional context, then apply these corrections. Existing GitHub issues remain the detailed task inventory; obsolete stack, platform, and game assumptions must be reconciled before affected work starts. This documentation update does not update GitHub issues.
+These decisions supersede older Rust/Unreal, Next.js, game, macOS-only, and optional-development-only Docker assumptions. Existing GitHub issues remain the detailed task inventory; obsolete stack, platform, and game assumptions must be reconciled before affected work starts. This documentation update does not update GitHub issues.
 
 Keep the existing backlog and indexes #1 and #166; retain #39 as deferred game inventory. Each active realization has one responsibility, one Goal, acceptance criteria, and applicable performance criteria. Attach requirements to their owning issues without silently expanding a selected issue. Issue #2 remains the minimal server foundation; authentication, business persistence, and UI belong to later issues. Never reuse the old project's code, schema, or architecture.
 
