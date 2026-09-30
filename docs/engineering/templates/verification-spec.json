@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "scope": "application",
+  "issue": 2,
+  "goal": "Replace with the selected issue's current Goal and map every applicable acceptance criterion.",
+  "criteria": [
+    { "id": "A1", "description": "Replace with the first acceptance criterion", "checkIds": ["targeted-behavior"] },
+    { "id": "A2", "description": "Replace with the recovery criterion", "checkIds": ["recovery"] },
+    { "id": "A3", "description": "Replace with performance or manual runtime evidence", "checkIds": [] }
+  ],
+  "checks": [
+    {
+      "id": "targeted-behavior",
+      "required": true,
+      "configured": false,
+      "reason": "The application has no implemented, qualified command yet. Populate argv/cwd/requires/timeoutMs/maxLogBytes during the owning issue."
+    },
+    {
+      "id": "recovery",
+      "required": true,
+      "configured": false,
+      "reason": "Recovery scenarios must be derived from the selected issue; this template does not implement #2."
+    }
+  ]
+}

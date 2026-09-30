@@ -49,22 +49,21 @@ xcuserdata/
 *.xcresult/
 
 # Unreal generated output; preserve Content, Config, Source and plugin binaries
-/games/NiihonGames/Binaries/
-/games/NiihonGames/DerivedDataCache/
-/games/NiihonGames/Intermediate/
-/games/NiihonGames/Saved/
-/games/NiihonGames/Plugins/**/Intermediate/
-/games/NiihonGames/*.xcodeproj/
-/games/NiihonGames/*.xcworkspace/
+/games/NihonGames/Binaries/
+/games/NihonGames/DerivedDataCache/
+/games/NihonGames/Intermediate/
+/games/NihonGames/Saved/
+/games/NihonGames/Plugins/**/Intermediate/
+/games/NihonGames/*.xcodeproj/
+/games/NihonGames/*.xcworkspace/
 
 # Blender automatic backups; preserve original .blend files and exported assets
 *.blend[0-9]
 *.blend[0-9][0-9]
 
-# Local agent configuration and contribution guidelines
+# Personal AI configuration stays local; publish only the shared PR template.
 /.codex/
-/.github/
-/AGENTS.md
-/GIT_RULES.md
+/.github/*
+!/.github/pull_request_template.md
 
 # .sqlx/, migrations, fixtures and asset sources stay versionable.

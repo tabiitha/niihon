@@ -1,6 +1,6 @@
 # Complete Web Design References
 
-This collection contains all **108 current reference images**: the approved BH homepage and **26 additional Web screens**, each in the four retained backgrounds. Images were generated with Imagegen during the Niihon design exploration and copied without modification. The homepage follows the approved rounded primary button and separate secondary link. The other screens are matching design studies, not evidence of implemented functionality or individually approved final copy.
+This collection contains all **108 current reference images**: the approved BH homepage and **26 additional Web screens**, each in the four retained backgrounds. Images were generated with Imagegen during the Nihon design exploration and copied without modification. The homepage follows the approved rounded primary button and separate secondary link. The other screens are matching design studies, not evidence of implemented functionality or individually approved final copy.
 
 Open [the local gallery](index.html) after cloning or downloading this directory to choose a page, switch backgrounds, compare all four versions, and zoom. It runs directly from disk without a server or external dependencies. GitHub displays the HTML source rather than hosting this gallery; use the inventory below to browse the PNGs on GitHub.
 
