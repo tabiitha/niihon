@@ -35,7 +35,7 @@ Use these lowercase types:
 | `chore` | Repository or tooling maintenance outside the other categories |
 | `revert` | Explicit reversal of a change |
 
-Choose one scope matching the primary responsibility: `core`, `server`, `db`, `api`, `web`, `macos`, `assets`, `packaging`, `ci`, `deps`, `repo`, or `agents`. Use `repo` for shared conventions and `agents` for shared AI guidance or tooling. Active `.codex/` configuration is personal and ignored. Games are deferred; do not use `games` for active implementation. Add a scope only when none fits, updating this list.
+Choose one scope matching the primary responsibility: `core`, `server`, `db`, `api`, `web`, `macos`, `assets`, `packaging`, `ci`, `deps`, `repo`, or `agents`. Use `repo` for shared conventions and `agents` for shared AI guidance or tooling. Personal AI configuration remains local and unversioned. Games are deferred; do not use `games` for active implementation. Add a scope only when none fits, updating this list.
 
 ## Commit Messages
 
@@ -92,7 +92,7 @@ Before publication, inspect `git status --short`, the working diff, and `git dif
 
 Every PR needs an independent review of its final diff and one eligible formal GitHub approval from someone other than the PR author. Record the reviewed SHA, findings, executed/skipped checks, and actual approval evidence. A local report or an implementation author's self-check does not count as a formal approval. Resolve blocking findings and refresh affected checks and reviews after changes.
 
-The maintainer arranges additional integration reviews, including their personal AI review workflow. Contributors are not required to install Codex, select particular models, use named agents, or impose a concurrency limit. For AI-authored contributions, the maintainer reviews and approves personally; record authorship honestly and leave outstanding maintainer checks pending. Branch prefixes do not establish authorship or approval eligibility. Never publish an approval on someone else's behalf.
+The maintainer arranges additional integration reviews, including their personal AI review workflow. Contributors are not required to install an AI assistant, select particular models, use named agents, or impose a concurrency limit. For AI-authored contributions, the maintainer reviews and approves personally; record authorship honestly and leave outstanding maintainer checks pending. Branch prefixes do not establish authorship or approval eligibility. Never publish an approval on someone else's behalf.
 
 Follow [AGENTS.md](AGENTS.md) and the [engineering guide](docs/engineering/README.md) for scope and evidence. Automated success does not authorize publication or merge. Keep a PR in draft when required acceptance or integration evidence is missing.
 

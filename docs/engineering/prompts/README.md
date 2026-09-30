@@ -1,6 +1,6 @@
 # Working Prompts
 
-These editable English outlines support the owner's natural-language steering. Replace placeholders with current facts. They do not register Codex commands, start an automation, install a plugin, or bypass project permissions.
+These editable English outlines support the owner's natural-language steering with any assistant. Replace placeholders with current facts. They do not register tool-specific commands, start an automation, install a plugin, or bypass project permissions.
 
 | Prompt | Purpose |
 | --- | --- |
