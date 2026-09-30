@@ -1,6 +1,6 @@
 # OAuth Backlog Update — 2026-09-30
 
-The owner authorized optional Google/GitHub registration and sign-in, plus an optional ChatGPT connection for future AI. Fourteen existing GitHub issues were updated as `nihon-codex[bot]`; no issue was created or closed.
+The owner authorized optional Google/GitHub registration and sign-in, plus an optional ChatGPT connection for future AI. Fourteen existing GitHub issues were updated as `nihon-ia[bot]`; no issue was created or closed.
 
 | Responsibility | Existing issues |
 | --- | --- |

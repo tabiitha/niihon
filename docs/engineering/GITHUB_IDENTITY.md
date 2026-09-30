@@ -2,7 +2,7 @@
 
 ## Repository Scope
 
-Identify Niihon by its Git remote: `Bryan-da-silvaa/niihon`. For this repository and its worktrees, the maintainer's Codex agents contribute as `nihon-codex[bot]`. Other contributors use their own identities and do not need the maintainer's launcher or App credentials. Other repositories follow their own authentication rules.
+Identify Niihon by its Git remote: `Bryan-da-silvaa/niihon`. For this repository and its worktrees, the maintainer's Codex agents contribute as `nihon-ia[bot]`. Other contributors use their own identities and do not need the maintainer's launcher or App credentials. Other repositories follow their own authentication rules.
 
 For maintainer automation, use the locally configured `codex-github` launcher for agent-authored commits, Git network operations, and GitHub CLI/API operations. It supplies repository-scoped GitHub App installation credentials and bot commit metadata without changing personal Git/GitHub settings. It is an authentication adapter, not publication authorization or a sandbox.
 

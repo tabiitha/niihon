@@ -34,7 +34,7 @@ Reuse #75 for registration and its provider-verification adapter; #76 reuses tha
 
 Never distribute confidential provider secrets in source, browser/native bundles, or Docker images. Document installation-supplied protected configuration or a validated provider-supported public-client flow; no central cloud broker is authorized. Provider credentials stay protected in the backend, excluded from DTOs, logs, and user backups. Restoring data requires fresh provider authorization rather than reviving archived tokens.
 
-The fourteen GitHub issue edits were published as `nihon-codex[bot]` and read back exactly. They record requirements, not implemented features or successful live integrations. Preserve each issue's responsibility, Goal, dependencies, and performance evidence; measure local work separately from provider latency and human interaction. See the [OAuth backlog update report](OAUTH_BACKLOG_UPDATE_2026-09-30.md) for ownership, verification, and recovery.
+The fourteen GitHub issue edits were published as `nihon-ia[bot]` and read back exactly. They record requirements, not implemented features or successful live integrations. Preserve each issue's responsibility, Goal, dependencies, and performance evidence; measure local work separately from provider latency and human interaction. See the [OAuth backlog update report](OAUTH_BACKLOG_UPDATE_2026-09-30.md) for ownership, verification, and recovery.
 
 ## Local Deployment and Platforms
 
@@ -119,7 +119,7 @@ Recording these decisions does not start implementation, create issues, publish 
 
 ## Issue Translation Record — 2026-09-26
 
-The owner subsequently authorized translation of issues #1–#10 and publication of relevant existing Web mockups. All ten titles and bilingual bodies were published as `nihon-codex[bot]` and read back for exact verification. At that publication, the repository had 194 open issues and no closed issues. Existing labels, assignees, milestones, states, dependency references, and acceptance checkboxes were preserved.
+The owner subsequently authorized translation of issues #1–#10 and publication of relevant existing Web mockups. All ten titles and bilingual bodies were published as `nihon-ia[bot]` and read back for exact verification. At that publication, the repository had 194 open issues and no closed issues. Existing labels, assignees, milestones, states, dependency references, and acceptance checkboxes were preserved.
 
 Scope-review notes identify obsolete platform, Docker, service-control, administrator-channel, and unavailable-page assumptions without silently rewriting the original acceptance criteria. Issue #10 also records the unresolved difference between English mockup copy and French/Japanese product-language requirements; the latter were not changed by translating the backlog.
 
@@ -127,6 +127,6 @@ The initial 24 visual references were published through immutable commit `b36c16
 
 ## Backlog Migration Record — 2026-09-30
 
-The owner authorized adapting every issue to the Express.js/TypeScript REST API and closing game issues as a reversible pause. All **194 issues** were updated and read back exactly as `nihon-codex[bot]`; **112 remain open**, and **82 game issues** (#39–#68, #117–#165, #191–#193) are closed as `not_planned`, not completed. Labels, assignees, milestone assignments, acceptance-checkbox states, and embedded image URLs were preserved.
+The owner authorized adapting every issue to the Express.js/TypeScript REST API and closing game issues as a reversible pause. All **194 issues** were updated and read back exactly as `nihon-ia[bot]`; **112 remain open**, and **82 game issues** (#39–#68, #117–#165, #191–#193) are closed as `not_planned`, not completed. Labels, assignees, milestone assignments, acceptance-checkbox states, and embedded image URLs were preserved.
 
 The optimization lot now waits for application validation #38 rather than game delivery #68. Shared responsibilities were clarified to exclude deferred game behavior. See the [migration and recovery report](BACKLOG_MIGRATION_2026-09-30.md) for the adaptations, verification, and original-description snapshot. No application implementation, Git publication, or merge was performed.
