@@ -102,7 +102,7 @@ Delete the completed topic branch after merging. Correct `main` through a PR con
 
 ## Main Branch Protection
 
-The [Protect main ruleset](https://github.com/Bryan-da-silvaa/niihon/rules/23107348) is active for `refs/heads/main`. It requires a PR for changes and blocks force pushes and branch deletion. The bypass list is empty, including for administrators and integrations.
+The [Protect main ruleset](https://github.com/tabiitha/niihon/rules/23107348) is active for `refs/heads/main`. It requires a PR for changes and blocks force pushes and branch deletion. The bypass list is empty, including for administrators and integrations.
 
 GitHub requires at least **one approving review**. Approvals are dismissed when new reviewable commits change the diff. An eligible GitHub reviewer other than the PR author must approve; a local agent report alone does not count. The ruleset does not mandate a specific reviewer identity and does not require CI checks yet. Additional maintainer integration checks are managed separately; contributors do not need to reproduce the maintainer's local AI setup. Recheck current protection and outstanding reviews before integration.
 
