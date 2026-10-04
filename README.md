@@ -6,7 +6,7 @@ Rust and Unreal are removed from the active stack. Games are deferred and exclud
 
 ## Project Status
 
-The project is in preparation. No runnable application or supported installation command is available yet. The first planned implementation is the Express.js/TypeScript server foundation in [issue #2](https://github.com/Bryan-da-silvaa/niihon/issues/2); preserve its minimal scope and recheck its current requirements before implementation.
+The project is in preparation. No runnable application or supported installation command is available yet. The first planned implementation is the Express.js/TypeScript server foundation in [issue #2](https://github.com/tabiitha/niihon/issues/2); preserve its minimal scope and recheck its current requirements before implementation.
 
 ## Installation
 
@@ -22,4 +22,4 @@ Contributor tooling and prompt-driven work are described in the [engineering har
 
 ## Backlog
 
-Use the existing indexes: [general project scope #1](https://github.com/Bryan-da-silvaa/niihon/issues/1) and [final optimizations #166](https://github.com/Bryan-da-silvaa/niihon/issues/166). Preserve [games #39](https://github.com/Bryan-da-silvaa/niihon/issues/39) as deferred inventory. Reconcile older stack, platform, and game assumptions with the accepted decisions before implementing an affected issue; preserve each active issue's responsibility and Goal. This local update does not close or edit GitHub issues.
+Use the existing indexes: [general project scope #1](https://github.com/tabiitha/niihon/issues/1) and [final optimizations #166](https://github.com/tabiitha/niihon/issues/166). Preserve [games #39](https://github.com/tabiitha/niihon/issues/39) as deferred inventory. Reconcile older stack, platform, and game assumptions with the accepted decisions before implementing an affected issue; preserve each active issue's responsibility and Goal. This local update does not close or edit GitHub issues.

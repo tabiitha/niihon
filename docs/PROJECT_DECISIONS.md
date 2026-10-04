@@ -125,7 +125,7 @@ The owner subsequently authorized translation of issues #1–#10 and publication
 
 Scope-review notes identify obsolete platform, Docker, service-control, administrator-channel, and unavailable-page assumptions without silently rewriting the original acceptance criteria. Issue #10 also records the unresolved difference between English mockup copy and French/Japanese product-language requirements; the latter were not changed by translating the backlog.
 
-The initial 24 visual references were published through immutable commit `b36c16b4912469f60dead46185471394be1a18e2` and [PR #196](https://github.com/Bryan-da-silvaa/niihon/pull/196), covering six screens in AM/AQ/AH/AL and referenced by #1, #5, #7, #9, and #10. That PR subsequently completed the gallery to 108 PNGs and was merged into `main` as `3dd5ddd`, verified from Git on 2026-09-30. Issue edits at the original translation step were limited to #1–#10; later maintenance is recorded below.
+The initial 24 visual references were published through immutable commit `b36c16b4912469f60dead46185471394be1a18e2` and [PR #196](https://github.com/tabiitha/niihon/pull/196), covering six screens in AM/AQ/AH/AL and referenced by #1, #5, #7, #9, and #10. That PR subsequently completed the gallery to 108 PNGs and was merged into `main` as `3dd5ddd`, verified from Git on 2026-09-30. Issue edits at the original translation step were limited to #1–#10; later maintenance is recorded below.
 
 On 2026-09-30, the owner superseded the gallery publication decision: keep all 111 gallery files, including 108 PNGs, on the local machine and remove `docs/ux/` from the tracked tree. Earlier publication records and commits remain historical; the current contribution guides do not require access to that local gallery.
 
