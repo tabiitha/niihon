@@ -65,9 +65,13 @@ xcuserdata/
 *.blend[0-9]
 *.blend[0-9][0-9]
 
-# Personal AI configuration stays local; publish only the shared PR template.
+# Personal AI configuration stays local; publish only the shared PR template
+# and explicitly listed workflows.
 /.codex/
 /.github/*
 !/.github/pull_request_template.md
+!/.github/workflows/
+/.github/workflows/*
+!/.github/workflows/harness.yml
 
 # .sqlx/, migrations, fixtures and asset sources stay versionable.
