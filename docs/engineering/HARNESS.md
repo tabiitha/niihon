@@ -51,3 +51,7 @@ Limits: 32 checks, 128 criteria, five minutes maximum per check, 1 MiB maximum r
 Logs are local and capped, with owner-only permissions on POSIX. Commands must not print secrets or put them in argv; the runner cannot guarantee redaction. Do not commit evidence or alter the live product database to run checks. Snapshot consistency assumes exclusive file ownership while testing; before/after hashing is not an immutable filesystem mount or tamper-proof attestation. Inspect original logs and reports during review.
 
 Preparation tests qualify this tool on the observed macOS/Node environment. Windows/Linux execution and product verification remain separate checks. Optional AI configuration and discovery belong to the user's local setup. If a requested reviewer or tool is unavailable, report the gap; an implementation author's own check never becomes an independent review. The harness works without personal AI configuration, an AI account, or delegation tools.
+
+## Continuous Integration
+
+`.github/workflows/harness.yml` runs `doctor` and the self-check with Node 22 on Linux, macOS, and Windows for every PR and push to `main`, and uploads `.local/harness/runs/` as a 14-day artifact even when a step fails. It is an independent rerun of the harness's own tests on fresh machines; it does not validate the application and does not replace review or approval. Third-party actions are pinned to commit SHAs and the job only has read access to repository contents.
