@@ -1,46 +1,49 @@
 # Task Packet — Issue <number>
 
-## Objective and Source
+Fill the five required sections for every task. Add an optional section only when it changes how the work is done or reviewed; omit it otherwise. Write observed facts, never intended results; unknown values stay unknown.
 
-- Repository / branch / base HEAD:
-- Current issue URL, updated timestamp, captured body/digest:
-- Responsibility and Goal:
-- Non-goals and dependencies:
-- Accepted decisions relevant to this task:
+## 1. Issue and Goal (required)
 
-## Authorization and Ownership
+- Issue URL and revision read (updated timestamp or body digest):
+- Goal, in one sentence:
+- Non-goals and blocking dependencies:
 
-- Actual owner instruction and any continuing authorization:
-- Allowed files / existing unrelated changes:
-- Implementation, validation, and independent-review owners:
-- Specialist input and reason, if applicable:
-- Optional AI use: actual delegation availability and observed model/effort; omit when unused and never infer a launch from configuration:
-- Complex test-design owner and exclusively assigned files, if applicable:
-- Delivery implementation owner and fresh-checkout/CI validation owner, if the issue owns delivery:
-- Publication / review / merge authority and pending requirements:
+## 2. Authorization (required)
 
-## Acceptance and Performance
+- Owner instruction (inspect / implement / publish) and constraints:
+- Allowed files; existing unrelated changes to preserve:
 
-| Criterion ID | Observable result | Check / fixture / manual evidence | Status and version |
+## 3. Acceptance Map (required)
+
+| Criterion ID | Observable result | Check, fixture, or manual evidence | Status and version |
 | --- | --- | --- | --- |
 | A1 | Copy the actual issue requirement | Qualified command or explicitly pending | Not verified |
 
 - Verification spec path:
-- Pagination / streaming / memory / cancellation where applicable:
-- Measurement conditions and existing issue budgets:
-- User-defined execution budget / stopping condition:
-- Required dependencies or platforms currently unavailable:
 
-## Checkpoint
+## 4. Budget (required)
 
-- Current phase and latest user steering:
-- HEAD plus content fingerprint / additional dirty diff:
-- Latest run report and observed output:
-- Completed changes and evidence; skipped checks with reasons:
-- Hypothesis, failures, repair, and review findings:
-- Execution observations: task type, duration, available resource usage, failed verification iterations, and blocking review findings; optionally include actual AI model/effort (unknown values stay unknown):
-- Active commands / processes / partial mutations / safe cleanup:
+- Owner-defined budget or stopping condition, or `LOOP.md defaults`:
+
+## 5. Checkpoint (required)
+
+- Current phase and latest owner steering:
+- Version: branch, HEAD, content fingerprint, additional uncommitted diff:
+- Latest run report and its status; skipped checks with reasons:
+- Failures, hypotheses tried, and review findings:
+- Commands or processes still running, partial mutations, safe cleanup:
 - Next bounded action:
-- Independent final review, owner approval, and reviewed SHA: pending until evidenced.
 
-Store filled packets under `.local/harness/tasks/<number>/`; do not record tokens, private keys, or personal datasets. Update facts after observation, not from intended results. The packet records authorization; it does not create it.
+## Optional Sections
+
+Copy only the lines that apply.
+
+- **Decisions:** accepted decisions relevant to this task.
+- **Ownership and review:** implementation, validation, and independent-review owners; specialist input and reason; complex test-design owner and exclusively assigned files; delivery and fresh-checkout/CI validation owners.
+- **Optional AI use:** actual delegation availability and observed model/effort; never infer a launch from configuration.
+- **Performance:** pagination, streaming, memory, cancellation; measurement conditions and existing issue budgets.
+- **Unavailable prerequisites:** dependencies or platforms currently unavailable.
+- **Execution observations:** task type, duration, resource usage, failed verification iterations, blocking review findings.
+- **Publication:** publication, review, and merge authority; independent final review, owner approval, and reviewed SHA, pending until evidenced.
+
+Store filled packets under `.local/harness/tasks/<number>/`; do not record tokens, private keys, or personal datasets. The packet records authorization; it does not create it.
