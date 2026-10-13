@@ -6,6 +6,7 @@ Nihon's development harness combines durable context, bounded verification tools
 
 | Need | Entry point |
 | --- | --- |
+| First contribution, in one page | [Contributor quickstart](QUICKSTART.md) |
 | Architecture, scope, and decisions | [Accepted decisions](../PROJECT_DECISIONS.md) |
 | Optional personal AI setup | [Local workflow boundary](LOCAL_AI_WORKFLOW.md) |
 | Tools and evidence semantics | [Harness guide](HARNESS.md) |

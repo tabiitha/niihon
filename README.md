@@ -18,7 +18,7 @@ Architecture, technical decisions, design-system guidance, API documentation, tr
 
 Start with the [accepted project decisions](docs/PROJECT_DECISIONS.md), originally recorded on 2026-09-26 and updated on 2026-09-30. They capture the current backend, deployment target, professional delivery requirements, documentation organization, and explicitly excluded proposals.
 
-Contributor tooling and prompt-driven work are described in the [engineering harness and loop](docs/engineering/README.md). The harness can be checked independently with `node tools/harness/harness.mjs run tools/harness/self-check.json`; this validates developer tooling, not an application installation.
+New contributors can start with the one-page [contributor quickstart](docs/engineering/QUICKSTART.md). Contributor tooling and prompt-driven work are described in the [engineering harness and loop](docs/engineering/README.md). The harness can be checked independently with `node tools/harness/harness.mjs run tools/harness/self-check.json`; this validates developer tooling, not an application installation.
 
 ## Backlog
 
