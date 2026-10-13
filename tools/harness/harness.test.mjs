@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, readFile, rm, stat, symlink, writeFile } from 'node:fs/
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { test } from 'node:test';
-import { compareReport, coverageWarnings, guidanceEntries, run, runCheck, snapshot, summarize, validateGuidance, validateSpec } from './harness.mjs';
+import { compareReport, coverageWarnings, environment, guidanceEntries, run, runCheck, snapshot, summarize, validateGuidance, validateSpec } from './harness.mjs';
 
 async function fixture(t) {
   const root = await mkdtemp(resolve(tmpdir(), 'nihon-harness-'));
@@ -272,4 +272,63 @@ test('guidance entries must stay relative, inside the repository, and use one tr
   await mkdir(resolve(root, '.local/harness'), { recursive: true });
   await writeFile(resolve(root, '.local/harness/guidance.json'), JSON.stringify({ paths: ['../escape.md'] }));
   await assert.rejects(snapshot(root), /Invalid guidance entry/);
+});
+
+test('reports record tool versions and a changed toolchain invalidates reuse', async (t) => {
+  const { root } = await fixture(t);
+  // The fake tool reads its version from ignored local data, so only the environment changes.
+  await mkdir(resolve(root, '.local'), { recursive: true });
+  await writeFile(resolve(root, '.local/version.txt'), 'tool 1.0.0\n');
+  const definition = { ...spec(), toolchain: [{ id: 'fixture-tool', argv: [process.execPath, '-e', 'process.stdout.write(require("node:fs").readFileSync(".local/version.txt"))'] }] };
+  const { report } = await run(root, definition);
+  assert.equal(report.environment.node, process.version);
+  assert.match(report.environment.toolchain.find((tool) => tool.id === 'git').version, /^git version /);
+  assert.equal(report.environment.toolchain.find((tool) => tool.id === 'fixture-tool').version, 'tool 1.0.0');
+  const same = await compareReport(root, report, definition);
+  assert.equal(same.environmentMatches, true); assert.equal(same.reusable, true);
+  await writeFile(resolve(root, '.local/version.txt'), 'tool 2.0.0\n');
+  const upgraded = await compareReport(root, report, definition);
+  assert.equal(upgraded.sourceMatches, true); assert.equal(upgraded.specMatches, true);
+  assert.equal(upgraded.environmentMatches, false); assert.equal(upgraded.reusable, false);
+  const withoutEnvironment = structuredClone(report); delete withoutEnvironment.environment;
+  await writeFile(resolve(root, '.local/version.txt'), 'tool 1.0.0\n');
+  const legacy = await compareReport(root, withoutEnvironment, definition);
+  assert.equal(legacy.environmentMatches, false); assert.equal(legacy.reusable, false);
+});
+
+test('a tool that becomes unavailable changes the environment instead of passing silently', async (t) => {
+  const { root } = await fixture(t);
+  const present = environment(root, { toolchain: [{ id: 'runtime', argv: [process.execPath, '--version'] }] });
+  assert.equal(present.toolchain[1].version, process.version);
+  const missing = environment(root, { toolchain: [{ id: 'runtime', argv: ['nihon-nonexistent-fixture-command', '--version'] }] });
+  assert.equal(missing.toolchain[1].version, null);
+  assert.notEqual(missing.fingerprint, present.fingerprint);
+});
+
+test('toolchain probes are bounded, explicit, and cannot redefine git', () => {
+  const probe = (overrides = {}) => ({ ...spec(), toolchain: [{ id: 'bun', argv: ['bun', '--version'], ...overrides }] });
+  assert.doesNotThrow(() => validateSpec(probe()));
+  assert.throws(() => validateSpec(probe({ argv: 'bun --version' })), /toolchain argv/);
+  assert.throws(() => validateSpec(probe({ id: 'git' })), /toolchain id/);
+  assert.throws(() => validateSpec({ ...spec(), toolchain: Array.from({ length: 17 }, (_, i) => ({ id: `t${i}`, argv: ['x'] })) }), /at most 16/);
+});
+
+test('committed evidence still requires the recorded toolchain', async (t) => {
+  const { root, git } = await fixture(t);
+  const commit = (message) => git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-q', '-m', message);
+  commit('initial');
+  await mkdir(resolve(root, '.local'), { recursive: true });
+  await writeFile(resolve(root, '.local/version.txt'), 'tool 1.0.0\n');
+  await writeFile(resolve(root, 'source.txt'), 'tested change\n');
+  const definition = { ...spec(), toolchain: [{ id: 'fixture-tool', argv: [process.execPath, '-e', 'process.stdout.write(require("node:fs").readFileSync(".local/version.txt"))'] }] };
+  const { report } = await run(root, definition);
+  git('add', 'source.txt');
+  commit('tested change');
+  const committed = await compareReport(root, report, definition);
+  assert.equal(committed.reusable, true);
+  assert.equal(committed.evidenceForCommit, (await snapshot(root)).head);
+  await writeFile(resolve(root, '.local/version.txt'), 'tool 2.0.0\n');
+  const upgraded = await compareReport(root, report, definition);
+  assert.equal(upgraded.sourceMatches, true); assert.equal(upgraded.environmentMatches, false);
+  assert.equal(upgraded.reusable, false); assert.equal(upgraded.evidenceForCommit, null);
 });
