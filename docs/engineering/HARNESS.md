@@ -33,6 +33,8 @@ Paths with `<run>` are placeholders. Running the untouched application template 
 
 Each run creates a new directory under `.local/harness/runs/` with a specification copy, bounded logs, and `report.json`. It records exact arguments, exit codes, timing, missing checks, runtime, HEAD, index/status digests, and content fingerprints before/after. Untracked source and selected ignored instructions/role files participate; generated `.local/` data does not. Environment values and source contents are not stored in snapshots.
 
+Instruction and role files are selected without assuming any assistant. `DEFAULT_GUIDANCE` in `harness.mjs` lists common entry points when they exist: `AGENTS.md`, `GIT_RULES.md`, `CLAUDE.md`, `CLAUDE.local.md`, `.cursorrules`, `.github/copilot-instructions.md`, `.codex/README.md`, `.codex/config.toml`, `.codex/agents/*.toml`, `.claude/settings.json`, `.claude/settings.local.json`, `.claude/agents/*.md`, `.claude/commands/*.md`, and `.cursor/rules/*.mdc`. To include other personal instructions, create the unversioned `.local/harness/guidance.json` as `{ "paths": ["relative/file.md", "directory/*.md"] }`: at most 64 relative entries, each an exact path or a single trailing `*suffix` wildcard one level deep. `doctor` lists the files currently selected. Only hashes are recorded, never their contents.
+
 | Status | Meaning |
 | --- | --- |
 | `passed` | Mapped automated checks passed on unchanged captured input. |

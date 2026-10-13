@@ -47,19 +47,66 @@ async function optionalStat(path) {
   catch (error) { if (error.code === 'ENOENT') return null; throw error; }
 }
 
+// Instruction and role files that steer contributors or assistants. They are often ignored by Git
+// (personal configuration), yet changing them can change the work, so snapshots include them when
+// present. Entries are exact paths or `directory/*suffix` (one level). Covers common assistants
+// without requiring any of them; contributors add their own in LOCAL_GUIDANCE_FILE.
+export const DEFAULT_GUIDANCE = Object.freeze([
+  'AGENTS.md', 'GIT_RULES.md', 'CLAUDE.md', 'CLAUDE.local.md', '.cursorrules',
+  '.github/copilot-instructions.md',
+  '.codex/README.md', '.codex/config.toml', '.codex/agents/*.toml',
+  '.claude/settings.json', '.claude/settings.local.json', '.claude/agents/*.md', '.claude/commands/*.md',
+  '.cursor/rules/*.mdc',
+]);
+export const LOCAL_GUIDANCE_FILE = '.local/harness/guidance.json';
+const MAX_GUIDANCE_ENTRIES = 64;
+
+export function validateGuidance(entries) {
+  if (!Array.isArray(entries) || entries.length > MAX_GUIDANCE_ENTRIES) throw new Error(`Expected at most ${MAX_GUIDANCE_ENTRIES} guidance entries`);
+  for (const entry of entries) {
+    const segments = typeof entry === 'string' ? entry.split('/') : [];
+    const star = entry?.indexOf?.('*') ?? -1;
+    if (!segments.length || !entry || isAbsolute(entry) || entry.includes('\\') || entry.includes('\0')
+      || segments.some((segment) => !segment || segment === '.' || segment === '..')
+      || (star !== -1 && (star !== entry.lastIndexOf('*') || !segments.at(-1).startsWith('*') || segments.length < 2))) {
+      throw new Error(`Invalid guidance entry: ${JSON.stringify(entry)} (use a relative path or directory/*suffix)`);
+    }
+  }
+  return entries;
+}
+
+// Built-in entries plus the contributor's optional, unversioned additions: { "paths": [...] }.
+export async function guidanceEntries(root) {
+  const local = resolve(root, LOCAL_GUIDANCE_FILE);
+  const stat = await optionalStat(local);
+  if (!stat) return [...DEFAULT_GUIDANCE];
+  if (!stat.isFile() || stat.size > 64 * 1024) throw new Error(`${LOCAL_GUIDANCE_FILE} must be a regular file of at most 65536 bytes`);
+  const extra = JSON.parse(await readFile(local, 'utf8'))?.paths;
+  return [...new Set([...DEFAULT_GUIDANCE, ...validateGuidance(extra)])];
+}
+
+async function matchGuidance(root, entries) {
+  const found = [];
+  for (const entry of entries) {
+    if (!entry.includes('*')) {
+      if (await optionalStat(resolve(root, entry))) found.push(entry);
+      continue;
+    }
+    const directory = entry.slice(0, entry.lastIndexOf('/'));
+    const suffix = entry.slice(entry.lastIndexOf('*') + 1);
+    const stat = await optionalStat(resolve(root, directory));
+    if (!stat?.isDirectory()) continue;
+    for (const name of await readdir(resolve(root, directory))) if (name.endsWith(suffix)) found.push(`${directory}/${name}`);
+  }
+  return found;
+}
+
 // Hash content, index state, untracked source, and explicitly selected ignored guidance.
 // Store hashes and paths, never source contents or environment values.
 export async function snapshot(root) {
   root = await realpath(root);
   const paths = new Set(git(root, ['ls-files', '--cached', '--others', '--exclude-standard', '-z']).split('\0').filter(Boolean));
-  for (const name of ['AGENTS.md', 'GIT_RULES.md', '.codex/README.md', '.codex/config.toml']) {
-    if (await optionalStat(resolve(root, name))) paths.add(name);
-  }
-  const roles = resolve(root, '.codex/agents');
-  const roleStat = await optionalStat(roles);
-  if (roleStat?.isDirectory()) {
-    for (const name of await readdir(roles)) if (name.endsWith('.toml')) paths.add(`.codex/agents/${name}`);
-  }
+  for (const name of await matchGuidance(root, await guidanceEntries(root))) paths.add(name);
   if (paths.size > MAX_FILES) throw new Error('Snapshot file ceiling exceeded');
   const files = [];
   let bytes = 0;
@@ -286,7 +333,12 @@ export async function doctor(root) {
   return {
     root, node: process.version,
     bun: bun.status === 0 ? bun.stdout.trim() : 'unavailable',
-    guidance: { agents: await exists('AGENTS.md'), decisions: await exists('docs/PROJECT_DECISIONS.md'), roles: await exists('.codex/agents') },
+    guidance: {
+      agents: await exists('AGENTS.md'), decisions: await exists('docs/PROJECT_DECISIONS.md'),
+      // Instruction/role files that participate in snapshots, including ignored personal ones.
+      snapshotted: await matchGuidance(await realpath(root), await guidanceEntries(root)),
+      localAdditions: await exists(LOCAL_GUIDANCE_FILE) ? LOCAL_GUIDANCE_FILE : 'none',
+    },
     application: await exists('apps/api/package.json') ? 'manifest_present_commands_must_be_qualified' : 'not_configured',
     subagents: 'Configuration presence does not establish runtime discovery or a successful independent review.',
     identity: 'Nihon contributions require nihon-github; this harness makes no GitHub calls.',

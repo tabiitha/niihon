@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, readFile, rm, stat, symlink, writeFile } from 'node:fs/
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { test } from 'node:test';
-import { compareReport, coverageWarnings, run, runCheck, snapshot, summarize, validateSpec } from './harness.mjs';
+import { compareReport, coverageWarnings, guidanceEntries, run, runCheck, snapshot, summarize, validateGuidance, validateSpec } from './harness.mjs';
 
 async function fixture(t) {
   const root = await mkdtemp(resolve(tmpdir(), 'nihon-harness-'));
@@ -14,7 +14,7 @@ async function fixture(t) {
     assert.equal(result.status, 0, result.stderr);
   };
   git('init', '--initial-branch=main');
-  await writeFile(resolve(root, '.gitignore'), '/.local/\n/.codex/\n');
+  await writeFile(resolve(root, '.gitignore'), '/.local/\n/.codex/\n/.claude/\n/CLAUDE.md\n/notes/\n');
   await writeFile(resolve(root, 'source.txt'), 'initial\n');
   git('add', '.gitignore', 'source.txt');
   return { root, git };
@@ -232,4 +232,44 @@ test('criteria that rely only on a shared check are flagged unless a reason is g
 
 test('a single criterion per check produces no coverage warning', () => {
   assert.deepEqual(coverageWarnings(validateSpec(spec())), []);
+});
+
+test('ignored instructions of other assistants are snapshotted without any personal setup', async (t) => {
+  const { root } = await fixture(t);
+  await mkdir(resolve(root, '.claude/agents'), { recursive: true });
+  await writeFile(resolve(root, 'CLAUDE.md'), 'Follow AGENTS.md\n');
+  await writeFile(resolve(root, '.claude/agents/reviewer.md'), 'role: reviewer\n');
+  await writeFile(resolve(root, '.claude/agents/notes.txt'), 'not an instruction file\n');
+  const initial = await snapshot(root);
+  assert.ok(initial.files.some((file) => file.path === 'CLAUDE.md'));
+  assert.ok(initial.files.some((file) => file.path === '.claude/agents/reviewer.md'));
+  assert.ok(!initial.files.some((file) => file.path === '.claude/agents/notes.txt'));
+  await writeFile(resolve(root, '.claude/agents/reviewer.md'), 'role: stricter reviewer\n');
+  assert.notEqual((await snapshot(root)).fingerprint, initial.fingerprint);
+});
+
+test('contributors add their own ignored guidance through an unversioned local file', async (t) => {
+  const { root } = await fixture(t);
+  await mkdir(resolve(root, 'notes'), { recursive: true });
+  await writeFile(resolve(root, 'notes/prompt.md'), 'personal routing\n');
+  assert.ok(!(await snapshot(root)).files.some((file) => file.path === 'notes/prompt.md'));
+  await mkdir(resolve(root, '.local/harness'), { recursive: true });
+  await writeFile(resolve(root, '.local/harness/guidance.json'), JSON.stringify({ paths: ['notes/*.md'] }));
+  assert.ok((await guidanceEntries(root)).includes('notes/*.md'));
+  const withLocal = await snapshot(root);
+  assert.ok(withLocal.files.some((file) => file.path === 'notes/prompt.md'));
+  await writeFile(resolve(root, 'notes/prompt.md'), 'changed routing\n');
+  assert.notEqual((await snapshot(root)).fingerprint, withLocal.fingerprint);
+});
+
+test('guidance entries must stay relative, inside the repository, and use one trailing wildcard', async (t) => {
+  for (const entry of ['/etc/passwd', '../outside.md', 'a/../b.md', 'dir\\file.md', '*.md', 'dir/*/x.md', 'dir/a*.md', 'dir/**.md', '', 7]) {
+    assert.throws(() => validateGuidance([entry]), /Invalid guidance entry/, String(entry));
+  }
+  assert.deepEqual(validateGuidance(['CLAUDE.md', '.claude/agents/*.md']), ['CLAUDE.md', '.claude/agents/*.md']);
+  assert.throws(() => validateGuidance(Array.from({ length: 65 }, (_, i) => `f${i}.md`)), /at most 64/);
+  const { root } = await fixture(t);
+  await mkdir(resolve(root, '.local/harness'), { recursive: true });
+  await writeFile(resolve(root, '.local/harness/guidance.json'), JSON.stringify({ paths: ['../escape.md'] }));
+  await assert.rejects(snapshot(root), /Invalid guidance entry/);
 });
