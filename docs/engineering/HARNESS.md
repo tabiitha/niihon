@@ -38,7 +38,9 @@ Each run creates a new directory under `.local/harness/runs/` with a specificati
 | `incomplete` | Required execution, configuration, or criterion coverage is missing/cancelled. |
 | `stale` | Captured source changed during the run. |
 
-`compare` needs both the report and current specification. Changed code, staged content, untracked files, role instructions, Goal, or check definition invalidate reuse. Commit/stage operations also change the fingerprint; verify the published commit rather than treating an earlier dirty-tree report as evidence of that commit. New GitHub issue wording or external environment changes require rereading/updating the task specification; the offline CLI cannot detect them automatically.
+Each snapshot carries two digests. `contentFingerprint` covers what checks read: file contents, modes, symlink targets, untracked source, and selected instructions/role files. It decides evidence validity, both for the `stale` status and for `compare`. `fingerprint` additionally covers HEAD, branch, index, and status; it describes where the run happened and is reported as `gitStateMatches`, but staging or committing the same content no longer invalidates evidence.
+
+`compare` needs both the report and current specification. Changed code, untracked files, role instructions, Goal, or check definition invalidate reuse; reports without a `contentFingerprint` are never reusable. `evidenceForCommit` names the current HEAD only when the evidence is reusable and the working tree is clean. If it is `null`, the tested content was uncommitted: a partial commit may differ from what ran, so rerun on a clean checkout before presenting the result as evidence for a commit. New GitHub issue wording or external environment changes require rereading/updating the task specification; the offline CLI cannot detect them automatically.
 
 ## Resource Limits and Boundaries
 
