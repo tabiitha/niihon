@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, readFile, rm, stat, symlink, writeFile } from 'node:fs/
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { test } from 'node:test';
-import { compareReport, run, runCheck, snapshot, summarize, validateSpec } from './harness.mjs';
+import { compareReport, coverageWarnings, run, runCheck, snapshot, summarize, validateSpec } from './harness.mjs';
 
 async function fixture(t) {
   const root = await mkdtemp(resolve(tmpdir(), 'nihon-harness-'));
@@ -207,4 +207,29 @@ test('reuse requires unchanged source AND the same verification spec', async (t)
   assert.equal((await compareReport(root, report, changed)).reusable, false);
   await writeFile(resolve(root, 'source.txt'), 'new source');
   assert.equal((await compareReport(root, report, definition)).reusable, false);
+});
+
+test('criteria that rely only on a shared check are flagged unless a reason is given', async (t) => {
+  const twoCriteria = (extra = {}) => ({
+    ...spec([check({ id: 'all-tests' }), check({ id: 'startup' })]),
+    criteria: [
+      { id: 'C1', description: 'Starts', checkIds: ['all-tests', 'startup'] },
+      { id: 'C2', description: 'Stops', checkIds: ['all-tests'], ...extra },
+      { id: 'C3', description: 'Restarts', checkIds: ['all-tests'] },
+    ],
+  });
+  const warnings = coverageWarnings(validateSpec(twoCriteria()));
+  assert.deepEqual(warnings.map((warning) => warning.criterion), ['C2', 'C3']);
+  assert.match(warnings[0].message, /all-tests \(C1, C2, C3\)/);
+  const explained = coverageWarnings(validateSpec(twoCriteria({ sharedCheckReason: 'The suite has a single stop scenario' })));
+  assert.deepEqual(explained.map((warning) => warning.criterion), ['C3']);
+  assert.throws(() => validateSpec(twoCriteria({ sharedCheckReason: ' ' })), /shared-check reason/);
+  const { root } = await fixture(t);
+  const { report } = await run(root, twoCriteria());
+  assert.equal(report.status, 'passed');
+  assert.deepEqual(report.warnings.map((warning) => warning.criterion), ['C2', 'C3']);
+});
+
+test('a single criterion per check produces no coverage warning', () => {
+  assert.deepEqual(coverageWarnings(validateSpec(spec())), []);
 });

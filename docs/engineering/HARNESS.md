@@ -18,6 +18,8 @@ The self-check tests the harness in temporary repositories. Its green result say
 
 Copy `templates/verification-spec.json` to `.local/harness/tasks/<issue>/verification.json` and replace its Goal/criteria with the current issue. Map each applicable criterion to meaningful tests; empty mappings remain incomplete, including manual acceptance not encoded in a check. Mark a check configured only after qualifying its actual command from a manifest or an observed executable.
 
+Prefer one dedicated check per criterion. When several criteria map to the same check, one passing command turns all of them green, even if only one is actually exercised. `run` therefore reports a `shared_check` warning, in `report.json` and in its console output, for each criterion that relies only on shared checks. Resolve it by adding a dedicated check or, when the shared check genuinely discriminates the criterion, by giving that criterion a `sharedCheckReason` that reviewers can verify. Warnings never change the status. If a dedicated check filters a test suite by name, confirm that the filter selects at least one test: `node --test --test-name-pattern` exits 0 when nothing matches, and other runners may behave the same way.
+
 Each configured check supplies an argv array, repository-relative cwd, required paths, finite timeout, and log ceiling. It runs without a shell, sequentially. Keep fixtures isolated from personal data. Report exactly what a test proves; a command returning zero does not establish that its assertions faithfully cover the Goal. Independent review inspects that mapping and any manual evidence separately.
 
 ```sh

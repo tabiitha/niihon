@@ -135,8 +135,29 @@ export function validateSpec(spec) {
     if (typeof criterion.id !== 'string' || !idPattern.test(criterion.id) || criteriaIds.has(criterion.id) || typeof criterion.description !== 'string' || !criterion.description.trim()) throw new Error('Invalid or duplicate criterion');
     criteriaIds.add(criterion.id);
     if (!Array.isArray(criterion.checkIds) || criterion.checkIds.some((id) => !ids.has(id)) || new Set(criterion.checkIds).size !== criterion.checkIds.length) throw new Error('Invalid criterion-to-check mapping');
+    if (criterion.sharedCheckReason !== undefined && (typeof criterion.sharedCheckReason !== 'string' || !criterion.sharedCheckReason.trim())) throw new Error('A shared-check reason must be a non-empty string');
   }
   return spec;
+}
+
+// A check shared by several criteria turns all of them green at once, so one passing command can
+// hide an uncovered criterion. Flag every criterion that relies only on shared checks, unless it
+// explains why the shared check discriminates it. Warnings never change the run status.
+export function coverageWarnings(spec) {
+  const users = new Map();
+  for (const criterion of spec.criteria) {
+    for (const id of criterion.checkIds) users.set(id, [...(users.get(id) ?? []), criterion.id]);
+  }
+  const warnings = [];
+  for (const criterion of spec.criteria) {
+    if (!criterion.checkIds.length || criterion.sharedCheckReason) continue;
+    if (criterion.checkIds.every((id) => users.get(id).length > 1)) {
+      const shared = criterion.checkIds.map((id) => `${id} (${users.get(id).join(', ')})`).join('; ');
+      warnings.push({ code: 'shared_check', criterion: criterion.id, checks: criterion.checkIds,
+        message: `Criterion ${criterion.id} relies only on checks shared with other criteria: ${shared}. Add a dedicated check or a sharedCheckReason.` });
+    }
+  }
+  return warnings;
 }
 
 function terminate(child, signal = 'SIGTERM') {
@@ -248,6 +269,7 @@ export async function run(root, spec, { signal } = {}) {
     schemaVersion: 1, generatedAt: new Date().toISOString(), scope: spec.scope,
     issue: spec.issue, goal: spec.goal, specDigest: digest(canonical(spec)),
     ...summarize(spec, checks, before.contentFingerprint === after.contentFingerprint),
+    warnings: coverageWarnings(spec),
     root, runtime: { node: process.version, platform: process.platform, arch: process.arch },
     before, after, checks,
     review: { independent: 'not_recorded', owner: 'not_recorded' },
@@ -305,7 +327,7 @@ async function cli(args) {
     process.once('SIGTERM', stop);
     try {
       const result = await run(root, await loadJson(resolve(file)), { signal: controller.signal });
-      console.log(JSON.stringify({ status: result.report.status, scope: result.report.scope, report: result.reportPath }, null, 2));
+      console.log(JSON.stringify({ status: result.report.status, scope: result.report.scope, report: result.reportPath, warnings: result.report.warnings.map((warning) => warning.message) }, null, 2));
       process.exitCode = result.report.status === 'passed' ? 0 : 1;
     } finally { process.removeListener('SIGINT', stop); process.removeListener('SIGTERM', stop); }
   } else if (command === 'compare' && file) {
