@@ -87,14 +87,28 @@ export async function snapshot(root) {
     }
     files.push({ path: name, kind: 'file', mode: stat.mode & 0o777, sha256: hash.digest('hex') });
   }
+  const status = git(root, ['status', '--porcelain=v1', '-z', '--untracked-files=all']);
   const state = {
     head: git(root, ['rev-parse', '--verify', 'HEAD'], true)?.trim() ?? null,
     branch: git(root, ['symbolic-ref', '--quiet', '--short', 'HEAD'], true)?.trim() ?? null,
     indexDigest: digest(git(root, ['ls-files', '--stage', '-z'])),
-    statusDigest: digest(git(root, ['status', '--porcelain=v1', '-z', '--untracked-files=all'])),
+    statusDigest: digest(status),
     files,
   };
-  return { ...state, fingerprint: digest(canonical(state)), bytesHashed: bytes };
+  return {
+    ...state,
+    clean: status === '',
+    // Validity of evidence: what the checks actually read on disk. Staging or committing the same
+    // content keeps it; absent paths are omitted so a committed deletion equals a pending one.
+    contentFingerprint: contentFingerprint(files),
+    // Full Git-aware state, kept to describe exactly where the run happened.
+    fingerprint: digest(canonical(state)),
+    bytesHashed: bytes,
+  };
+}
+
+function contentFingerprint(files) {
+  return digest(canonical(files.filter((file) => file.kind !== 'deleted')));
 }
 
 export function validateSpec(spec) {
@@ -233,7 +247,7 @@ export async function run(root, spec, { signal } = {}) {
   const report = {
     schemaVersion: 1, generatedAt: new Date().toISOString(), scope: spec.scope,
     issue: spec.issue, goal: spec.goal, specDigest: digest(canonical(spec)),
-    ...summarize(spec, checks, before.fingerprint === after.fingerprint),
+    ...summarize(spec, checks, before.contentFingerprint === after.contentFingerprint),
     root, runtime: { node: process.version, platform: process.platform, arch: process.arch },
     before, after, checks,
     review: { independent: 'not_recorded', owner: 'not_recorded' },
@@ -266,9 +280,17 @@ async function loadJson(path, maxBytes = MAX_SPEC_BYTES) {
 export async function compareReport(root, report, spec) {
   if (report.schemaVersion !== 1 || !report.after?.fingerprint) throw new Error('Invalid report');
   const current = await snapshot(root);
-  const sourceMatches = current.fingerprint === report.after.fingerprint;
+  // Reports written before content fingerprints existed cannot prove content equality.
+  const sourceMatches = Boolean(report.after.contentFingerprint) && current.contentFingerprint === report.after.contentFingerprint;
   const specMatches = spec ? digest(canonical(validateSpec(spec))) === report.specDigest : null;
-  return { sourceMatches, specMatches, recordedStatus: report.status, reusable: sourceMatches && specMatches === true && report.status === 'passed' };
+  const reusable = sourceMatches && specMatches === true && report.status === 'passed';
+  return {
+    sourceMatches, specMatches, recordedStatus: report.status, reusable,
+    gitStateMatches: current.fingerprint === report.after.fingerprint,
+    // Evidence describes a commit only when the current tree is clean: otherwise uncommitted
+    // content was tested and the commit may contain only part of it.
+    evidenceForCommit: reusable && current.clean ? current.head : null,
+  };
 }
 
 async function cli(args) {

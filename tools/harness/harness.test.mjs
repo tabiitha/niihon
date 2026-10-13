@@ -38,11 +38,54 @@ test('fingerprint detects working content, untracked files, and staged changes a
   const changed = await snapshot(root);
   assert.equal(changed.head, initial.head);
   assert.notEqual(changed.fingerprint, initial.fingerprint);
+  assert.notEqual(changed.contentFingerprint, initial.contentFingerprint);
   git('add', 'source.txt');
-  assert.notEqual((await snapshot(root)).fingerprint, changed.fingerprint);
   const staged = await snapshot(root);
+  assert.notEqual(staged.fingerprint, changed.fingerprint);
+  assert.equal(staged.contentFingerprint, changed.contentFingerprint);
   await writeFile(resolve(root, 'new.txt'), 'new evidence target');
-  assert.notEqual((await snapshot(root)).fingerprint, staged.fingerprint);
+  const untracked = await snapshot(root);
+  assert.notEqual(untracked.fingerprint, staged.fingerprint);
+  assert.notEqual(untracked.contentFingerprint, staged.contentFingerprint);
+});
+
+test('evidence survives staging and committing the same content, and binds to a clean commit only', async (t) => {
+  const { root, git } = await fixture(t);
+  const commit = (message) => git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-q', '-m', message);
+  commit('initial');
+  await writeFile(resolve(root, 'source.txt'), 'tested change\n');
+  const definition = spec();
+  const { report } = await run(root, definition);
+  assert.equal(report.status, 'passed');
+  const dirty = await compareReport(root, report, definition);
+  assert.equal(dirty.reusable, true);
+  assert.equal(dirty.evidenceForCommit, null);
+  git('add', 'source.txt');
+  commit('tested change');
+  const committed = await compareReport(root, report, definition);
+  assert.equal(committed.reusable, true);
+  assert.equal(committed.gitStateMatches, false);
+  assert.equal(committed.evidenceForCommit, (await snapshot(root)).head);
+});
+
+test('a committed deletion keeps the content fingerprint of the pending deletion', async (t) => {
+  const { root, git } = await fixture(t);
+  await writeFile(resolve(root, 'obsolete.txt'), 'remove me\n');
+  git('add', 'obsolete.txt');
+  git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-q', '-m', 'initial');
+  await rm(resolve(root, 'obsolete.txt'));
+  const pending = await snapshot(root);
+  git('rm', '-q', '--cached', 'obsolete.txt');
+  git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-q', '-m', 'remove');
+  assert.equal((await snapshot(root)).contentFingerprint, pending.contentFingerprint);
+});
+
+test('reports without a content fingerprint are never reused', async (t) => {
+  const { root } = await fixture(t);
+  const definition = spec();
+  const { report } = await run(root, definition);
+  delete report.after.contentFingerprint;
+  assert.equal((await compareReport(root, report, definition)).reusable, false);
 });
 
 test('ignored agent guidance changes invalidate evidence but runtime logs do not', async (t) => {
