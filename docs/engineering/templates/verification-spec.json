@@ -3,6 +3,9 @@
   "scope": "application",
   "issue": 2,
   "goal": "Replace with the selected issue's current Goal and map every applicable acceptance criterion.",
+  "toolchain": [
+    { "id": "bun", "argv": ["bun", "--version"] }
+  ],
   "criteria": [
     { "id": "A1", "description": "Replace with the first acceptance criterion", "checkIds": ["targeted-behavior"] },
     { "id": "A2", "description": "Replace with the recovery criterion", "checkIds": ["recovery"] },

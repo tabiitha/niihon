@@ -10,6 +10,8 @@ const MAX_GIT_OUTPUT = 8 * 1024 * 1024;
 const MAX_SNAPSHOT_BYTES = 256 * 1024 * 1024;
 const MAX_FILES = 20000;
 const MAX_SPEC_BYTES = 256 * 1024;
+const MAX_TOOLCHAIN = 16;
+const PROBE_TIMEOUT_MS = 5000;
 const idPattern = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/;
 const digest = (value) => createHash('sha256').update(value).digest('hex');
 const canonical = (value) => JSON.stringify(value);
@@ -158,6 +160,9 @@ function contentFingerprint(files) {
   return digest(canonical(files.filter((file) => file.kind !== 'deleted')));
 }
 
+const validArgv = (argv) => Array.isArray(argv) && argv.length > 0 && argv.length <= 128
+  && argv.every((arg) => typeof arg === 'string' && arg && arg.length <= 4096 && !arg.includes('\0'));
+
 export function validateSpec(spec) {
   if (!spec || spec.schemaVersion !== 1 || !['harness', 'application'].includes(spec.scope)) throw new Error('Invalid spec version or scope');
   if (!spec.issue || !(spec.issue === 'no-issue' || Number.isSafeInteger(spec.issue) && spec.issue > 0)) throw new Error('Expected a real issue number or no-issue');
@@ -170,12 +175,21 @@ export function validateSpec(spec) {
     ids.add(check.id);
     if (typeof check.required !== 'boolean' || typeof check.configured !== 'boolean') throw new Error('Check required/configured must be explicit');
     if (check.configured) {
-      if (!Array.isArray(check.argv) || !check.argv.length || check.argv.length > 128 || check.argv.some((arg) => typeof arg !== 'string' || !arg || arg.length > 4096 || arg.includes('\0'))) throw new Error('Expected explicit argv, never a shell command');
+      if (!validArgv(check.argv)) throw new Error('Expected explicit argv, never a shell command');
       if (!Number.isSafeInteger(check.timeoutMs) || check.timeoutMs < 1 || check.timeoutMs > 300000) throw new Error('Check timeout must be 1–300000 ms');
       if (!Number.isSafeInteger(check.maxLogBytes) || check.maxLogBytes < 1 || check.maxLogBytes > 1048576) throw new Error('Log ceiling must be 1–1048576 bytes');
       if (typeof check.cwd !== 'string') throw new Error('Check cwd is required');
       if (!Array.isArray(check.requires) || check.requires.some((path) => typeof path !== 'string')) throw new Error('Check required paths must be explicit');
     } else if (typeof check.reason !== 'string' || !check.reason.trim()) throw new Error('Unconfigured checks need a reason');
+  }
+  if (spec.toolchain !== undefined) {
+    if (!Array.isArray(spec.toolchain) || spec.toolchain.length > MAX_TOOLCHAIN) throw new Error(`Expected at most ${MAX_TOOLCHAIN} toolchain probes`);
+    const probeIds = new Set();
+    for (const probe of spec.toolchain) {
+      if (typeof probe?.id !== 'string' || !idPattern.test(probe.id) || probeIds.has(probe.id) || probe.id === 'git') throw new Error('Invalid or duplicate toolchain id');
+      probeIds.add(probe.id);
+      if (!validArgv(probe.argv)) throw new Error('Expected explicit toolchain argv, never a shell command');
+    }
   }
   const criteriaIds = new Set();
   for (const criterion of spec.criteria) {
@@ -293,9 +307,26 @@ export function summarize(spec, checks, stable) {
   return { status, criteria };
 }
 
+// Versions of the tools checks depend on. Git is always probed (the harness needs it); a spec adds
+// its own probes, e.g. { "id": "bun", "argv": ["bun", "--version"] }. Only the first output line
+// is kept. A changed or newly (un)available tool changes the environment fingerprint.
+export function environment(root, spec = {}) {
+  const probes = [{ id: 'git', argv: ['git', '--version'] }, ...(spec.toolchain ?? [])];
+  const toolchain = probes.map(({ id, argv }) => {
+    const result = spawnSync(argv[0], argv.slice(1), {
+      cwd: root, encoding: 'utf8', timeout: PROBE_TIMEOUT_MS, maxBuffer: 64 * 1024, shell: false, windowsHide: true,
+    });
+    const line = `${result.stdout ?? ''}`.trim().split(/\r?\n/)[0]?.slice(0, 200) ?? '';
+    return { id, argv, version: !result.error && result.status === 0 && line ? line : null };
+  });
+  const state = { node: process.version, platform: process.platform, arch: process.arch, toolchain };
+  return { ...state, fingerprint: digest(canonical(state)) };
+}
+
 export async function run(root, spec, { signal } = {}) {
   validateSpec(spec);
   const before = await snapshot(root);
+  const env = environment(root, spec);
   const runs = resolve(root, '.local/harness/runs');
   // Refuse an existing symlinked output parent before writing any evidence.
   let cursor = root;
@@ -318,6 +349,7 @@ export async function run(root, spec, { signal } = {}) {
     ...summarize(spec, checks, before.contentFingerprint === after.contentFingerprint),
     warnings: coverageWarnings(spec),
     root, runtime: { node: process.version, platform: process.platform, arch: process.arch },
+    environment: env,
     before, after, checks,
     review: { independent: 'not_recorded', owner: 'not_recorded' },
     meaning: 'Automated evidence only; not issue completion, independent review, publication authorization, or merge approval.',
@@ -357,9 +389,11 @@ export async function compareReport(root, report, spec) {
   // Reports written before content fingerprints existed cannot prove content equality.
   const sourceMatches = Boolean(report.after.contentFingerprint) && current.contentFingerprint === report.after.contentFingerprint;
   const specMatches = spec ? digest(canonical(validateSpec(spec))) === report.specDigest : null;
-  const reusable = sourceMatches && specMatches === true && report.status === 'passed';
+  // Reports without a recorded environment cannot show that the same tools would run today.
+  const environmentMatches = spec ? Boolean(report.environment?.fingerprint) && environment(root, spec).fingerprint === report.environment.fingerprint : null;
+  const reusable = sourceMatches && specMatches === true && environmentMatches === true && report.status === 'passed';
   return {
-    sourceMatches, specMatches, recordedStatus: report.status, reusable,
+    sourceMatches, specMatches, environmentMatches, recordedStatus: report.status, reusable,
     gitStateMatches: current.fingerprint === report.after.fingerprint,
     // Evidence describes a commit only when the current tree is clean: otherwise uncommitted
     // content was tested and the commit may contain only part of it.
