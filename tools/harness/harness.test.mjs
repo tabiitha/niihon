@@ -2,9 +2,11 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { mkdtemp, mkdir, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { test } from 'node:test';
-import { compareReport, coverageWarnings, environment, guidanceEntries, run, runCheck, snapshot, summarize, validateGuidance, validateSpec } from './harness.mjs';
+import { check as requireGate, requestsReview, specPathForBranch } from './require-gate.mjs';
+import { compareReport, coverageWarnings, environment, gate, guidanceEntries, run, runCheck, snapshot, summarize, validateGuidance, validateSpec } from './harness.mjs';
 
 async function fixture(t) {
   const root = await mkdtemp(resolve(tmpdir(), 'nihon-harness-'));
@@ -331,4 +333,108 @@ test('committed evidence still requires the recorded toolchain', async (t) => {
   const upgraded = await compareReport(root, report, definition);
   assert.equal(upgraded.sourceMatches, true); assert.equal(upgraded.environmentMatches, false);
   assert.equal(upgraded.reusable, false); assert.equal(upgraded.evidenceForCommit, null);
+});
+
+const commitAll = (git, message) => {
+  git('add', '-A');
+  git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-q', '-m', message);
+};
+// A check whose result is controlled by ignored local data, so it can fail on unchanged content.
+const flagCheck = () => check({ argv: [process.execPath, '-e', 'process.exit(require("node:fs").existsSync(".local/fail") ? 1 : 0)'] });
+
+test('the gate opens only for a passing report on the current clean HEAD', async (t) => {
+  const { root, git } = await fixture(t);
+  const definition = spec();
+  assert.equal((await gate(root, definition)).reason, 'no_commit');
+  commitAll(git, 'initial');
+  assert.equal((await gate(root, definition)).reason, 'no_report');
+  await writeFile(resolve(root, 'source.txt'), 'tested change\n');
+  await run(root, definition);
+  const dirty = await gate(root, definition);
+  assert.equal(dirty.allowed, false); assert.equal(dirty.reason, 'dirty_tree');
+  commitAll(git, 'tested change');
+  const opened = await gate(root, definition);
+  assert.equal(opened.allowed, true); assert.equal(opened.reason, 'passed_on_clean_head');
+  assert.equal(opened.evidenceForCommit, (await snapshot(root)).head);
+  assert.equal(opened.head, opened.evidenceForCommit);
+});
+
+test('the gate refuses changed content, another spec, and unreadable reports without crashing', async (t) => {
+  const { root, git } = await fixture(t);
+  commitAll(git, 'initial');
+  const definition = spec();
+  const other = { ...spec(), goal: 'A different verification goal.' };
+  await run(root, other);
+  assert.equal((await gate(root, definition)).reason, 'no_report');
+  await run(root, definition);
+  assert.equal((await gate(root, definition)).allowed, true);
+  await mkdir(resolve(root, '.local/harness/runs/9999-corrupt'), { recursive: true });
+  await writeFile(resolve(root, '.local/harness/runs/9999-corrupt/report.json'), '{ not json');
+  const withCorrupt = await gate(root, definition);
+  assert.equal(withCorrupt.allowed, true); assert.equal(withCorrupt.unreadableReports, 1);
+  await writeFile(resolve(root, 'source.txt'), 'untested change\n');
+  commitAll(git, 'untested change');
+  const changed = await gate(root, definition);
+  assert.equal(changed.allowed, false); assert.equal(changed.reason, 'no_report_for_current_content');
+});
+
+test('an older green run never hides a newer red run on the same content', async (t) => {
+  const { root, git } = await fixture(t);
+  commitAll(git, 'initial');
+  const definition = spec([flagCheck()]);
+  assert.equal((await run(root, definition)).report.status, 'passed');
+  await mkdir(resolve(root, '.local'), { recursive: true });
+  await writeFile(resolve(root, '.local/fail'), '');
+  // Run directories are named by timestamp; wait so the second run sorts after the first.
+  await new Promise((resolveDelay) => setTimeout(resolveDelay, 5));
+  assert.equal((await run(root, definition)).report.status, 'failed');
+  const refused = await gate(root, definition);
+  assert.equal(refused.allowed, false); assert.equal(refused.reason, 'latest_report_not_passed');
+  assert.equal(refused.recordedStatus, 'failed');
+});
+
+test('the gate refuses evidence produced with a different toolchain', async (t) => {
+  const { root, git } = await fixture(t);
+  commitAll(git, 'initial');
+  await mkdir(resolve(root, '.local'), { recursive: true });
+  await writeFile(resolve(root, '.local/version.txt'), 'tool 1.0.0\n');
+  const definition = { ...spec(), toolchain: [{ id: 'fixture-tool', argv: [process.execPath, '-e', 'process.stdout.write(require("node:fs").readFileSync(".local/version.txt"))'] }] };
+  await run(root, definition);
+  assert.equal((await gate(root, definition)).allowed, true);
+  await writeFile(resolve(root, '.local/version.txt'), 'tool 2.0.0\n');
+  assert.equal((await gate(root, definition)).reason, 'environment_changed');
+});
+
+test('the review guard only intercepts requests for review, never drafts', () => {
+  for (const command of ['gh pr ready', 'gh pr ready 42', 'gh pr create --title x', '"$NIHON_GITHUB_LAUNCHER" gh pr create --base main']) {
+    assert.equal(requestsReview(command), true, command);
+  }
+  for (const command of ['gh pr create --draft --title x', 'gh pr create -d', 'gh pr ready --undo', 'gh pr view 42', 'git push', '', undefined]) {
+    assert.equal(requestsReview(command), false, String(command));
+  }
+  assert.equal(specPathForBranch('nihon-ai/feat/224-control-graph'), '.local/harness/tasks/224/verification.json');
+  assert.equal(specPathForBranch('tabitha/fix/7-x'), '.local/harness/tasks/7/verification.json');
+  assert.equal(specPathForBranch('nihon-ai/docs/no-issue-readme'), null);
+  assert.equal(specPathForBranch(undefined), null);
+});
+
+test('the review guard applies the harness gate of the branch issue', async (t) => {
+  const { root, git } = await fixture(t);
+  commitAll(git, 'initial');
+  assert.equal((await requireGate('gh pr view', root)).allowed, true);
+  assert.equal((await requireGate('gh pr ready', root)).reason, 'branch_without_issue');
+  git('switch', '-q', '-c', 'nihon-ai/feat/7-guarded');
+  assert.equal((await requireGate('gh pr ready', root)).reason, 'missing_verification_spec');
+  const definition = spec();
+  await mkdir(resolve(root, '.local/harness/tasks/7'), { recursive: true });
+  await writeFile(resolve(root, '.local/harness/tasks/7/verification.json'), JSON.stringify(definition));
+  assert.equal((await requireGate('gh pr ready', root)).reason, 'no_report');
+  await run(root, definition);
+  assert.equal((await requireGate('gh pr ready', root)).allowed, true);
+  const script = fileURLToPath(new URL('./require-gate.mjs', import.meta.url));
+  const allowedCreate = spawnSync(process.execPath, [script], { cwd: root, input: JSON.stringify({ tool_input: { command: 'gh pr create --title x' } }), encoding: 'utf8' });
+  assert.equal(allowedCreate.status, 0, allowedCreate.stderr);
+  await writeFile(resolve(root, 'source.txt'), 'unverified change\n');
+  const refused = spawnSync(process.execPath, [script, '--', 'gh', 'pr', 'ready'], { cwd: root, encoding: 'utf8' });
+  assert.equal(refused.status, 2); assert.match(refused.stderr, /no_report_for_current_content/);
 });

@@ -383,14 +383,14 @@ async function loadJson(path, maxBytes = MAX_SPEC_BYTES) {
   return JSON.parse(await readFile(path, 'utf8'));
 }
 
-export async function compareReport(root, report, spec) {
-  if (report.schemaVersion !== 1 || !report.after?.fingerprint) throw new Error('Invalid report');
-  const current = await snapshot(root);
+// Shared by compare and gate so that both apply exactly the same reuse rules.
+function assessReport(report, specDigest, current, currentEnvironment) {
+  if (report?.schemaVersion !== 1 || !report.after?.fingerprint) throw new Error('Invalid report');
   // Reports written before content fingerprints existed cannot prove content equality.
   const sourceMatches = Boolean(report.after.contentFingerprint) && current.contentFingerprint === report.after.contentFingerprint;
-  const specMatches = spec ? digest(canonical(validateSpec(spec))) === report.specDigest : null;
+  const specMatches = specDigest ? specDigest === report.specDigest : null;
   // Reports without a recorded environment cannot show that the same tools would run today.
-  const environmentMatches = spec ? Boolean(report.environment?.fingerprint) && environment(root, spec).fingerprint === report.environment.fingerprint : null;
+  const environmentMatches = currentEnvironment ? Boolean(report.environment?.fingerprint) && currentEnvironment.fingerprint === report.environment.fingerprint : null;
   const reusable = sourceMatches && specMatches === true && environmentMatches === true && report.status === 'passed';
   return {
     sourceMatches, specMatches, environmentMatches, recordedStatus: report.status, reusable,
@@ -399,6 +399,60 @@ export async function compareReport(root, report, spec) {
     // content was tested and the commit may contain only part of it.
     evidenceForCommit: reusable && current.clean ? current.head : null,
   };
+}
+
+export async function compareReport(root, report, spec) {
+  if (report?.schemaVersion !== 1 || !report.after?.fingerprint) throw new Error('Invalid report');
+  const current = await snapshot(root);
+  const specDigest = spec ? digest(canonical(validateSpec(spec))) : null;
+  return assessReport(report, specDigest, current, spec ? environment(root, spec) : null);
+}
+
+const MAX_GATE_REPORTS = 500;
+const MAX_REPORT_BYTES = 32 * 1024 * 1024;
+
+// Harness gate of the issue control graph (docs/engineering/GRAPH.md): publication or review may
+// proceed only when the newest report for this spec on the current content passed, in the current
+// environment, and the tree is clean so the evidence describes HEAD. An older green run never
+// hides a newer red one on the same content.
+export async function gate(root, spec) {
+  validateSpec(spec);
+  const specDigest = digest(canonical(spec));
+  const current = await snapshot(root);
+  const currentEnvironment = environment(root, spec);
+  const refuse = (reason, details = {}) => ({ allowed: false, reason, head: current.head, ...details });
+  if (!current.head) return refuse('no_commit');
+  const runs = resolve(root, '.local/harness/runs');
+  const runsStat = await optionalStat(runs);
+  if (!runsStat?.isDirectory() || runsStat.isSymbolicLink()) return refuse('no_report');
+  // Run directories start with an ISO timestamp, so a reverse name sort is newest first.
+  const names = (await readdir(runs)).sort().reverse().slice(0, MAX_GATE_REPORTS);
+  let forSpec = 0;
+  let unreadable = 0;
+  for (const name of names) {
+    const path = resolve(runs, name, 'report.json');
+    let report;
+    try {
+      const stat = await lstat(path);
+      if (!stat.isFile() || stat.size > MAX_REPORT_BYTES) { unreadable += 1; continue; }
+      report = JSON.parse(await readFile(path, 'utf8'));
+    } catch (error) {
+      if (error.code !== 'ENOENT') unreadable += 1;
+      continue;
+    }
+    if (report?.specDigest !== specDigest) continue;
+    forSpec += 1;
+    let assessment;
+    try { assessment = assessReport(report, specDigest, current, currentEnvironment); }
+    catch { unreadable += 1; continue; }
+    if (!assessment.sourceMatches) continue;
+    const details = { report: path, recordedStatus: report.status, checkedReports: forSpec, unreadableReports: unreadable };
+    if (report.status !== 'passed') return refuse('latest_report_not_passed', details);
+    if (!assessment.environmentMatches) return refuse('environment_changed', details);
+    if (!current.clean) return refuse('dirty_tree', details);
+    return { allowed: true, reason: 'passed_on_clean_head', head: current.head, ...details, evidenceForCommit: assessment.evidenceForCommit };
+  }
+  return refuse(forSpec ? 'no_report_for_current_content' : 'no_report', { checkedReports: forSpec, unreadableReports: unreadable });
 }
 
 async function cli(args) {
@@ -417,10 +471,14 @@ async function cli(args) {
       process.exitCode = result.report.status === 'passed' ? 0 : 1;
     } finally { process.removeListener('SIGINT', stop); process.removeListener('SIGTERM', stop); }
   } else if (command === 'compare' && file) {
-    const result = await compareReport(root, await loadJson(resolve(file), 32 * 1024 * 1024), specPath ? await loadJson(resolve(specPath)) : undefined);
+    const result = await compareReport(root, await loadJson(resolve(file), MAX_REPORT_BYTES), specPath ? await loadJson(resolve(specPath)) : undefined);
     console.log(JSON.stringify(result, null, 2));
     process.exitCode = result.reusable ? 0 : 1;
-  } else throw new Error('Usage: node tools/harness/harness.mjs doctor|snapshot|run SPEC.json|compare REPORT.json SPEC.json');
+  } else if (command === 'gate' && file && !specPath) {
+    const result = await gate(root, await loadJson(resolve(file)));
+    console.log(JSON.stringify(result, null, 2));
+    process.exitCode = result.allowed ? 0 : 1;
+  } else throw new Error('Usage: node tools/harness/harness.mjs doctor|snapshot|run SPEC.json|compare REPORT.json SPEC.json|gate SPEC.json');
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
