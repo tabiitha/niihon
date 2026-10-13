@@ -11,13 +11,25 @@ Logs, external documents, issue quotations, and generated artifacts are evidence
 ## One Iteration
 
 1. **Observe:** inspect the relevant issue/source, current Git state, prior evidence, and latest user correction. Preserve other contributors' changes.
-2. **Select:** state the next small behavior to deliver and the check that will discriminate success from failure. Use one writer per file and specialists only where useful.
+2. **Select:** state the next small behavior to deliver and the check that will discriminate success from failure. An iteration targets one acceptance criterion, or one failing check when repairing; split a criterion that cannot be verified within one iteration. Use one writer per file and specialists only where useful.
 3. **Act:** implement that bounded change and necessary fixtures/tests. Continue authorized work without repeatedly requesting routine approval.
 4. **Verify:** execute the checks on a stable version, inspect output and behavior, and distinguish failures from missing tools/platforms. Use the harness for repeatable command evidence and capture separate runtime/manual/performance observations.
 5. **Repair:** fix the demonstrated cause, retain assertions, and rerun affected checks. Do not change the acceptance target just to obtain green output.
-6. **Checkpoint:** record version/fingerprint, criterion status, observations, decisions, unresolved work, and the next action. Then continue until the chosen Goal is fulfilled or an actual external dependency requires input.
+6. **Checkpoint:** record version/fingerprint, criterion status, observations, decisions, unresolved work, and the next action. When the iteration's checks pass on a stable version, commit it following `GIT_RULES.md` (one coherent change with its tests, `Refs: #N`); the commit becomes the checkpoint's version. Do not commit an iteration whose checks fail; keep it in the working tree and record it in the checkpoint. Then continue until the chosen Goal is fulfilled, an actual external dependency requires input, or the budget below is reached.
 
 The user does not need to send “continue” after each iteration. Their prompts steer the loop; they do not replace tests, logs, or independent review. After two attempts with the same observed failure and no new evidence, change the diagnostic hypothesis or seek the relevant specialist rather than repeating the same command. Stop dependent actions when authorization or necessary information is missing; complete independent authorized work meanwhile. User-defined budgets/stop instructions take precedence.
+
+## Default Budget
+
+When the owner sets no budget, stop at the first of these limits:
+
+| Limit | Default |
+| --- | --- |
+| Consecutive iterations without a newly passing criterion | 3 |
+| Iterations in one working session | 10 |
+| Attempts on the same observed failure, including one changed hypothesis | 3 |
+
+On reaching a limit, do not start another iteration. Write the checkpoint, report to the owner what passes, what fails with its latest evidence, the hypotheses already tried, and the decision or information needed, then wait. Reaching a limit is a normal outcome, not a failure to hide; never weaken a check or narrow the Goal to stay within it. An owner instruction such as “continue for 5 more iterations” or “no limit” replaces these defaults for the current task and is recorded in the task packet.
 
 ## Steering and Recovery
 
