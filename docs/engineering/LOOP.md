@@ -1,5 +1,7 @@
 # Prompt-Driven Engineering Loop
 
+This loop is the **Implement** step of the [issue control graph](GRAPH.md), which defines what comes before it and what must pass after it.
+
 ## Working Contract
 
 The owner's prompt chooses the existing issue, intended outcome, priorities, and authorization. It can also steer UX, clarify a criterion, narrow a hypothesis, or request inspection only. Record these changes in the local task packet without silently widening the issue. French steering is welcome; durable repository documents, identifiers, and publication follow the project's English/bilingual rules.

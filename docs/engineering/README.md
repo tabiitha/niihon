@@ -10,6 +10,7 @@ Nihon's development harness combines durable context, bounded verification tools
 | Architecture, scope, and decisions | [Accepted decisions](../PROJECT_DECISIONS.md) |
 | Optional personal AI setup | [Local workflow boundary](LOCAL_AI_WORKFLOW.md) |
 | Tools and evidence semantics | [Harness guide](HARNESS.md) |
+| Steps from intake to merge, and their gates | [Issue control graph](GRAPH.md) |
 | Prompt-driven iteration and recovery | [Loop guide](LOOP.md) |
 | One bounded issue assignment | [Task packet](templates/task-packet.md) |
 | Checks mapped to acceptance criteria | [Verification specification](templates/verification-spec.json) |

@@ -25,6 +25,7 @@ Each configured check supplies an argv array, repository-relative cwd, required 
 ```sh
 node tools/harness/harness.mjs run .local/harness/tasks/2/verification.json
 node tools/harness/harness.mjs compare .local/harness/runs/<run>/report.json .local/harness/tasks/2/verification.json
+node tools/harness/harness.mjs gate .local/harness/tasks/2/verification.json
 ```
 
 Paths with `<run>` are placeholders. Running the untouched application template produces `incomplete` and exit code 1. Publication authorization, required review, and manual/performance evidence are additional workflow gates, even after automated checks pass.
@@ -47,6 +48,10 @@ Each snapshot carries two digests. `contentFingerprint` covers what checks read:
 Each report also records an `environment`: Node version, platform, architecture, and the first output line of each toolchain probe (`null` when the tool is unavailable or fails), plus their digest. Probes run without a shell, from the repository root, with a 5-second timeout. `compare` reruns them: a different version, or a tool that appeared or disappeared, sets `environmentMatches` to `false` and prevents reuse. Reports without a recorded environment are never reused. Environment variables, installed packages, and other system state are not captured; record them separately when they matter.
 
 `compare` needs both the report and current specification. Changed code, untracked files, role instructions, Goal, check definition, or toolchain versions invalidate reuse; reports without a `contentFingerprint` or a recorded environment are never reusable. `evidenceForCommit` names the current HEAD only when the evidence is reusable and the working tree is clean. If it is `null`, the tested content was uncommitted: a partial commit may differ from what ran, so rerun on a clean checkout before presenting the result as evidence for a commit. New GitHub issue wording or environment changes outside the declared probes require rereading/updating the task specification; the offline CLI cannot detect them automatically.
+
+## Harness Gate
+
+`gate SPEC.json` answers one question for the [issue control graph](GRAPH.md): may the current commit be put up for review? It scans the newest run directories (at most 500) for reports produced with the same specification, keeps those whose content fingerprint matches the current files, and judges only the newest of them, so an older green run never hides a newer red one. It allows the transition, with exit code 0 and reason `passed_on_clean_head`, only when that report `passed`, its recorded environment matches the current toolchain, and the working tree is clean so `evidenceForCommit` is HEAD. Otherwise it exits 1 with `no_commit`, `no_report`, `no_report_for_current_content`, `latest_report_not_passed`, `environment_changed`, or `dirty_tree`. Unreadable or oversized reports are skipped and counted in `unreadableReports`. The gate reads evidence only; it never runs checks or contacts GitHub. `tools/harness/require-gate.mjs` applies it to `gh pr ready` and non-draft `gh pr create` commands; see [GRAPH.md](GRAPH.md#optional-guard-for-assistants).
 
 ## Resource Limits and Boundaries
 
