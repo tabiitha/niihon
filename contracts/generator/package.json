@@ -1,0 +1,10 @@
+{
+  "name": "@nihon/contract-generator",
+  "private": true,
+  "type": "module",
+  "description": "Generation-only tooling: openapi-typescript needs the TypeScript 5 compiler API, absent from TypeScript 7.",
+  "devDependencies": {
+    "openapi-typescript": "7.13.0",
+    "typescript": "5.9.3"
+  }
+}

@@ -1,0 +1,6 @@
+# Configuration of swift-openapi-generator for both generated modules.
+generate:
+  - types
+  - client
+accessModifier: public
+namingStrategy: idiomatic

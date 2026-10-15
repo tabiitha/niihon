@@ -1,0 +1,141 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Nihon API",
+    "version": "1.0.0",
+    "description": "REST contract of the local Nihon server. Generated from the server's operation declarations; do not edit.\n\nGenerated clients send `Nihon-API-Version: 1`. The server refuses a different major version with `400 unsupported_api_version`; `GET /api/health` stays available to every client and reports `apiVersion`. Every response carries `Nihon-Request-Id`, also present in error bodies. Conventions: docs/architecture/api-contract.md."
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:4000",
+      "description": "Default local installation"
+    }
+  ],
+  "tags": [
+    {
+      "name": "server"
+    }
+  ],
+  "components": {
+    "schemas": {
+      "Health": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok"
+            ]
+          },
+          "service": {
+            "type": "string",
+            "enum": [
+              "nihon-api"
+            ]
+          },
+          "version": {
+            "type": "string",
+            "description": "Server release, from apps/api/package.json."
+          },
+          "apiVersion": {
+            "type": "string",
+            "description": "Contract version the server implements; clients compare its major part."
+          }
+        },
+        "required": [
+          "status",
+          "service",
+          "version",
+          "apiVersion"
+        ],
+        "description": "Server availability and versions."
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "description": "Stable, snake_case error code. Clients branch on it, never on the message."
+              },
+              "message": {
+                "type": "string",
+                "description": "English explanation for developers; not meant for display."
+              },
+              "requestId": {
+                "type": "string",
+                "description": "Correlates the response with the server log."
+              },
+              "issues": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string",
+                      "description": "Location of the invalid input, such as `query.limit`."
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "path",
+                    "message"
+                  ]
+                },
+                "description": "Present on `validation_failed`: one entry per invalid input."
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "requestId"
+            ]
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "description": "Body of every error response."
+      }
+    },
+    "parameters": {}
+  },
+  "paths": {
+    "/api/health": {
+      "get": {
+        "operationId": "getHealth",
+        "summary": "Report server availability and versions",
+        "tags": [
+          "server"
+        ],
+        "responses": {
+          "200": {
+            "description": "The server is available.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Any other error, such as `internal_error` (500) or `stopping` (503).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "webhooks": {}
+}

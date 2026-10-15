@@ -11,13 +11,17 @@
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/main.js",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "node --test \"src/**/*.test.ts\"",
-    "test:container": "docker build --tag nihon-api:test --file Dockerfile ../.. && NIHON_TEST_IMAGE=nihon-api:test node --test test/container.test.ts"
+    "test": "node --test \"src/**/*.test.ts\" \"contract/**/*.test.ts\"",
+    "test:container": "docker build --tag nihon-api:test --file Dockerfile ../.. && NIHON_TEST_IMAGE=nihon-api:test node --test test/container.test.ts",
+    "contract:generate": "node contract/generate.ts",
+    "contract:check": "node contract/generate.ts --check"
   },
   "dependencies": {
-    "express": "5.3.0"
+    "express": "5.3.0",
+    "zod": "4.6.7"
   },
   "devDependencies": {
+    "@asteasolutions/zod-to-openapi": "9.1.0",
     "@types/express": "5.0.6",
     "@types/node": "24.19.2",
     "typescript": "7.0.2"

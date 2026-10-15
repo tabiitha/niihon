@@ -8,10 +8,12 @@ The Nihon API is an Express.js/TypeScript REST server running on Node.js. It is 
 | --- | --- |
 | `package.json`, `bun.lock` | Bun workspace root (`apps/*`) and the single lockfile |
 | `apps/api/` | The API: sources, tests, `Dockerfile`, TypeScript configuration |
+| `apps/api/contract/` | OpenAPI document builder and client generation ([REST contract](api-contract.md)) |
+| `contracts/` | Published OpenAPI contract, generated TypeScript and Swift clients, conformance fixtures |
 | `compose.yaml`, `.dockerignore` | Docker Compose service built from source; build-context allowlist |
 | `.github/workflows/api.yml` | Application CI |
 
-Only what this foundation needs exists. `apps/web`, `apps/macos`, `contracts`, `resources`, `tests/fixtures`, and `packaging/macos` are created by the issues that first need them.
+Only what is needed exists. `apps/web`, `apps/macos`, `resources`, and `packaging/macos` are created by the issues that first need them.
 
 ## Source Structure
 
@@ -19,7 +21,8 @@ Only what this foundation needs exists. `apps/web`, `apps/macos`, `contracts`, `
 | --- | --- | --- |
 | `src/config.ts` | Parses environment variables into a typed configuration | None |
 | `src/modules/enablement.ts` | Chooses the enabled modules from the registry and configuration | None |
-| `src/app.ts` | HTTP adapter: health route, module mounting, JSON 404/500/503 | HTTP |
+| `src/contract/` | Contract conventions (versions, errors, identifiers, timestamps, pagination) and operation declarations with runtime validation | None |
+| `src/app.ts` | HTTP adapter: request identifiers, version check, health route, module mounting, JSON errors | HTTP |
 | `src/instance-lock.ts` | Exclusive ownership of the data directory | File system |
 | `src/server.ts` | Claims the directory, listens, stops gracefully | Network, file system |
 | `src/main.ts` | Process entry: configuration errors, signals, exit codes | Process |
@@ -32,12 +35,13 @@ Nihon is a modular monolith: features live in the repository and are compiled in
 
 ```ts
 export interface ApiModule {
-  readonly id: string;           // lowercase letters, digits, hyphens
-  register(router: Router): void; // routes relative to /api/<id>/
+  readonly id: string;                                // lowercase letters, digits, hyphens
+  readonly operations: readonly OperationContract[];  // declarations published in the contract
+  register(router: Router): void;                     // routes relative to /api/<id>/
 }
 ```
 
-To add a module, create its folder and add one entry to `src/modules/registry.ts`. Modules interact only through what another module exports. The registry is empty in this foundation.
+To add a module, create its folder and add one entry to `src/modules/registry.ts`. Each route is declared as an operation and added with `addOperation`, as described in the [REST contract](api-contract.md#single-source); then run `bun run contract:generate`. Modules interact only through what another module exports. The registry is empty in this foundation.
 
 `NIHON_MODULES` selects the enabled modules. When it is unset, every registered module is enabled; when it is set, only the listed identifiers are (an empty value enables none). An identifier that no module carries stops startup with exit code 2. A disabled module's router is never mounted, so every path under `/api/<id>/` answers 404, exactly as if the module did not exist. Prisma models will stay separated per module when persistence arrives; that choice belongs to the persistence issue.
 
@@ -45,10 +49,13 @@ To add a module, create its folder and add one entry to `src/modules/registry.ts
 
 | Request | Response |
 | --- | --- |
-| `GET /api/health` | `200 {"status":"ok","service":"nihon-api","version":"<apps/api/package.json version>"}` |
-| Unknown route | `404 {"error":{"code":"not_found","message":"..."}}` |
-| Unexpected error | `500 {"error":{"code":"internal_error","message":"..."}}`; details go to the log only |
+| `GET /api/health` | `200 {"status":"ok","service":"nihon-api","version":"<apps/api/package.json version>","apiVersion":"<contract version>"}` |
+| Unknown route | `404 {"error":{"code":"not_found","message":"...","requestId":"..."}}` |
+| Unexpected error | `500 {"error":{"code":"internal_error",...}}`; details go to the log only |
 | Any request during shutdown | `503 {"error":{"code":"stopping",...}}` with `Connection: close` |
+| `Nihon-API-Version` other than the current major | `400 {"error":{"code":"unsupported_api_version",...}}`, except on `/api/health` |
+
+Every response carries a `Nihon-Request-Id` header. Error codes, versioning, pagination, and the other conventions are described in the [REST contract](api-contract.md).
 
 ## Configuration
 
@@ -101,5 +108,6 @@ These bounds are a starting point; tune them after measurement.
 | Bun | 1.4.3 | Dependency installation and scripts |
 | TypeScript | 7.0.2 | Type checking and build (strict) |
 | Express | 5.3.0 | HTTP framework |
+| zod | 4.6.7 | Contract schemas and runtime validation |
 
 Development runs the TypeScript sources directly with Node's type stripping; the configuration enables `erasableSyntaxOnly` and `rewriteRelativeImportExtensions` so the same files compile to `dist/` for production.

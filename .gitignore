@@ -46,6 +46,10 @@ node_modules/
 
 # Swift / Xcode build output and per-user state
 # Keep shared Xcode projects, schemes and Package.resolved.
+/contracts/swift/.build/
+/contracts/swift/Generator/.build/
+/contracts/swift/.swiftpm/
+/contracts/swift/Generator/.swiftpm/
 /apps/macos/.build/
 /apps/macos/build/
 /apps/macos/DerivedData/
