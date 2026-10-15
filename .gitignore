@@ -39,6 +39,8 @@ node_modules/
 /apps/web/.turbo/
 /apps/web/*.tsbuildinfo
 /apps/web/coverage/
+/apps/api/dist/
+/apps/api/*.tsbuildinfo
 /apps/web/playwright-report/
 /apps/web/test-results/
 
@@ -73,5 +75,6 @@ xcuserdata/
 !/.github/workflows/
 /.github/workflows/*
 !/.github/workflows/harness.yml
+!/.github/workflows/api.yml
 
 # .sqlx/, migrations, fixtures and asset sources stay versionable.

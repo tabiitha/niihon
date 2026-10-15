@@ -10,9 +10,9 @@ Keep installation in `README.md`, detailed guidance in `docs/`, and assets in `r
 
 ## Scope and Development Commands
 
-Inspect Git and current issue dependencies, Goal, acceptance, and performance criteria. Keep one responsibility per realization; preserve the backlog. Issue #2 establishes the server foundation, excluding authentication, business persistence, and UI.
+Inspect Git and current issue dependencies, Goal, acceptance, and performance criteria. Keep one responsibility per realization; preserve the backlog. Issue #2 established the server foundation and module registry, excluding authentication, business persistence, and UI.
 
-No application commands or test framework exist yet; check manifests before documenting scripts. Available developer-tool checks:
+The API lives in `apps/api` (see the [API server architecture](docs/architecture/api-server.md)). From the root: `bun install --frozen-lockfile`, `bun run typecheck`, `bun run build`, `bun run test` (Node's built-in test runner), and `bun run test:container` (Docker). Check manifests before documenting new scripts. Developer-tool checks:
 
 ```sh
 node tools/harness/harness.mjs doctor

@@ -1,0 +1,82 @@
+# Builds, type-checks, and tests the API (issue #2), natively and as a container.
+name: API
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: api-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native:
+    name: Native (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.3
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Type-check
+        run: bun run typecheck
+      - name: Build
+        run: bun run build
+      - name: Test sources
+        run: bun run test
+      - name: Test the built server process
+        run: node --test src/main.test.ts
+        env:
+          NIHON_API_ENTRY: dist/main.js
+
+  container:
+    name: Container (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.3
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - name: Build the image and test startup, shutdown, and second-instance refusal
+        run: bun run test:container
+      - name: Start with Docker Compose
+        run: |
+          docker compose up --detach --build --wait
+          curl --fail --silent --show-error http://127.0.0.1:4000/api/health
+          docker compose ps --format '{{.Ports}}' | grep -F '127.0.0.1:4000->4000/tcp'
+      - name: Stop with Docker Compose
+        if: always()
+        run: docker compose down --volumes

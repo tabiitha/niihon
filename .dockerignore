@@ -1,0 +1,9 @@
+# Send only what the image build reads; everything else stays out of the build context.
+*
+!package.json
+!bun.lock
+!apps/api/package.json
+!apps/api/tsconfig.json
+!apps/api/tsconfig.build.json
+!apps/api/src/
+apps/api/src/**/*.test.ts

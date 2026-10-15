@@ -1,0 +1,20 @@
+# Runs the Nihon API from source: `docker compose up --detach --build`.
+# The port is published on the host loopback interface only; data lives in a named volume.
+name: nihon
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    image: nihon-api:local
+    ports:
+      - "127.0.0.1:${NIHON_HOST_PORT:-4000}:4000"
+    volumes:
+      - nihon-data:/data
+    restart: unless-stopped
+    # Longer than the server's 10-second shutdown grace, so docker stop never cuts it short.
+    stop_grace_period: 15s
+
+volumes:
+  nihon-data:
