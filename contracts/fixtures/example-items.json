@@ -1,0 +1,7 @@
+[
+  { "id": "item-01", "label": "あ", "createdAt": "2026-10-01T08:00:00.000Z" },
+  { "id": "item-02", "label": "い", "createdAt": "2026-10-02T08:00:00.250Z" },
+  { "id": "item-03", "label": "う", "createdAt": "2026-10-03T08:00:00.500Z" },
+  { "id": "item-04", "label": "え", "createdAt": "2026-10-04T08:00:00.750Z" },
+  { "id": "item-05", "label": "お", "createdAt": "2026-10-05T08:00:00.999Z" }
+]

@@ -113,6 +113,7 @@ describe(`container image ${image}`, () => {
   it('ships no development dependency', async () => {
     const store = await docker('run', '--rm', '--entrypoint', 'ls', image, '/app/node_modules/.bun');
     assert.match(store, /^express@/m);
-    assert.doesNotMatch(store, /typescript|@types/);
+    assert.match(store, /^zod@/m);
+    assert.doesNotMatch(store, /typescript|@types|zod-to-openapi/);
   });
 });

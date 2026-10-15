@@ -6,7 +6,7 @@ import type { ApiModule } from './api-module.ts';
 import { selectEnabledModules } from './enablement.ts';
 import { registeredModules } from './registry.ts';
 
-const moduleWithId = (id: string): ApiModule => ({ id, register: () => {} });
+const moduleWithId = (id: string): ApiModule => ({ id, operations: [], register: () => {} });
 const kanji = moduleWithId('kanji');
 const review = moduleWithId('review');
 

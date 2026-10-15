@@ -7,6 +7,8 @@ import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 
+import { apiVersion } from './contract/conventions.ts';
+
 // Exercises the real entry point in a child process. NIHON_API_ENTRY may point at the built dist/main.js.
 const entry = process.env['NIHON_API_ENTRY'] ?? fileURLToPath(new URL('./main.ts', import.meta.url));
 const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string };
@@ -97,7 +99,7 @@ describe('server process', () => {
     const server = launch(dataDir);
     const listening = await server.waitFor('server.listening');
     assert.equal(listening['host'], '127.0.0.1');
-    assert.deepEqual(await health(listening), { status: 'ok', service: 'nihon-api', version });
+    assert.deepEqual(await health(listening), { status: 'ok', service: 'nihon-api', version, apiVersion });
 
     server.child.kill('SIGTERM');
     assert.equal(await server.exited, 0);

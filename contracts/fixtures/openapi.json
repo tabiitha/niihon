@@ -1,0 +1,326 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Nihon API conformance fixture",
+    "version": "1.0.0",
+    "description": "REST contract of the local Nihon server. Generated from the server's operation declarations; do not edit.\n\nGenerated clients send `Nihon-API-Version: 1`. The server refuses a different major version with `400 unsupported_api_version`; `GET /api/health` stays available to every client and reports `apiVersion`. Every response carries `Nihon-Request-Id`, also present in error bodies. Conventions: docs/architecture/api-contract.md."
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:4000",
+      "description": "Default local installation"
+    }
+  ],
+  "tags": [
+    {
+      "name": "server"
+    },
+    {
+      "name": "example"
+    }
+  ],
+  "components": {
+    "schemas": {
+      "Health": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok"
+            ]
+          },
+          "service": {
+            "type": "string",
+            "enum": [
+              "nihon-api"
+            ]
+          },
+          "version": {
+            "type": "string",
+            "description": "Server release, from apps/api/package.json."
+          },
+          "apiVersion": {
+            "type": "string",
+            "description": "Contract version the server implements; clients compare its major part."
+          }
+        },
+        "required": [
+          "status",
+          "service",
+          "version",
+          "apiVersion"
+        ],
+        "description": "Server availability and versions."
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "description": "Stable, snake_case error code. Clients branch on it, never on the message."
+              },
+              "message": {
+                "type": "string",
+                "description": "English explanation for developers; not meant for display."
+              },
+              "requestId": {
+                "type": "string",
+                "description": "Correlates the response with the server log."
+              },
+              "issues": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string",
+                      "description": "Location of the invalid input, such as `query.limit`."
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "path",
+                    "message"
+                  ]
+                },
+                "description": "Present on `validation_failed`: one entry per invalid input."
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "requestId"
+            ]
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "description": "Body of every error response."
+      },
+      "ExampleItemPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExampleItem"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Cursor of the next page, or null when this page is the last one."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "description": "One page of a collection, in a stable order."
+      },
+      "ExampleItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,64}$",
+            "description": "Opaque identifier of 1 to 64 characters `A-Z a-z 0-9 _ -`."
+          },
+          "label": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "UTC timestamp, `YYYY-MM-DDTHH:mm:ss.sssZ`.",
+            "examples": [
+              "2026-10-15T08:30:00.000Z"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "createdAt"
+        ],
+        "description": "Fixture item."
+      }
+    },
+    "parameters": {}
+  },
+  "paths": {
+    "/api/health": {
+      "get": {
+        "operationId": "getHealth",
+        "summary": "Report server availability and versions",
+        "tags": [
+          "server"
+        ],
+        "responses": {
+          "200": {
+            "description": "The server is available.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Any other error, such as `internal_error` (500) or `stopping` (503).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/example/items": {
+      "get": {
+        "operationId": "listExampleItems",
+        "summary": "List fixture items by identifier",
+        "tags": [
+          "example"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50,
+              "description": "Maximum number of items in the page, 1 to 100."
+            },
+            "required": false,
+            "description": "Maximum number of items in the page, 1 to 100.",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512,
+              "description": "Opaque `nextCursor` of the previous page; omit it for the first page."
+            },
+            "required": false,
+            "description": "Opaque `nextCursor` of the previous page; omit it for the first page.",
+            "name": "cursor",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page of items.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExampleItemPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Refused request: invalid input (`validation_failed`) or incompatible client (`unsupported_api_version`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Any other error, such as `internal_error` (500) or `stopping` (503).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/example/items/{itemId}": {
+      "get": {
+        "operationId": "getExampleItem",
+        "summary": "Read one fixture item",
+        "tags": [
+          "example"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,64}$",
+              "description": "Opaque identifier of 1 to 64 characters `A-Z a-z 0-9 _ -`."
+            },
+            "required": true,
+            "description": "Opaque identifier of 1 to 64 characters `A-Z a-z 0-9 _ -`.",
+            "name": "itemId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The item.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExampleItem"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Refused request: invalid input (`validation_failed`) or incompatible client (`unsupported_api_version`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No item has this identifier (`example_item_not_found`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Any other error, such as `internal_error` (500) or `stopping` (503).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "webhooks": {}
+}

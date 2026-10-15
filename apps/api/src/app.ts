@@ -1,9 +1,24 @@
+import { randomUUID } from 'node:crypto';
+
 import express, { type ErrorRequestHandler, type Express, type RequestHandler } from 'express';
 
+import {
+  apiMajorVersion,
+  apiVersion,
+  apiVersionHeader,
+  errorCodes,
+  requestIdHeader,
+  type ErrorResponse,
+} from './contract/conventions.ts';
+import { getHealth } from './contract/health.ts';
+import { addOperation, ApiError, type OperationContract, type ValidationIssue } from './contract/operation.ts';
 import type { Logger } from './log.ts';
 import type { ApiModule } from './modules/api-module.ts';
 
 export const serviceName = 'nihon-api';
+
+/** Operations served by the foundation itself, under `/api`. */
+export const coreOperations: readonly OperationContract[] = [getHealth];
 
 export interface AppOptions {
   readonly version: string;
@@ -21,11 +36,16 @@ export function createApp({ version, modules, logger, isStopping = () => false }
   const app = express();
   app.disable('x-powered-by');
 
+  app.use(assignRequestId);
   app.use(refuseWhileStopping(isStopping));
+  app.use(refuseIncompatibleClients(unversionedPaths(modules)));
 
-  app.get('/api/health', (_request, response) => {
-    response.json({ status: 'ok', service: serviceName, version });
-  });
+  const core = express.Router();
+  addOperation(core, getHealth).handle(() => ({
+    status: 200,
+    body: { status: 'ok', service: serviceName, version, apiVersion },
+  }));
+  app.use('/api', core);
 
   for (const module of modules) {
     const router = express.Router();
@@ -38,6 +58,17 @@ export function createApp({ version, modules, logger, isStopping = () => false }
   return app;
 }
 
+const requestIdPattern = /^[A-Za-z0-9._-]{1,64}$/;
+
+/** Reuses a well-formed `Nihon-Request-Id` from the client, or creates one, and echoes it. */
+const assignRequestId: RequestHandler = (request, response, next) => {
+  const received = request.get(requestIdHeader);
+  const requestId = received !== undefined && requestIdPattern.test(received) ? received : randomUUID();
+  response.locals['requestId'] = requestId;
+  response.set(requestIdHeader, requestId);
+  next();
+};
+
 function refuseWhileStopping(isStopping: () => boolean): RequestHandler {
   return (_request, response, next) => {
     if (!isStopping()) {
@@ -45,12 +76,44 @@ function refuseWhileStopping(isStopping: () => boolean): RequestHandler {
       return;
     }
     response.set('Connection', 'close');
-    sendError(response, 503, 'stopping', 'The server is shutting down.');
+    sendError(response, 503, errorCodes.stopping, 'The server is shutting down.');
+  };
+}
+
+function unversionedPaths(modules: readonly ApiModule[]): ReadonlySet<string> {
+  const groups = [
+    { prefix: '/api', operations: coreOperations },
+    ...modules.map((module) => ({ prefix: `/api/${module.id}`, operations: module.operations })),
+  ];
+  return new Set(
+    groups.flatMap(({ prefix, operations }) =>
+      operations.filter((operation) => operation.versioned === false).map((operation) => prefix + operation.path),
+    ),
+  );
+}
+
+/**
+ * Clients declare the contract major version they were generated from. A request without the
+ * header is accepted, so tools such as curl keep working; a different major is refused.
+ */
+function refuseIncompatibleClients(exempt: ReadonlySet<string>): RequestHandler {
+  return (request, response, next) => {
+    const declared = request.get(apiVersionHeader);
+    if (declared === undefined || declared.trim() === String(apiMajorVersion) || exempt.has(request.path)) {
+      next();
+      return;
+    }
+    sendError(
+      response,
+      400,
+      errorCodes.unsupportedApiVersion,
+      `This server implements API version ${apiVersion}; update the client, which requires major version "${declared}".`,
+    );
   };
 }
 
 const notFound: RequestHandler = (request, response) => {
-  sendError(response, 404, 'not_found', `No route matches ${request.method} ${request.path}.`);
+  sendError(response, 404, errorCodes.notFound, `No route matches ${request.method} ${request.path}.`);
 };
 
 function handleError(logger: Logger): ErrorRequestHandler {
@@ -59,17 +122,22 @@ function handleError(logger: Logger): ErrorRequestHandler {
       next(error);
       return;
     }
+    if (error instanceof ApiError) {
+      sendError(response, error.status, error.code, error.message, error.issues);
+      return;
+    }
     const status = clientErrorStatus(error);
     if (status !== undefined) {
-      sendError(response, status, 'bad_request', 'The request could not be processed.');
+      sendError(response, status, errorCodes.badRequest, 'The request could not be processed.');
       return;
     }
     logger('error', 'request.failed', {
+      requestId: response.locals['requestId'],
       method: request.method,
       path: request.path,
       error: error instanceof Error ? error.message : String(error),
     });
-    sendError(response, 500, 'internal_error', 'An unexpected error occurred.');
+    sendError(response, 500, errorCodes.internalError, 'An unexpected error occurred.');
   };
 }
 
@@ -82,6 +150,20 @@ function clientErrorStatus(error: unknown): number | undefined {
   return typeof status === 'number' && status >= 400 && status < 500 ? status : undefined;
 }
 
-function sendError(response: express.Response, status: number, code: string, message: string): void {
-  response.status(status).json({ error: { code, message } });
+function sendError(
+  response: express.Response,
+  status: number,
+  code: string,
+  message: string,
+  issues?: readonly ValidationIssue[],
+): void {
+  const body: ErrorResponse = {
+    error: {
+      code,
+      message,
+      requestId: String(response.locals['requestId']),
+      ...(issues === undefined ? {} : { issues: [...issues] }),
+    },
+  };
+  response.status(status).json(body);
 }

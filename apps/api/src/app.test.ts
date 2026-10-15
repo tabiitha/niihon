@@ -4,12 +4,14 @@ import type { AddressInfo } from 'node:net';
 import { after, before, describe, it } from 'node:test';
 
 import { createApp, type AppOptions } from './app.ts';
+import { apiVersion } from './contract/conventions.ts';
 import { silentLogger } from './log.ts';
 import type { ApiModule } from './modules/api-module.ts';
 import { selectEnabledModules } from './modules/enablement.ts';
 
 const exampleModule: ApiModule = {
   id: 'example',
+  operations: [],
   register(router) {
     router.get('/ping', (_request, response) => {
       response.json({ pong: true });
@@ -48,15 +50,17 @@ describe('HTTP application', () => {
   it('reports availability and version', async () => {
     const response = await fetch(`${baseUrl}/api/health`);
     assert.equal(response.status, 200);
-    assert.deepEqual(await response.json(), { status: 'ok', service: 'nihon-api', version: '1.2.3' });
+    assert.deepEqual(await response.json(), { status: 'ok', service: 'nihon-api', version: '1.2.3', apiVersion });
     assert.equal(response.headers.get('x-powered-by'), null);
   });
 
   it('answers unknown routes with a JSON 404', async () => {
     const response = await fetch(`${baseUrl}/api/missing`);
     assert.equal(response.status, 404);
+    const requestId = response.headers.get('nihon-request-id');
+    assert.ok(requestId);
     assert.deepEqual(await response.json(), {
-      error: { code: 'not_found', message: 'No route matches GET /api/missing.' },
+      error: { code: 'not_found', message: 'No route matches GET /api/missing.', requestId },
     });
   });
 
@@ -70,7 +74,11 @@ describe('HTTP application', () => {
     const response = await fetch(`${baseUrl}/api/example/fail`);
     assert.equal(response.status, 500);
     assert.deepEqual(await response.json(), {
-      error: { code: 'internal_error', message: 'An unexpected error occurred.' },
+      error: {
+        code: 'internal_error',
+        message: 'An unexpected error occurred.',
+        requestId: response.headers.get('nihon-request-id'),
+      },
     });
   });
 

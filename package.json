@@ -2,14 +2,18 @@
   "name": "nihon",
   "private": true,
   "workspaces": [
-    "apps/*"
+    "apps/*",
+    "contracts/generator",
+    "contracts/typescript"
   ],
   "scripts": {
     "dev": "bun run --cwd apps/api dev",
     "build": "bun run --cwd apps/api build",
     "start": "bun run --cwd apps/api start",
-    "typecheck": "bun run --cwd apps/api typecheck",
-    "test": "bun run --cwd apps/api test",
-    "test:container": "bun run --cwd apps/api test:container"
+    "typecheck": "bun run --cwd apps/api typecheck && bun run --cwd contracts/typescript typecheck",
+    "test": "bun run --cwd apps/api test && bun run --cwd contracts/typescript test",
+    "test:container": "bun run --cwd apps/api test:container",
+    "contract:generate": "bun run --cwd apps/api contract:generate",
+    "contract:check": "bun run --cwd apps/api contract:check"
   }
 }
