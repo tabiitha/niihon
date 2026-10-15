@@ -26,14 +26,14 @@ interface ServerProcess {
   waitFor(event: string): Promise<LogEvent>;
 }
 
-const running = new Set<ChildProcess>();
+// Children still alive, with the promise of their exit, so cleanup can wait for them.
+const running = new Map<ChildProcess, Promise<number | null>>();
 
 function launch(dataDir: string, env: Record<string, string> = {}): ServerProcess {
   const child = spawn(process.execPath, [entry], {
     env: { ...process.env, NIHON_DATA_DIR: dataDir, NIHON_PORT: '0', NIHON_HOST: '127.0.0.1', ...env },
     stdio: ['ignore', 'pipe', 'inherit'],
   });
-  running.add(child);
   const events: LogEvent[] = [];
   const waiters: Array<{ event: string; resolve: (value: LogEvent) => void }> = [];
   createInterface({ input: child.stdout! }).on('line', (line) => {
@@ -49,6 +49,7 @@ function launch(dataDir: string, env: Record<string, string> = {}): ServerProces
       resolve(code);
     });
   });
+  running.set(child, exited);
   return {
     child,
     events,
@@ -82,11 +83,14 @@ describe('server process', () => {
   beforeEach(() => {
     dataDir = mkdtempSync(join(tmpdir(), 'nihon-server-'));
   });
-  afterEach(() => {
-    for (const child of running) {
+  afterEach(async () => {
+    // Windows refuses to delete the lock file while its process is still exiting.
+    const exits = [...running.values()];
+    for (const child of running.keys()) {
       child.kill('SIGKILL');
     }
-    rmSync(dataDir, { recursive: true, force: true });
+    await Promise.all(exits);
+    rmSync(dataDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   });
 
   it('starts on loopback, reports its version, and stops cleanly', { skip: gracefulStopUnsupported }, async () => {
