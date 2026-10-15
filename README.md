@@ -23,8 +23,8 @@ Verified so far: Docker 29.8.0 with Compose 5.5.1 on macOS 27 (Apple silicon), a
 ### Start
 
 ```sh
-git clone https://github.com/tabiitha/niihon.git
-cd niihon
+git clone https://github.com/tabiitha/niihon.git nihon
+cd nihon
 docker compose up --detach --build --wait
 ```
 
@@ -36,7 +36,7 @@ Check the installation: `curl http://127.0.0.1:4000/api/health` (on Windows, `cu
 docker compose stop
 ```
 
-`docker compose down` also removes the container. Both keep your data, which lives in the `niihon_nihon-data` Docker volume. `docker compose down --volumes` deletes that data permanently.
+`docker compose down` also removes the container. Both keep your data, which lives in the `nihon_nihon-data` Docker volume. `docker compose down --volumes` deletes that data permanently.
 
 ### Update
 
