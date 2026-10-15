@@ -53,13 +53,16 @@ Install Node.js 24 or newer and Bun 1.4.3, then run from the repository root:
 | --- | --- |
 | `bun install --frozen-lockfile` | Install locked dependencies |
 | `bun run dev` | Run the server from sources, restarting on change; data in `.local/data` |
-| `bun run typecheck` | Strict type checking of sources and tests |
+| `bun run typecheck` | Strict type checking of the API and the TypeScript client |
 | `bun run build` | Compile to `apps/api/dist/` |
 | `bun run start` | Run the compiled server; set `NIHON_DATA_DIR` first |
-| `bun run test` | Unit and server-process tests |
+| `bun run test` | API unit and server-process tests, and TypeScript client tests |
 | `bun run test:container` | Build the image and test it with Docker |
+| `bun run contract:generate` | Regenerate the OpenAPI contract and the TypeScript and Swift clients; add `--skip-swift` without a Swift toolchain |
+| `bun run contract:check` | Fail if the committed contract or clients differ from the server's declarations |
+| `swift test --package-path contracts/swift` | Test the Swift client (macOS, Swift 6 or newer) |
 
-Configuration, modules, exit codes, and limits are described in the [API server architecture](docs/architecture/api-server.md).
+Configuration, modules, exit codes, and limits are described in the [API server architecture](docs/architecture/api-server.md); the REST conventions and generated clients in the [REST contract](docs/architecture/api-contract.md).
 
 ## Documentation
 

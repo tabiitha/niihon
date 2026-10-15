@@ -12,7 +12,7 @@ Keep installation in `README.md`, detailed guidance in `docs/`, and assets in `r
 
 Inspect Git and current issue dependencies, Goal, acceptance, and performance criteria. Keep one responsibility per realization; preserve the backlog. Issue #2 established the server foundation and module registry, excluding authentication, business persistence, and UI.
 
-The API lives in `apps/api` (see the [API server architecture](docs/architecture/api-server.md)). From the root: `bun install --frozen-lockfile`, `bun run typecheck`, `bun run build`, `bun run test` (Node's built-in test runner), and `bun run test:container` (Docker). Check manifests before documenting new scripts. Developer-tool checks:
+The API lives in `apps/api` (see the [API server architecture](docs/architecture/api-server.md)); its OpenAPI contract and generated TypeScript/Swift clients live in `contracts` (see the [REST contract](docs/architecture/api-contract.md)). From the root: `bun install --frozen-lockfile`, `bun run typecheck`, `bun run build`, `bun run test` (Node's built-in test runner), `bun run test:container` (Docker), and `bun run contract:check` after changing an operation (`contract:generate` to update). Check manifests before documenting new scripts. Developer-tool checks:
 
 ```sh
 node tools/harness/harness.mjs doctor
