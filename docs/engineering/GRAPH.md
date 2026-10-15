@@ -97,6 +97,7 @@ These actions need the owner's explicit decision for the current task, recorded 
 | Harness gate → Publish | Code: `harness gate`; blocking only when it is run, or through the optional guard below |
 | Marking a PR ready for review | Optional local guard `tools/harness/require-gate.mjs` |
 | Harness self-check | CI: `.github/workflows/harness.yml` (informational, not required by the ruleset) |
+| API build and tests | CI: `.github/workflows/api.yml` (informational, not required by the ruleset) |
 | All other edges | Convention: this page, LOOP.md, and review |
 
 The independent reviewer is not automated yet, and the gate does not run in CI because task specs are local. Both remain convention until their own issues add them.

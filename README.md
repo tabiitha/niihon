@@ -6,11 +6,60 @@ Rust and Unreal are removed from the active stack. Games are deferred and exclud
 
 ## Project Status
 
-The project is in preparation. No runnable application or supported installation command is available yet. The first planned implementation is the Express.js/TypeScript server foundation in [issue #2](https://github.com/tabiitha/niihon/issues/2); preserve its minimal scope and recheck its current requirements before implementation.
+The project is in early development. The Express.js/TypeScript server foundation from [issue #2](https://github.com/tabiitha/niihon/issues/2) runs and reports its availability; no learning feature, account, or user interface exists yet.
 
 ## Installation
 
-This root README will contain the installation guide as runnable releases become available: supported systems, prerequisites, release selection, Docker startup and shutdown, initial resources, demonstration data, and verification of a successful installation. Commands will be documented after they have been implemented and verified.
+Nihon installs from source and runs its server with Docker Compose. The server stays on while Docker runs, and is reachable only from this computer at `http://127.0.0.1:4000`.
+
+### Prerequisites
+
+- Git.
+- Docker with Compose v2: Docker Desktop on Windows and macOS, Docker Engine with the Compose plugin on Linux. Linux images exist for `amd64` and `arm64`.
+- Disk space for the images: the API image takes 244 MB, and building it also downloads the Bun build image.
+
+Verified so far: Docker 29.8.0 with Compose 5.5.1 on macOS 27 (Apple silicon), and GitHub-hosted Ubuntu runners for `amd64` and `arm64`. Windows has not been tested yet.
+
+### Start
+
+```sh
+git clone https://github.com/tabiitha/niihon.git
+cd niihon
+docker compose up --detach --build --wait
+```
+
+Check the installation: `curl http://127.0.0.1:4000/api/health` (on Windows, `curl.exe`) answers `{"status":"ok","service":"nihon-api","version":"..."}`. To use another host port, set `NIHON_HOST_PORT`, for example `NIHON_HOST_PORT=4100 docker compose up --detach --build --wait`.
+
+### Stop
+
+```sh
+docker compose stop
+```
+
+`docker compose down` also removes the container. Both keep your data, which lives in the `niihon_nihon-data` Docker volume. `docker compose down --volumes` deletes that data permanently.
+
+### Update
+
+```sh
+git pull
+docker compose up --detach --build --wait
+```
+
+## Development
+
+Install Node.js 24 or newer and Bun 1.4.3, then run from the repository root:
+
+| Command | Effect |
+| --- | --- |
+| `bun install --frozen-lockfile` | Install locked dependencies |
+| `bun run dev` | Run the server from sources, restarting on change; data in `.local/data` |
+| `bun run typecheck` | Strict type checking of sources and tests |
+| `bun run build` | Compile to `apps/api/dist/` |
+| `bun run start` | Run the compiled server; set `NIHON_DATA_DIR` first |
+| `bun run test` | Unit and server-process tests |
+| `bun run test:container` | Build the image and test it with Docker |
+
+Configuration, modules, exit codes, and limits are described in the [API server architecture](docs/architecture/api-server.md).
 
 ## Documentation
 
