@@ -5,7 +5,7 @@ import { formatText } from './texts.ts';
 
 describe('formatText', () => {
   it('replaces placeholders with their values', () => {
-    assert.equal(formatText('{page} · Niihon', { page: 'Kanji' }), 'Kanji · Niihon');
+    assert.equal(formatText('{page} · Nihon', { page: 'Kanji' }), 'Kanji · Nihon');
     assert.equal(formatText('{count} / {count}', { count: 3 }), '3 / 3');
   });
 

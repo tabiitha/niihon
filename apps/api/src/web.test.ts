@@ -11,7 +11,7 @@ import { ConfigError } from './config.ts';
 import { silentLogger } from './log.ts';
 import { assertWebDir, contentSecurityPolicy } from './web.ts';
 
-const shell = '<!doctype html><title>Niihon</title><div id="root"></div>';
+const shell = '<!doctype html><title>Nihon</title><div id="root"></div>';
 
 async function serve(webDir?: string): Promise<{ baseUrl: string; server: Server }> {
   const server = createServer(createApp({ version: '1.2.3', modules: [], logger: silentLogger, webDir }));

@@ -70,7 +70,7 @@ export function Layout({ children }: { readonly children: ReactNode }) {
       <header className="header">
         <Link to={routes.home} className="brand">
           <SakuraLogo />
-          <span>Niihon</span>
+          <span>Nihon</span>
         </Link>
         <nav className="nav-primary" aria-label={t('navigationLabel')}>
           {renderEntries(primaryNavigation)}
