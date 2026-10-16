@@ -1,5 +1,6 @@
 # Builds, type-checks, and tests the API (issue #2), natively and as a container, and checks that the
 # published REST contract and its generated TypeScript and Swift clients match the server (issue #69).
+# Since issue #5 it also builds and tests the Web interface and its production serving by the API.
 name: API
 
 on:
@@ -39,8 +40,10 @@ jobs:
         run: bun run typecheck
       - name: Build
         run: bun run build
-      - name: Test the API and the TypeScript client
+      - name: Test the API, the TypeScript client, and the Web interface
         run: bun run test
+      - name: Test the production Web build served by the built API
+        run: bun run test:production
       - name: Check contract drift (OpenAPI document and TypeScript client)
         run: bun run contract:check --skip-swift
       - name: Test the built server process
@@ -98,6 +101,7 @@ jobs:
         run: |
           docker compose up --detach --build --wait
           curl --fail --silent --show-error http://127.0.0.1:4000/api/health
+          curl --fail --silent --show-error --header 'Accept: text/html' 'http://127.0.0.1:4000/reader?media=item-01' | grep -F '<div id="root"></div>'
           docker compose ps --format '{{.Ports}}' | grep -F '127.0.0.1:4000->4000/tcp'
       - name: Stop with Docker Compose
         if: always()

@@ -1,0 +1,12 @@
+{
+  "title": "Profile",
+  "body": "Your profile and account settings will appear here.",
+  "displayTitle": "Display",
+  "displayNote": "These choices apply to this page until profile preferences are available.",
+  "language": "Language",
+  "style": "Style",
+  "mode": "Mode",
+  "modeSystem": "System",
+  "modeLight": "Light",
+  "modeDark": "Dark"
+}

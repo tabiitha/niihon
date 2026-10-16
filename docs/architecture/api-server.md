@@ -8,12 +8,14 @@ The Nihon API is an Express.js/TypeScript REST server running on Node.js. It is 
 | --- | --- |
 | `package.json`, `bun.lock` | Bun workspace root (`apps/*`) and the single lockfile |
 | `apps/api/` | The API: sources, tests, `Dockerfile`, TypeScript configuration |
+| `apps/web/` | The Web client ([Web client architecture](web-client.md)) |
+| `resources/themes/` | Theme tokens shared by the clients |
 | `apps/api/contract/` | OpenAPI document builder and client generation ([REST contract](api-contract.md)) |
 | `contracts/` | Published OpenAPI contract, generated TypeScript and Swift clients, conformance fixtures |
 | `compose.yaml`, `.dockerignore` | Docker Compose service built from source; build-context allowlist |
 | `.github/workflows/api.yml` | Application CI |
 
-Only what is needed exists. `apps/web`, `apps/macos`, `resources`, and `packaging/macos` are created by the issues that first need them.
+Only what is needed exists. `apps/macos` and `packaging/macos` are created by the issues that first need them.
 
 ## Source Structure
 
@@ -22,7 +24,8 @@ Only what is needed exists. `apps/web`, `apps/macos`, `resources`, and `packagin
 | `src/config.ts` | Parses environment variables into a typed configuration | None |
 | `src/modules/enablement.ts` | Chooses the enabled modules from the registry and configuration | None |
 | `src/contract/` | Contract conventions (versions, errors, identifiers, timestamps, pagination) and operation declarations with runtime validation | None |
-| `src/app.ts` | HTTP adapter: request identifiers, version check, health route, module mounting, JSON errors | HTTP |
+| `src/app.ts` | HTTP adapter: request identifiers, version check, health route, module mounting, Web interface, JSON errors | HTTP |
+| `src/web.ts` | Serves the built Web interface outside `/api` | HTTP, file system |
 | `src/instance-lock.ts` | Exclusive ownership of the data directory | File system |
 | `src/server.ts` | Claims the directory, listens, stops gracefully | Network, file system |
 | `src/main.ts` | Process entry: configuration errors, signals, exit codes | Process |
@@ -54,6 +57,7 @@ To add a module, create its folder and add one entry to `src/modules/registry.ts
 | Unexpected error | `500 {"error":{"code":"internal_error",...}}`; details go to the log only |
 | Any request during shutdown | `503 {"error":{"code":"stopping",...}}` with `Connection: close` |
 | `Nihon-API-Version` other than the current major | `400 {"error":{"code":"unsupported_api_version",...}}`, except on `/api/health` |
+| Outside `/api`, with `NIHON_WEB_DIR` set | A file of the Web build, or `index.html` for a page address; see the [Web client](web-client.md#toolchain-and-serving-topology) |
 
 Every response carries a `Nihon-Request-Id` header. Error codes, versioning, pagination, and the other conventions are described in the [REST contract](api-contract.md).
 
@@ -65,6 +69,7 @@ Every response carries a `Nihon-Request-Id` header. Error codes, versioning, pag
 | `NIHON_HOST` | `127.0.0.1` | Listening interface. The image sets `0.0.0.0` inside the container; the host publishes the port on `127.0.0.1` only |
 | `NIHON_PORT` | `4000` | Listening port; `0` picks a free port |
 | `NIHON_MODULES` | unset | Comma-separated module identifiers, see [Modules](#modules) |
+| `NIHON_WEB_DIR` | unset (image: `/app/apps/web/dist`) | Built Web interface to serve; relative paths resolve from the working directory. Unset, only `/api` is served; without `index.html`, startup stops with exit code 2 |
 
 `compose.yaml` additionally reads `NIHON_HOST_PORT` (default `4000`), the host loopback port.
 
@@ -98,7 +103,7 @@ These bounds are a starting point; tune them after measurement.
 
 ## Container Image
 
-`apps/api/Dockerfile` builds from the repository root in three stages: compile with Bun and TypeScript, install production dependencies only with `bun install --production --frozen-lockfile`, then copy the JavaScript output and production `node_modules` into `node:24.22.0-alpine`. Base images are pinned by digest. Build stages run on the builder's platform because they only produce JavaScript, so `linux/amd64` and `linux/arm64` images build without emulating the compiler. The server runs as the `node` user, data lives in `/data`, and an image `HEALTHCHECK` calls `/api/health`.
+`apps/api/Dockerfile` builds from the repository root in four stages: compile the API with Bun and TypeScript, build the Web client with Bun, install the API's production dependencies only with `bun install --production --frozen-lockfile`, then copy the JavaScript output, the Web build, and production `node_modules` into `node:24.22.0-alpine`. Base images are pinned by digest. Build stages run on the builder's platform because they only produce JavaScript, so `linux/amd64` and `linux/arm64` images build without emulating the compiler. The server runs as the `node` user, data lives in `/data`, and an image `HEALTHCHECK` calls `/api/health`.
 
 ## Toolchain
 

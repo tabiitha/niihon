@@ -1,7 +1,8 @@
 # syntax=docker/dockerfile:1
-# Nihon API image. Build context: the repository root (see compose.yaml).
-# Supported platforms: linux/amd64 and linux/arm64. Build stages run on the builder's own
-# platform because they only produce JavaScript; the runtime stage follows the target platform.
+# Nihon image: the API, serving the built Web interface on the same origin. Build context: the
+# repository root (see compose.yaml). Supported platforms: linux/amd64 and linux/arm64. Build stages run
+# on the builder's own platform because they only produce JavaScript, HTML, and CSS; the runtime stage
+# follows the target platform.
 
 FROM --platform=$BUILDPLATFORM oven/bun:1.4.3-alpine@sha256:629e17411f1f129dbec3af78d5af9c9f2a937435c80349437206c6b0b7422373 AS bun
 
@@ -14,6 +15,18 @@ COPY apps/api/tsconfig.json apps/api/tsconfig.build.json apps/api/
 COPY apps/api/src apps/api/src
 RUN bun run --cwd apps/api build
 
+FROM bun AS web-build
+WORKDIR /app
+COPY package.json bun.lock ./
+COPY apps/web/package.json apps/web/
+COPY contracts/typescript/package.json contracts/typescript/
+RUN bun install --frozen-lockfile --filter @nihon/web
+COPY contracts/typescript/src contracts/typescript/src
+COPY resources/themes resources/themes
+COPY apps/web/build.ts apps/web/
+COPY apps/web/src apps/web/src
+RUN bun run --cwd apps/web build
+
 FROM bun AS production-dependencies
 WORKDIR /app
 COPY package.json bun.lock ./
@@ -24,11 +37,13 @@ FROM node:24.22.0-alpine@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659b
 ENV NODE_ENV=production \
     NIHON_HOST=0.0.0.0 \
     NIHON_PORT=4000 \
-    NIHON_DATA_DIR=/data
+    NIHON_DATA_DIR=/data \
+    NIHON_WEB_DIR=/app/apps/web/dist
 WORKDIR /app
 COPY --from=production-dependencies /app/node_modules node_modules
 COPY --from=production-dependencies /app/apps/api/node_modules apps/api/node_modules
 COPY --from=build /app/apps/api/dist apps/api/dist
+COPY --from=web-build /app/apps/web/dist apps/web/dist
 COPY apps/api/package.json apps/api/
 # A named volume mounted on /data starts with this directory's ownership.
 RUN mkdir /data && chown node:node /data

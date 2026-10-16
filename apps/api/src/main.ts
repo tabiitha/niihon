@@ -6,6 +6,7 @@ import { createJsonLogger, type Logger } from './log.ts';
 import { selectEnabledModules } from './modules/enablement.ts';
 import { registeredModules } from './modules/registry.ts';
 import { startServer } from './server.ts';
+import { assertWebDir } from './web.ts';
 
 /** Process exit codes, documented in docs/architecture/api-server.md. */
 const exitCodes = {
@@ -21,6 +22,9 @@ async function main(logger: Logger): Promise<number> {
   try {
     config = loadConfig(process.env, process.cwd());
     modules = selectEnabledModules(registeredModules, config.enabledModuleIds);
+    if (config.webDir !== undefined) {
+      assertWebDir(config.webDir);
+    }
   } catch (error) {
     if (error instanceof ConfigError) {
       logger('error', 'config.invalid', { message: error.message });
@@ -46,6 +50,7 @@ async function main(logger: Logger): Promise<number> {
     port: server.port,
     version,
     dataDir: config.dataDir,
+    webDir: config.webDir ?? null,
     modules: modules.map((module) => module.id),
   });
 

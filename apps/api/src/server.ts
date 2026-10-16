@@ -18,6 +18,7 @@ export interface ServerOptions {
   readonly version: string;
   readonly modules: readonly ApiModule[];
   readonly logger: Logger;
+  readonly webDir?: string | undefined;
   readonly shutdownGraceMs?: number;
 }
 
@@ -41,6 +42,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
       modules: options.modules,
       logger: options.logger,
       isStopping: () => stopping,
+      webDir: options.webDir,
     }),
   );
   server.maxConnections = maxConnections;

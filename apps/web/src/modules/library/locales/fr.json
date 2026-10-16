@@ -1,0 +1,9 @@
+{
+  "title": "Bibliothèque",
+  "body": "Vos médias et vos collections apparaîtront ici.",
+  "readerTitle": "Lecteur",
+  "readerMedia": "Média {mediaId}",
+  "readerPending": "Le lecteur de ce média arrivera avec les fonctionnalités médias.",
+  "readerMissing": "Aucun média n’est sélectionné. Ouvrez un média depuis la bibliothèque.",
+  "backToLibrary": "Retour à la bibliothèque"
+}

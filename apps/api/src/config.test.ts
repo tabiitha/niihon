@@ -13,6 +13,12 @@ describe('loadConfig', () => {
     assert.equal(defaultHost, '127.0.0.1');
     assert.equal(config.port, defaultPort);
     assert.equal(config.enabledModuleIds, undefined);
+    assert.equal(config.webDir, undefined);
+  });
+
+  it('resolves a relative Web directory and rejects an empty one', () => {
+    assert.equal(loadConfig({ NIHON_DATA_DIR: '/data', NIHON_WEB_DIR: 'web' }, cwd).webDir, resolve(cwd, 'web'));
+    assert.throws(() => loadConfig({ NIHON_DATA_DIR: '/data', NIHON_WEB_DIR: ' ' }, cwd), ConfigError);
   });
 
   it('resolves a relative data directory against the working directory', () => {

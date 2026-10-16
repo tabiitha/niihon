@@ -138,4 +138,10 @@ describe('server process', () => {
     assert.equal(await server.exited, 2);
     assert.ok(server.events.some((event) => event.event === 'config.invalid'));
   });
+
+  it('exits with code 2 when the Web directory holds no build', async () => {
+    const server = launch(dataDir, { NIHON_WEB_DIR: dataDir });
+    assert.equal(await server.exited, 2);
+    assert.ok(server.events.some((event) => event.event === 'config.invalid'));
+  });
 });

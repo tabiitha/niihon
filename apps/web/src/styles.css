@@ -1,0 +1,325 @@
+/*
+ * Shared layout and components. Colors come only from the theme variables (`--color-*`) that ThemeProvider
+ * derives from resources/themes/<id>/tokens.json; layout, typography, and behavior are the same for every theme.
+ */
+
+:root {
+  /* System fonts with Japanese glyphs on each platform: no font is downloaded. */
+  --font-sans: system-ui, -apple-system, 'Segoe UI', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic UI',
+    Meiryo, 'Noto Sans CJK JP', 'Noto Sans JP', sans-serif;
+  --radius-pill: 999px;
+  --radius-panel: 16px;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --focus-ring: 3px solid var(--color-focus);
+  --transition: 150ms ease-out;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--font-sans);
+  font-size: 100%;
+  line-height: 1.6;
+  color: var(--color-text);
+  background: var(--color-background);
+}
+
+/* Japanese text needs more line height and no artificial letter spacing. */
+:lang(ja) {
+  line-height: 1.8;
+  line-break: strict;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: linear-gradient(150deg, var(--color-background) 35%, var(--color-background-accent));
+  background-attachment: fixed;
+}
+
+h1,
+h2 {
+  line-height: 1.25;
+  margin: 0 0 var(--space-3);
+}
+
+h1 {
+  font-size: clamp(1.75rem, 1.4rem + 1.5vw, 2.5rem);
+}
+
+h2 {
+  font-size: 1.25rem;
+}
+
+p {
+  margin: 0 0 var(--space-4);
+}
+
+a {
+  color: var(--color-accent-text);
+}
+
+:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 3px;
+}
+
+main:focus {
+  outline: none;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.skip-link {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: 10;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-on-surface);
+  transform: translateY(-200%);
+}
+
+.skip-link:focus {
+  transform: none;
+}
+
+/* Header and navigation */
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4) var(--space-8);
+  max-width: 80rem;
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-6);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.brand .logo {
+  color: var(--color-accent);
+}
+
+.header nav ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nav-primary {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-pill);
+  color: var(--color-text);
+  text-decoration: none;
+  transition: background-color var(--transition);
+}
+
+.nav-link:hover {
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+}
+
+.nav-link[aria-current='page'] {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+/* Content */
+
+main {
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-6) 4rem;
+}
+
+.page {
+  padding-top: clamp(1rem, 8vh, 6rem);
+}
+
+.eyebrow {
+  margin-bottom: var(--space-1);
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+.display-title {
+  font-size: clamp(2rem, 1.5rem + 2.5vw, 3rem);
+}
+
+.muted {
+  color: var(--color-text-muted);
+}
+
+.media-title {
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4) var(--space-8);
+  margin-top: var(--space-6);
+}
+
+.button-primary,
+.button-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 2.75rem;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.button-primary {
+  padding: var(--space-3) var(--space-8);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font-size: 1.125rem;
+  transition: filter var(--transition);
+}
+
+.button-primary:hover {
+  filter: brightness(1.08);
+}
+
+.button-secondary {
+  padding: var(--space-2) 0;
+  border: 0;
+  background: none;
+  color: var(--color-text);
+}
+
+.button-secondary svg {
+  color: var(--color-accent-text);
+}
+
+.panel {
+  margin-top: var(--space-8);
+  padding: var(--space-6);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+}
+
+.field {
+  display: grid;
+  gap: var(--space-1);
+  max-width: 20rem;
+  margin-top: var(--space-4);
+}
+
+.field label {
+  font-weight: 600;
+}
+
+.field select {
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+  color: var(--color-on-surface);
+  font: inherit;
+}
+
+/* Loading and failure states */
+
+.status {
+  max-width: 36rem;
+  margin: clamp(1rem, 8vh, 6rem) auto 0;
+  text-align: center;
+}
+
+.status-detail {
+  color: var(--color-text-muted);
+  font-size: 0.9375rem;
+}
+
+.spinner {
+  display: inline-block;
+  width: 2rem;
+  height: 2rem;
+  margin-bottom: var(--space-4);
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: spin 900ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+/* Narrow screens: the navigation wraps under the brand and keeps visible labels. */
+
+@media (max-width: 52rem) {
+  .header {
+    justify-content: space-between;
+  }
+
+  .nav-primary {
+    order: 3;
+    flex-basis: 100%;
+    justify-content: flex-start;
+  }
+
+  .nav-link {
+    padding: var(--space-2) var(--space-3);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}
