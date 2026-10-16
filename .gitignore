@@ -34,6 +34,7 @@
 # Bun / Next.js dependencies, builds and generated test output
 # Keep bun.lock, bun.lockb and source configuration files.
 node_modules/
+/apps/web/dist/
 /apps/web/.next/
 /apps/web/out/
 /apps/web/.turbo/

@@ -1,0 +1,12 @@
+{
+  "title": "Profil",
+  "body": "Votre profil et les réglages de votre compte apparaîtront ici.",
+  "displayTitle": "Affichage",
+  "displayNote": "Ces choix s’appliquent à cette page jusqu’à l’arrivée des préférences du profil.",
+  "language": "Langue",
+  "style": "Style",
+  "mode": "Mode",
+  "modeSystem": "Système",
+  "modeLight": "Clair",
+  "modeDark": "Sombre"
+}
