@@ -16,7 +16,7 @@ Use **Express.js, React, TypeScript, Prisma, SQLite, HTML, CSS, Bun, Docker, and
 
 The backend exposes a **REST API with HTTP/JSON** and remains the sole authority for business rules, validation, mutations, and SQLite persistence through **Prisma**. React and Swift/SwiftUI consume one versioned OpenAPI contract, with runtime input validation and coherent errors. Streaming/SSE complements REST only where the owning responsibility needs it. Select the compatible Prisma version and SQLite adapter during the owning persistence task. Do not introduce business persistence into #2 solely because the ORM is now selected.
 
-The frontend is **React/TypeScript with HTML and CSS**. This supersedes the earlier mandatory Next.js choice; no replacement bundler is selected yet. Frontend serving topology remains to be decided. Docker deployment, persistent storage, and the native macOS Swift/SwiftUI client retain their accepted direction.
+The frontend is **React/TypeScript with HTML and CSS**. This supersedes the earlier mandatory Next.js choice. On 2026-10-16 the owner selected Bun's React template (`bun init --react`) as the toolchain ([#5](https://github.com/tabiitha/niihon/issues/5)): Bun alone provides the development server with hot reload and the production build, with no separate bundler (no Vite, webpack, Next.js, or Create React App). In production, the Express server serves the files produced by the Bun build on the API's own origin; in development, Bun's built-in server is used. See the [Web client architecture](architecture/web-client.md). Docker deployment, persistent storage, and the native macOS Swift/SwiftUI client retain their accepted direction.
 
 **Rust and Unreal are removed from the active stack. Games are deferred and excluded from the current application**, including game launchers, integration, assets, packaging, and game-specific progress. The owner subsequently authorized closing the existing game issues and #39 as **not planned**, with an explicit reversible-pause notice. Preserve their identifiers, original criteria, and inventory; these closures do not establish completed work. Game-only tasks are not active delivery prerequisites. Reintroduction requires an explicit owner request.
 
@@ -42,7 +42,7 @@ The fourteen GitHub issue edits were published as `nihon-ia[bot]` and read back 
 | --- | --- |
 | Product target | Local use on Windows, Linux, and macOS; exact supported OS versions and hardware require validation. |
 | Server | Node.js with an Express.js/TypeScript REST API in Docker; sole business and validation authority. |
-| Web | React, TypeScript, HTML, and CSS; Bun dependency/build tooling; Docker serving topology and bundler remain to be decided. |
+| Web | React, TypeScript, HTML, and CSS; Bun dependency tooling, development server, and production build; the production files are served by the Express server in the same Docker image. |
 | Persistence | Prisma with SQLite, owned exclusively by the Express.js backend. SQLite is embedded, not a separate database service. |
 | Tooling | Bun for JavaScript/TypeScript dependency management and scripts; Node.js for backend execution. |
 | Data and resources | Persistent Docker volumes for managed data, media, and models; explicit backup and restore procedures. |
@@ -115,7 +115,7 @@ These exclusions do not remove automated testing, normal manual validation, acce
 
 ## Implementation Follow-Up
 
-Before starting an affected realization, recheck Git and the current issue, account for these accepted decisions, and identify its applicable delivery requirements. Resolve obsolete stack, game, macOS-only, packaging, or Metal assumptions in that scope. Prisma version/adapter, testing tools, frontend bundler and hosting, exact support matrix, acceleration backends, component-catalogue tool, and verified installation commands remain to be established by their owning work.
+Before starting an affected realization, recheck Git and the current issue, account for these accepted decisions, and identify its applicable delivery requirements. Resolve obsolete stack, game, macOS-only, packaging, or Metal assumptions in that scope. Prisma version/adapter, testing tools, exact support matrix, acceleration backends, component-catalogue tool, and verified installation commands remain to be established by their owning work.
 
 Recording these decisions does not start implementation, create issues, publish changes, or authorize a merge.
 

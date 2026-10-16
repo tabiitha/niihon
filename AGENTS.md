@@ -4,7 +4,7 @@ Nihon is a local Japanese-learning product for Windows, Linux, and macOS. These 
 
 ## Project Structure and Architecture
 
-Read [accepted decisions](docs/PROJECT_DECISIONS.md) and the selected issue before implementation. Planned directories are `apps/api` (Express.js/TypeScript REST API on Node.js), `apps/web` (React/TypeScript, HTML/CSS), and `apps/macos` (native Swift/SwiftUI). Create them only when required. The backend alone owns business validation and SQLite persistence through Prisma; clients consume HTTP/JSON. Bun handles dependencies/builds; Docker packages Web/server delivery. Frontend bundling and serving topology remain undecided.
+Read [accepted decisions](docs/PROJECT_DECISIONS.md) and the selected issue before implementation. Planned directories are `apps/api` (Express.js/TypeScript REST API on Node.js), `apps/web` (React/TypeScript, HTML/CSS), and `apps/macos` (native Swift/SwiftUI). Create them only when required. The backend alone owns business validation and SQLite persistence through Prisma; clients consume HTTP/JSON. Bun handles dependencies/builds; Docker packages Web/server delivery. Bun builds and serves the Web client in development; in production, Express serves its build (see the [Web client](docs/architecture/web-client.md)).
 
 Keep installation in `README.md`, detailed guidance in `docs/`, and assets in `resources/`. Rust and games are outside active scope. Never reuse the old project's code, schema, or architecture.
 
