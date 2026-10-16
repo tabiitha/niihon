@@ -7,3 +7,11 @@
 !apps/api/tsconfig.build.json
 !apps/api/src/
 apps/api/src/**/*.test.ts
+!apps/web/package.json
+!apps/web/build.ts
+!apps/web/src/
+apps/web/src/**/*.test.ts
+apps/web/src/dev.ts
+!contracts/typescript/package.json
+!contracts/typescript/src/
+!resources/themes/

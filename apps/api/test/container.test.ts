@@ -75,6 +75,16 @@ describe(`container image ${image}`, () => {
     assert.equal(health.service, 'nihon-api');
   });
 
+  it('serves the Web interface on the same origin, including a reload of a page with a query identifier', async () => {
+    const { port } = await publishedAddress(primary);
+    for (const page of ['/', '/library', '/reader?media=item-01']) {
+      const response = await fetch(`http://127.0.0.1:${port}${page}`, { headers: { Accept: 'text/html' } });
+      assert.equal(response.status, 200, page);
+      assert.match(await response.text(), /<div id="root"><\/div>/, page);
+      assert.match(response.headers.get('content-security-policy') ?? '', /default-src 'self'/, page);
+    }
+  });
+
   it('refuses a second container on the same data volume', async () => {
     const code = await dockerExitCode('run', '--name', secondary, '--volume', `${volume}:/data`, image);
     assert.equal(code, 3);
@@ -95,7 +105,8 @@ describe(`container image ${image}`, () => {
     const offline = `nihon-test-offline-${suffix}`;
     try {
       await docker('run', '--detach', '--name', offline, '--network', 'none', image);
-      const probe = "fetch('http://127.0.0.1:4000/api/health').then((r) => r.json()).then((b) => console.log(b.status))";
+      const probe =
+        "Promise.all([fetch('http://127.0.0.1:4000/api/health').then((r) => r.json()), fetch('http://127.0.0.1:4000/learn', { headers: { Accept: 'text/html' } })]).then(([b, page]) => console.log(page.ok ? b.status : 'no-page'))";
       const deadline = Date.now() + 20_000;
       let status = '';
       while (status !== 'ok' && Date.now() < deadline) {
@@ -114,6 +125,7 @@ describe(`container image ${image}`, () => {
     const store = await docker('run', '--rm', '--entrypoint', 'ls', image, '/app/node_modules/.bun');
     assert.match(store, /^express@/m);
     assert.match(store, /^zod@/m);
-    assert.doesNotMatch(store, /typescript|@types|zod-to-openapi/);
+    // The Web interface ships as its built files only; React and the client are bundled into them.
+    assert.doesNotMatch(store, /typescript|@types|zod-to-openapi|react|openapi-fetch/);
   });
 });
