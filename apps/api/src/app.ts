@@ -14,6 +14,7 @@ import { getHealth } from './contract/health.ts';
 import { addOperation, ApiError, type OperationContract, type ValidationIssue } from './contract/operation.ts';
 import type { Logger } from './log.ts';
 import type { ApiModule } from './modules/api-module.ts';
+import { createWebHandler } from './web.ts';
 
 export const serviceName = 'nihon-api';
 
@@ -26,13 +27,15 @@ export interface AppOptions {
   readonly logger: Logger;
   /** Reports whether the server is shutting down; new requests then receive 503. */
   readonly isStopping?: () => boolean;
+  /** Directory of the built Web interface, served outside `/api`; omitted, only the API is served. */
+  readonly webDir?: string | undefined;
 }
 
 /**
  * Builds the HTTP adapter. It parses no request body globally: each module adds the bounded
  * parser or stream its routes need, so unread bodies are never buffered.
  */
-export function createApp({ version, modules, logger, isStopping = () => false }: AppOptions): Express {
+export function createApp({ version, modules, logger, isStopping = () => false, webDir }: AppOptions): Express {
   const app = express();
   app.disable('x-powered-by');
 
@@ -51,6 +54,10 @@ export function createApp({ version, modules, logger, isStopping = () => false }
     const router = express.Router();
     module.register(router);
     app.use(`/api/${module.id}`, router);
+  }
+
+  if (webDir !== undefined) {
+    app.use(createWebHandler(webDir));
   }
 
   app.use(notFound);

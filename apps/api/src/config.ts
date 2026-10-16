@@ -11,6 +11,8 @@ export interface ServerConfig {
   readonly dataDir: string;
   /** Module identifiers to enable, or `undefined` to enable every registered module. */
   readonly enabledModuleIds: readonly string[] | undefined;
+  /** Directory of the built Web interface to serve, or `undefined` to serve the API only. */
+  readonly webDir: string | undefined;
 }
 
 export class ConfigError extends Error {
@@ -24,6 +26,7 @@ export function loadConfig(env: Readonly<Record<string, string | undefined>>, cw
     port: parsePort(env['NIHON_PORT']),
     dataDir: parseDataDir(env['NIHON_DATA_DIR'], cwd),
     enabledModuleIds: parseModuleIds(env['NIHON_MODULES']),
+    webDir: parseWebDir(env['NIHON_WEB_DIR'], cwd),
   };
 }
 
@@ -55,6 +58,17 @@ function parseDataDir(value: string | undefined, cwd: string): string {
     throw new ConfigError('NIHON_DATA_DIR must name the directory that holds Nihon data.');
   }
   return isAbsolute(dataDir) ? dataDir : resolve(cwd, dataDir);
+}
+
+function parseWebDir(value: string | undefined, cwd: string): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  const webDir = value.trim();
+  if (webDir === '') {
+    throw new ConfigError('NIHON_WEB_DIR must not be empty; unset it to serve the API only.');
+  }
+  return isAbsolute(webDir) ? webDir : resolve(cwd, webDir);
 }
 
 function parseModuleIds(value: string | undefined): readonly string[] | undefined {
