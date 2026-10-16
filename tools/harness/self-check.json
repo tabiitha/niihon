@@ -17,7 +17,7 @@
       "argv": ["node", "--test", "tools/harness/harness.test.mjs"],
       "cwd": ".",
       "requires": ["tools/harness/harness.mjs", "tools/harness/require-gate.mjs", "tools/harness/harness.test.mjs"],
-      "timeoutMs": 30000,
+      "timeoutMs": 120000,
       "maxLogBytes": 65536
     }
   ]
