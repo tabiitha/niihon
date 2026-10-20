@@ -29,18 +29,22 @@ Local state stays unversioned. The task packet is the hand-off between nodes and
 
 | Node | Entry condition | Work | Exits |
 | --- | --- | --- | --- |
-| **Intake** | Owner names an existing issue and an authorization (inspect, implement, publish) | Read the issue revision, dependencies, and decisions; check that every acceptance criterion can be mapped to a check or explicit manual evidence | **Plan** when ready; **Ask owner** otherwise |
+| **Intake** | Owner names an existing issue; “do issue #N” grants the [default authorization](#default-authorization) unless the owner narrows it | Read the issue revision, dependencies, and decisions; check that every acceptance criterion can be mapped to a check or explicit manual evidence | **Plan** when ready; **Ask owner** otherwise |
 | **Plan** | Issue ready | Fill the required task-packet sections and the verification spec; split work by criterion and mark which criteria are independent | **Implement** |
 | **Implement** | Plan recorded | Run the [LOOP.md](LOOP.md) iteration, one criterion at a time, committing each verified iteration. Independent criteria may run in parallel, one writer per file | **Harness gate** when every criterion is implemented; **Blocked report** at a budget limit or unavailable prerequisite; **Ask owner** on a scope or authorization question |
 | **Harness gate** | All criteria implemented and committed | `node tools/harness/harness.mjs run <spec>`, then `node tools/harness/harness.mjs gate <spec>` on a clean tree | **Publish** when the gate allows; **Implement** otherwise, with the gate's reason |
-| **Publish** | Gate allowed on the commit to publish, publication authorized | Push the branch; open or update the draft PR with the bilingual template and the evidence for that SHA | **Independent review** |
+| **Publish** | Gate allowed on the commit to publish, publication authorized ([granted by default](#default-authorization) unless the owner narrowed it) | Push the branch; open or update the draft PR with the bilingual template and the evidence for that SHA | **Independent review** |
 | **Independent review** | Draft PR on the gated SHA | A reviewer who did not implement the change follows [prompts/review.md](prompts/review.md) on that SHA | **Owner decision** on `ready`; **Implement** on `changes required` or `verification incomplete` |
 | **Owner decision** | Independent verdict `ready` on the current SHA; PR marked ready for review | The owner reviews, approves on GitHub, or requests changes | **Merge** on approval; **Implement** on requested changes |
 | **Merge** | Eligible approval on the current SHA, branch protection satisfied | Merge following [GIT_RULES.md](../../GIT_RULES.md) and delete the branch | End |
-| **Ask owner** | Unclear scope, unmapped criterion, missing authorization | Write the checkpoint and one precise question | Back to the node that asked, once answered |
+| **Ask owner** | Unclear scope, unmapped criterion, or an action outside the recorded authorization | Write the checkpoint and one precise question | Back to the node that asked, once answered |
 | **Blocked report** | Budget limit or unavailable prerequisite | Write the checkpoint and report what passes, what fails with evidence, hypotheses tried, and the decision needed ([LOOP.md](LOOP.md#default-budget)) | **Implement** when the owner extends the budget or changes the approach; End if the owner stops |
 
 Any change pushed after **Harness gate** sends the work back through it: a new SHA needs its own passing gate, and existing review and approval no longer apply to it ([GIT_RULES.md](../../GIT_RULES.md#main-branch-protection): approvals are dismissed when new commits change the diff).
+
+## Default Authorization
+
+“Do issue #N”, in any language and without further restriction, authorizes the whole path up to the owner's review: implement, commit, push the branch, open the draft PR with `Closes #N`, and mark it ready for review once **Harness gate** allows the current SHA and **Independent review** returns `ready`. The agent does not ask for these steps. It never approves or merges, and the other [owner-only actions](#owner-only-actions) still need an explicit decision. The owner can narrow the authorization in the prompt, for example “inspect only” or “do not publish”; record the actual authorization in the task packet.
 
 ## Edges and Their Rules
 
@@ -83,7 +87,7 @@ Any change pushed after **Harness gate** sends the work back through it: a new S
 
 These actions need the owner's explicit decision for the current task, recorded in the task packet, and are never retried automatically after a failure or interruption; check their actual state first.
 
-- Any publication (push, PR creation, marking ready) beyond the authorization recorded at Intake, and every merge.
+- Any publication (push, PR creation, marking ready) beyond the authorization recorded at Intake (by default, the [default authorization](#default-authorization)), and every approval and merge.
 - Database schema migrations and any change to the live product database.
 - Adding, removing, or upgrading a dependency.
 - Deleting user data, files outside the task's allowed files, or Git history.

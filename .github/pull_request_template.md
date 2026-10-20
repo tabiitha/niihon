@@ -101,6 +101,6 @@ et procédures de retour arrière présentées dans la version anglaise. -->
 
 </details>
 
-<!-- Shared reference: write Refs: #N, or Closes #N only when every criterion is met.
+<!-- Shared reference: always write Closes #N; keep the PR in draft until every criterion is met.
 For maintenance without an issue, identify the owner request. Do not invent an issue.
-Do not close a tracking index through a child PR. -->
+Never close a tracker (type:suivi, #1, #39, #166); close the child issue. -->
