@@ -29,10 +29,10 @@ Local state stays unversioned. The task packet is the hand-off between nodes and
 
 | Node | Entry condition | Work | Exits |
 | --- | --- | --- | --- |
-| **Intake** | Owner names an existing issue; “do issue #N” grants the [default authorization](#default-authorization) unless the owner narrows it | Read the issue revision, dependencies, and decisions; check that every acceptance criterion can be mapped to a check or explicit manual evidence | **Plan** when ready; **Ask owner** otherwise |
+| **Intake** | Owner names an existing issue; “do issue #N” grants the [default authorization](#default-authorization) unless the owner narrows it | [Start from an up-to-date `main`](#up-to-date-main) (or resume the issue's existing branch); read the issue revision, dependencies, and decisions; check that every acceptance criterion can be mapped to a check or explicit manual evidence | **Plan** when ready; **Ask owner** otherwise, including unrelated local changes |
 | **Plan** | Issue ready | Fill the required task-packet sections and the verification spec; split work by criterion and mark which criteria are independent | **Implement** |
 | **Implement** | Plan recorded | Run the [LOOP.md](LOOP.md) iteration, one criterion at a time, committing each verified iteration. Independent criteria may run in parallel, one writer per file | **Harness gate** when every criterion is implemented; **Blocked report** at a budget limit or unavailable prerequisite; **Ask owner** on a scope or authorization question |
-| **Harness gate** | All criteria implemented and committed | `node tools/harness/harness.mjs run <spec>`, then `node tools/harness/harness.mjs gate <spec>` on a clean tree | **Publish** when the gate allows; **Implement** otherwise, with the gate's reason |
+| **Harness gate** | All criteria implemented and committed | [Bring the branch up to date](#up-to-date-main) if `origin/main` moved, then `node tools/harness/harness.mjs run <spec>` and `node tools/harness/harness.mjs gate <spec>` on a clean tree | **Publish** when the gate allows; **Implement** otherwise, with the gate's reason |
 | **Publish** | Gate allowed on the commit to publish, publication authorized ([granted by default](#default-authorization) unless the owner narrowed it) | Push the branch; open or update the draft PR with the bilingual template and the evidence for that SHA | **Independent review** |
 | **Independent review** | Draft PR on the gated SHA | A reviewer who did not implement the change follows [prompts/review.md](prompts/review.md) on that SHA | **Owner decision** on `ready`; **Implement** on `changes required` or `verification incomplete` |
 | **Owner decision** | Independent verdict `ready` on the current SHA; PR marked ready for review | The owner reviews, approves on GitHub, or requests changes | **Merge** on approval; **Implement** on requested changes |
@@ -41,6 +41,18 @@ Local state stays unversioned. The task packet is the hand-off between nodes and
 | **Blocked report** | Budget limit or unavailable prerequisite | Write the checkpoint and report what passes, what fails with evidence, hypotheses tried, and the decision needed ([LOOP.md](LOOP.md#default-budget)) | **Implement** when the owner extends the budget or changes the approach; End if the owner stops |
 
 Any change pushed after **Harness gate** sends the work back through it: a new SHA needs its own passing gate, and existing review and approval no longer apply to it ([GIT_RULES.md](../../GIT_RULES.md#main-branch-protection): approvals are dismissed when new commits change the diff).
+
+## Up-to-Date Main
+
+At **Intake**, before any change:
+
+1. `git fetch origin`.
+2. Check `git status --short`. If the tree has changes unrelated to this issue, stop and ask the owner; never discard or stash them silently.
+3. If a branch for this issue already exists, locally or on `origin`, check it out and resume it; do not create a second one.
+4. Otherwise, `git switch main` and `git merge --ff-only origin/main`. If the fast-forward fails, local `main` has diverged: stop and ask the owner.
+5. Create the issue branch from that `main` ([GIT_RULES.md](../../GIT_RULES.md#branch-names)).
+
+Before **Harness gate**, `git fetch origin` again. If `origin/main` moved since the branch started, update the branch: `git rebase origin/main` while it has never been pushed, `git merge origin/main` once it has, so published history is never rewritten. Resolve conflicts within the issue's scope, then run the harness again: the new commit needs its own report and gate.
 
 ## Default Authorization
 
