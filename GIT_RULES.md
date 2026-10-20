@@ -59,7 +59,7 @@ For a breaking change to an existing contract, Nihon requires both `type(scope)!
 
 ## Branch Names
 
-Branch from an up-to-date `main`. Use the real issue number without `#`, followed by a short English slug in lowercase ASCII with hyphen-separated words. The type describes the intended PR outcome; individual commits may use different types.
+Branch from an up-to-date `main`: `git fetch origin`, check that the tree has no unrelated changes, `git switch main`, `git merge --ff-only origin/main`, then create the branch. Resume an existing branch for the issue instead of creating another. Before publishing, update the branch if `origin/main` moved: rebase while it is unpublished, merge `origin/main` once pushed ([details](docs/engineering/GRAPH.md#up-to-date-main)). Use the real issue number without `#`, followed by a short English slug in lowercase ASCII with hyphen-separated words. The type describes the intended PR outcome; individual commits may use different types.
 
 Use `tabitha/` for tasks the owner undertakes personally and `nihon-ai/` for tasks assigned to agents. These prefixes identify task ownership only: they do not select credentials, change the PR author, or create a bot identity. When assisting with an existing owner branch, preserve its name and ownership unless the owner requests a handoff. Do not create duplicate branches for the same task by default. Apply `nihon-ai/` to new agent branches. Preserve an existing open PR’s head branch until merge: [renaming that branch closes the PR](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-branches-in-your-repository/renaming-a-branch#about-renaming-branches).
 
