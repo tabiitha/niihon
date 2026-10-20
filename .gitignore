@@ -81,5 +81,6 @@ xcuserdata/
 /.github/workflows/*
 !/.github/workflows/harness.yml
 !/.github/workflows/api.yml
+!/.github/workflows/macos.yml
 
 # .sqlx/, migrations, fixtures and asset sources stay versionable.
