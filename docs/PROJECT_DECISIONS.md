@@ -90,7 +90,7 @@ The standalone **Service unavailable** mockup remains removed from the gallery. 
 
 Run checks appropriate to each PR and deliver identified release artifacts with release notes. Use locked dependencies and multi-stage Docker builds. Test the supported OS and architecture combinations and report untested combinations explicitly.
 
-The current `.gitignore` allows the shared PR template, the harness self-check workflow `.github/workflows/harness.yml`, and the API workflow `.github/workflows/api.yml` from #2; other files under `.github/workflows/` stay excluded. Make each new workflow versionable with a targeted exception; local ignored workflows cannot run on GitHub. The harness workflow validates contributor tooling only and does not replace application CI.
+The current `.gitignore` allows the shared PR template, the harness self-check workflow `.github/workflows/harness.yml`, the API workflow `.github/workflows/api.yml` from #2, and the macOS client workflow `.github/workflows/macos.yml` from #73; other files under `.github/workflows/` stay excluded. Make each new workflow versionable with a targeted exception; local ignored workflows cannot run on GitHub. The harness workflow validates contributor tooling only and does not replace application CI.
 
 ### Reliability and Performance Evidence
 
