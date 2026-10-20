@@ -4,7 +4,7 @@ This loop is the **Implement** step of the [issue control graph](GRAPH.md), whic
 
 ## Working Contract
 
-The owner's prompt chooses the existing issue, intended outcome, priorities, and authorization. It can also steer UX, clarify a criterion, narrow a hypothesis, or request inspection only. Record these changes in the local task packet without silently widening the issue. French steering is welcome; durable repository documents, identifiers, and publication follow the project's English/bilingual rules.
+The owner's prompt chooses the existing issue, intended outcome, priorities, and authorization; “do issue #N” alone grants the [default authorization](GRAPH.md#default-authorization) up to a PR ready for review. It can also steer UX, clarify a criterion, narrow a hypothesis, or request inspection only. Record these changes in the local task packet without silently widening the issue. French steering is welcome; durable repository documents, identifiers, and publication follow the project's English/bilingual rules.
 
 The task owner converts that direction into a bounded [task packet](templates/task-packet.md). Its five required sections hold the issue revision and Goal/non-goals, the actual authorization and allowed files, the acceptance-to-evidence map, the budget, and the checkpoint. Performance constraints, review ownership, delegation, and other details are added only when they apply. Use people or optional assistants; no specific model, role name, or subagent count is required. Reconcile decisions and dependencies before implementation. A tracker does not block children unless it is an explicit dependency.
 

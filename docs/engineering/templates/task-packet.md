@@ -10,7 +10,7 @@ Fill the five required sections for every task. Add an optional section only whe
 
 ## 2. Authorization (required)
 
-- Owner instruction (inspect / implement / publish) and constraints:
+- Owner instruction and constraints (“do issue #N” alone = [default authorization](../GRAPH.md#default-authorization): implement and publish up to ready for review, never approve or merge):
 - Allowed files; existing unrelated changes to preserve:
 
 ## 3. Acceptance Map (required)
