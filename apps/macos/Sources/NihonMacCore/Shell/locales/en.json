@@ -1,0 +1,10 @@
+{
+  "incompatibleTitle": "Nihon needs an update",
+  "incompatibleBody": "This app was built for another version of the Nihon service. Update the app or the service so that their versions match, then try again.",
+  "incompatibleVersions": "Service API version {serverVersion}; this app expects version {clientVersion}.",
+  "serviceAddress": "Service address: {address}",
+  "addressTitle": "The service address is not allowed",
+  "addressBody": "Nihon only connects to a service on this computer. Remove the NihonServiceURL setting or give it a loopback address such as http://127.0.0.1:4000.",
+  "goMenu": "Go",
+  "retryConnection": "Retry Connection"
+}
