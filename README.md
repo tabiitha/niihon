@@ -6,7 +6,7 @@ Rust and Unreal are removed from the active stack. Games are deferred and exclud
 
 ## Project Status
 
-The project is in early development. The Express.js/TypeScript server foundation from [issue #2](https://github.com/tabiitha/niihon/issues/2) runs and reports its availability. Since [issue #5](https://github.com/tabiitha/niihon/issues/5) it also serves the Web interface: navigation between the home, learning, kanji, library, profile, and administration spaces in English, French, and Japanese. No learning feature or account exists yet.
+The project is in early development. The Express.js/TypeScript server foundation from [issue #2](https://github.com/tabiitha/niihon/issues/2) runs and reports its availability. Since [issue #5](https://github.com/tabiitha/niihon/issues/5) it also serves the Web interface: navigation between the home, learning, kanji, library, profile, and administration spaces in English, French, and Japanese. Since [issue #73](https://github.com/tabiitha/niihon/issues/73), a native SwiftUI client for Apple silicon Macs running macOS 26 or later opens the same spaces and connects to the running server. No learning feature or account exists yet.
 
 ## Installation
 
@@ -63,8 +63,12 @@ Install Node.js 24 or newer and Bun 1.4.3, then run from the repository root:
 | `bun run contract:generate` | Regenerate the OpenAPI contract and the TypeScript and Swift clients; add `--skip-swift` without a Swift toolchain |
 | `bun run contract:check` | Fail if the committed contract or clients differ from the server's declarations |
 | `swift test --package-path contracts/swift` | Test the Swift client (macOS, Swift 6 or newer) |
+| `bun run macos:generate` | Regenerate the macOS client's Swift texts and themes from the shared JSON files |
+| `bun run macos:check` | Fail if those generated Swift sources differ from the JSON files |
+| `apps/macos/scripts/build-app.sh` | Build the macOS client to `apps/macos/build/Nihon.app` (macOS 26, Apple silicon, Xcode 26 or newer) |
+| `swift test --package-path apps/macos` | Test the macOS client's core |
 
-Configuration, modules, exit codes, and limits are described in the [API server architecture](docs/architecture/api-server.md); the REST conventions and generated clients in the [REST contract](docs/architecture/api-contract.md); routes, languages, themes, and serving in the [Web client architecture](docs/architecture/web-client.md).
+Configuration, modules, exit codes, and limits are described in the [API server architecture](docs/architecture/api-server.md); the REST conventions and generated clients in the [REST contract](docs/architecture/api-contract.md); routes, languages, themes, and serving in the [Web client architecture](docs/architecture/web-client.md); the native app, its connection states, and its build in the [macOS client architecture](docs/architecture/macos-client.md).
 
 ## Documentation
 

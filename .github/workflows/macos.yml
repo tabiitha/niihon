@@ -1,0 +1,39 @@
+# Tests the native macOS client (issue #73): its Swift sources generated from the shared texts and theme
+# tokens match the JSON files, its core tests pass against the real HTTP adapter, and the signed app builds.
+name: macOS client
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  client:
+    name: SwiftUI client (macOS 26, arm64)
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.3
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Check the generated texts and themes
+        run: bun run macos:check
+      - name: Test the client core against the conformance fixture server
+        run: swift test --package-path apps/macos
+      - name: Build and sign the app bundle
+        run: apps/macos/scripts/build-app.sh release

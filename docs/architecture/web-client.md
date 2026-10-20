@@ -35,7 +35,7 @@ When `NIHON_WEB_DIR` is unset (development, tests), the API serves only `/api`. 
 | `apps/web/src/i18n/` | Language selection and text lookup |
 | `apps/web/src/theme/` | Theme registry, CSS variables, and contrast computation |
 | `apps/web/src/dev.ts`, `apps/web/build.ts` | Development server and production build |
-| `resources/themes/<style>/tokens.json` | Theme tokens shared with the future SwiftUI client |
+| `resources/themes/<style>/tokens.json` | Theme tokens shared with the [macOS client](macos-client.md) |
 
 ## Routes
 

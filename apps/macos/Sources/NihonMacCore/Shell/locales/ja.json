@@ -1,0 +1,10 @@
+{
+  "incompatibleTitle": "Nihon の更新が必要です",
+  "incompatibleBody": "このアプリは別のバージョンの Nihon サービス向けに作られています。アプリまたはサービスを更新してバージョンを合わせてから、もう一度お試しください。",
+  "incompatibleVersions": "サービスの API バージョンは {serverVersion}、このアプリが必要とするバージョンは {clientVersion} です。",
+  "serviceAddress": "サービスのアドレス：{address}",
+  "addressTitle": "このサービスのアドレスは使用できません",
+  "addressBody": "Nihon はこのコンピューター上のサービスにのみ接続します。NihonServiceURL の設定を削除するか、http://127.0.0.1:4000 のようなループバックアドレスを指定してください。",
+  "goMenu": "移動",
+  "retryConnection": "接続を再試行"
+}

@@ -1,0 +1,10 @@
+{
+  "incompatibleTitle": "Nihon doit être mis à jour",
+  "incompatibleBody": "Cette application a été construite pour une autre version du service Nihon. Mettez à jour l’application ou le service pour que leurs versions correspondent, puis réessayez.",
+  "incompatibleVersions": "Version de l’API du service : {serverVersion} ; cette application attend la version {clientVersion}.",
+  "serviceAddress": "Adresse du service : {address}",
+  "addressTitle": "L’adresse du service n’est pas autorisée",
+  "addressBody": "Nihon se connecte uniquement à un service de cet ordinateur. Supprimez le réglage NihonServiceURL ou donnez-lui une adresse de bouclage comme http://127.0.0.1:4000.",
+  "goMenu": "Aller",
+  "retryConnection": "Réessayer la connexion"
+}

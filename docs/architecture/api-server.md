@@ -14,8 +14,9 @@ The Nihon API is an Express.js/TypeScript REST server running on Node.js. It is 
 | `contracts/` | Published OpenAPI contract, generated TypeScript and Swift clients, conformance fixtures |
 | `compose.yaml`, `.dockerignore` | Docker Compose service built from source; build-context allowlist |
 | `.github/workflows/api.yml` | Application CI |
+| `apps/macos/`, `.github/workflows/macos.yml` | Native macOS client and its CI, see the [macOS client](macos-client.md) |
 
-Only what is needed exists. `apps/macos` and `packaging/macos` are created by the issues that first need them.
+Only what is needed exists. `packaging/macos` is created by the issue that first needs it.
 
 ## Source Structure
 
