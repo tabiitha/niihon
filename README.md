@@ -45,6 +45,8 @@ git pull
 docker compose up --detach --build --wait
 ```
 
+On start, the server brings its database to the new release's schema before answering. It first saves a snapshot of the previous data in the volume's `snapshots` folder. If the update fails, the server stops with exit code 5 and your data stays exactly as it was; `docker compose logs api` shows the reason. See [persistence](docs/architecture/persistence.md).
+
 ## Development
 
 Install Node.js 24 or newer and Bun 1.4.3, then run from the repository root:
@@ -52,7 +54,7 @@ Install Node.js 24 or newer and Bun 1.4.3, then run from the repository root:
 | Command | Effect |
 | --- | --- |
 | `bun install --frozen-lockfile` | Install locked dependencies |
-| `bun run dev` | Run the server from sources, restarting on change; data in `.local/data` |
+| `bun run dev` | Run the server from sources, restarting on change; data, including the database `nihon.db`, in `.local/data` |
 | `bun run dev:web` | Run the Web interface with hot reload at `http://127.0.0.1:3000`, relaying `/api` to the server started by `bun run dev` |
 | `bun run typecheck` | Strict type checking of the API, the TypeScript client, and the Web interface |
 | `bun run build` | Compile the API to `apps/api/dist/` and the Web interface to `apps/web/dist/` |
@@ -60,6 +62,8 @@ Install Node.js 24 or newer and Bun 1.4.3, then run from the repository root:
 | `bun run test` | API unit and server-process tests, TypeScript client tests, and Web interface tests |
 | `bun run test:production` | After `bun run build`, test the compiled server serving the Web build |
 | `bun run test:container` | Build the image and test it with Docker |
+| `bun run db:generate` | Regenerate the Prisma client after a schema change; `typecheck`, `build`, `test`, and `dev` already do it |
+| `bun run db:migration <name>` | Write the next SQL migration from the Prisma schema, without opening any database |
 | `bun run contract:generate` | Regenerate the OpenAPI contract and the TypeScript and Swift clients; add `--skip-swift` without a Swift toolchain |
 | `bun run contract:check` | Fail if the committed contract or clients differ from the server's declarations |
 | `swift test --package-path contracts/swift` | Test the Swift client (macOS, Swift 6 or newer) |
@@ -68,7 +72,7 @@ Install Node.js 24 or newer and Bun 1.4.3, then run from the repository root:
 | `apps/macos/scripts/build-app.sh` | Build the macOS client to `apps/macos/build/Nihon.app` (macOS 26, Apple silicon, Xcode 26 or newer) |
 | `swift test --package-path apps/macos` | Test the macOS client's core |
 
-Configuration, modules, exit codes, and limits are described in the [API server architecture](docs/architecture/api-server.md); the REST conventions and generated clients in the [REST contract](docs/architecture/api-contract.md); routes, languages, themes, and serving in the [Web client architecture](docs/architecture/web-client.md); the native app, its connection states, and its build in the [macOS client architecture](docs/architecture/macos-client.md).
+Configuration, modules, exit codes, and limits are described in the [API server architecture](docs/architecture/api-server.md); the database, migrations, and snapshots in [persistence](docs/architecture/persistence.md); the REST conventions and generated clients in the [REST contract](docs/architecture/api-contract.md); routes, languages, themes, and serving in the [Web client architecture](docs/architecture/web-client.md); the native app, its connection states, and its build in the [macOS client architecture](docs/architecture/macos-client.md).
 
 ## Documentation
 
