@@ -48,7 +48,7 @@ export interface ApiModule {
 }
 ```
 
-To add a module, create its folder and add one entry to `src/modules/registry.ts`. Each route is declared as an operation and added with `addOperation`, as described in the [REST contract](api-contract.md#single-source); then run `bun run contract:generate`. Modules interact only through what another module exports. The registry is empty in this foundation.
+To add a module, create its folder and add one entry to `src/modules/registry.ts`. Each route is declared as an operation and added with `addOperation`, as described in the [REST contract](api-contract.md#single-source); then run `bun run contract:generate`. Modules interact only through what another module exports. The registry holds the [accounts](accounts.md) module.
 
 `context.database` gives the module the installation database: `database.reader` for reads and `database.write(...)` for write transactions. A module keeps its Prisma models in `apps/api/prisma/schema/<id>.prisma` and adds its migrations with `bun run db:migration`; see [persistence](persistence.md).
 
@@ -76,6 +76,8 @@ Every response carries a `Nihon-Request-Id` header. Error codes, versioning, pag
 | `NIHON_PORT` | `4000` | Listening port; `0` picks a free port |
 | `NIHON_MODULES` | unset | Comma-separated module identifiers, see [Modules](#modules) |
 | `NIHON_WEB_DIR` | unset (image: `/app/apps/web/dist`) | Built Web interface to serve; relative paths resolve from the working directory. Unset, only `/api` is served; without `index.html`, startup stops with exit code 2 |
+| `NIHON_OAUTH_GOOGLE_CLIENT_ID`, `NIHON_OAUTH_GOOGLE_CLIENT_SECRET`, `NIHON_OAUTH_GITHUB_CLIENT_ID`, `NIHON_OAUTH_GITHUB_CLIENT_SECRET` | unset | Credentials of the Nihon application registered with a provider; both variables of a provider or neither, otherwise startup stops with exit code 2. See [provider configuration](accounts.md#provider-configuration) |
+| `NIHON_OAUTH_REDIRECT_URIS` | unset | Comma-separated `https` return addresses accepted in addition to loopback addresses |
 
 `compose.yaml` additionally reads `NIHON_HOST_PORT` (default `4000`), the host loopback port.
 
@@ -106,7 +108,7 @@ Before listening, the server opens `nihon-instance.lock` in the data directory w
 | --- | --- |
 | Open connections | 256 (`maxConnections`); further connections are refused |
 | Database | Two connections, writes one at a time with a 5 s wait and 64 queued at most, transactions of 5 s at most; see [persistence](persistence.md#connections-and-transactions) |
-| Request bodies | Not parsed globally: unread bodies are never buffered. Each module adds a bounded parser or stream for its own routes |
+| Request bodies | Not parsed globally: unread bodies are never buffered. An operation that declares a `body` gets a JSON parser limited to 16 KiB unless it sets `maxBodyBytes` (accounts: 8 KiB); a larger body is `413 payload_too_large`, another media type `415 unsupported_media_type` |
 | Request duration | Node defaults: 300 s per request, 60 s for headers |
 | Shutdown | 10 s grace for in-flight requests |
 
@@ -120,7 +122,7 @@ These bounds are a starting point; tune them after measurement.
 
 | Tool | Version | Role |
 | --- | --- | --- |
-| Node.js | 24 (image: 24.22.0) | Runtime; `engines` requires `>=24` |
+| Node.js | 24.7 or newer (image: 24.22.0) | Runtime; `engines` requires `>=24.7`, the first release with `crypto.argon2` |
 | Bun | 1.4.3 | Dependency installation and scripts |
 | TypeScript | 7.0.2 | Type checking and build (strict) |
 | Express | 5.3.0 | HTTP framework |

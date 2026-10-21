@@ -1,0 +1,55 @@
+// Models of the accounts module: local profiles, their sign-in credentials, and pending provider flows.
+
+/// One local Nihon profile. `usernameKey` is the normalized username that uniqueness applies to.
+model Profile {
+  id          String   @id
+  username    String
+  usernameKey String   @unique
+  role        String   @default("user")
+  createdAt   DateTime @default(now())
+
+  localCredential    LocalCredential?
+  externalIdentities ExternalIdentity[]
+}
+
+/// Argon2id hash of a profile's local password, in PHC string format. Absent for profiles created
+/// through a provider.
+model LocalCredential {
+  profileId    String   @id
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+}
+
+/// A provider identity linked to a profile. Provider, issuer, and subject identify it; the
+/// provider's email and display name are never stored.
+model ExternalIdentity {
+  id        String   @id
+  profileId String
+  provider  String
+  issuer    String
+  subject   String
+  createdAt DateTime @default(now())
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, issuer, subject])
+  @@index([profileId])
+}
+
+/// A provider registration flow between its start and its single use. `stateHash` is the SHA-256
+/// of the `state` value the client holds; the row is deleted when the flow is used or cancelled.
+model OAuthFlow {
+  id           String   @id
+  stateHash    String   @unique
+  provider     String
+  codeVerifier String
+  nonce        String
+  redirectUri  String
+  username     String
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime
+
+  @@index([expiresAt])
+}

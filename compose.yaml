@@ -13,6 +13,14 @@ services:
       - "127.0.0.1:${NIHON_HOST_PORT:-4000}:4000"
     volumes:
       - nihon-data:/data
+    # Optional Google and GitHub registration (docs/architecture/accounts.md#provider-configuration):
+    # set both variables of a provider in the shell or an untracked .env file; empty means unset.
+    environment:
+      NIHON_OAUTH_GOOGLE_CLIENT_ID: ${NIHON_OAUTH_GOOGLE_CLIENT_ID:-}
+      NIHON_OAUTH_GOOGLE_CLIENT_SECRET: ${NIHON_OAUTH_GOOGLE_CLIENT_SECRET:-}
+      NIHON_OAUTH_GITHUB_CLIENT_ID: ${NIHON_OAUTH_GITHUB_CLIENT_ID:-}
+      NIHON_OAUTH_GITHUB_CLIENT_SECRET: ${NIHON_OAUTH_GITHUB_CLIENT_SECRET:-}
+      NIHON_OAUTH_REDIRECT_URIS: ${NIHON_OAUTH_REDIRECT_URIS:-}
     restart: unless-stopped
     # Longer than the server's 10-second shutdown grace, so docker stop never cuts it short.
     stop_grace_period: 15s

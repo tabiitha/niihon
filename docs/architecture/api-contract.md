@@ -32,7 +32,9 @@ contracts/openapi.json ──► contracts/typescript/src/schema.ts            (
                       └──► contracts/swift/Sources/NihonAPIClient/Generated (swift-openapi-generator)
 ```
 
-Exchange objects are designed for clients; they never mirror database tables. Request bodies are not part of the foundation yet: the first mutating operation adds them with a bounded parser, alongside the command identifiers of #70.
+Exchange objects are designed for clients; they never mirror database tables.
+
+A mutating operation declares its JSON request body with `body: z.strictObject({...})` and, when 16 KiB is not right, `maxBodyBytes`. The body is read with a bounded parser, validated before the handler runs, and handed over as `input.body`. A strict object refuses every field it does not list, so a client cannot inject one (such as `role`); the `validation_failed` issue names the field (`body.role`, message `Unrecognized field.`) and never echoes a value. Command identifiers that tell a replayed command from a new one belong to #70.
 
 ## Conventions
 
@@ -57,15 +59,17 @@ Clients branch on `code`, never on `message`, which is an English explanation fo
 
 | Code | Status | Meaning |
 | --- | --- | --- |
-| `validation_failed` | 400 | A path or query parameter, or a cursor, is invalid; see `issues` |
+| `validation_failed` | 400 | A path or query parameter, a cursor, or a request body field is invalid or unexpected; see `issues` (paths `path.…`, `query.…`, `body.…`) |
 | `unsupported_api_version` | 400 | The client was generated for another major version |
-| `bad_request` | 4xx | The request could not be read (malformed URL encoding, for example) |
+| `bad_request` | 4xx | The request could not be read (malformed URL encoding or JSON, for example) |
+| `payload_too_large` | 413 | The request body exceeds the operation's limit |
+| `unsupported_media_type` | 415 | An operation with a body received something other than `application/json` |
 | `not_found` | 404 | No route matches |
 | `internal_error` | 500 | Unexpected failure; details are in the server log under the same `requestId` |
 | `stopping` | 503 | The server is shutting down |
 | `database_busy` | 503 | A write could not get its turn in time; nothing was written. `Retry-After: 1` is set; see [persistence](persistence.md#concurrency-and-durability) |
 
-Module codes start with the module identifier, such as `example_item_not_found`. Each operation documents its specific error statuses in `errors`; the generator adds `400` to every operation that is versioned or takes parameters, and a `default` error response to all of them.
+Module codes start with the module identifier, such as `example_item_not_found`. Each operation documents its specific error statuses in `errors`; the generator adds `400` to every operation that is versioned or takes parameters or a body, `413` and `415` to every operation with a body, and a `default` error response to all of them.
 
 ### Request Correlation
 
@@ -90,7 +94,7 @@ A read that is no longer needed is cancelled by the client: pass an `AbortSignal
 
 ## Versioning and Compatibility
 
-The contract version is `info.version` in `contracts/openapi.json` (`apiVersion` in `apps/api/src/contract/conventions.ts`). Generated clients send its major part in a `Nihon-API-Version` header on every request.
+The contract is at version 1.1.0 (account registration added to 1.0.0). The contract version is `info.version` in `contracts/openapi.json` (`apiVersion` in `apps/api/src/contract/conventions.ts`). Generated clients send its major part in a `Nihon-API-Version` header on every request.
 
 | Request | Server answer |
 | --- | --- |
@@ -147,7 +151,7 @@ CI runs the TypeScript tests and the drift check without Swift on Linux, macOS, 
 
 ## Authentication Extension Points
 
-Authentication is not implemented here; #75, #76, #77, and #79 extend this contract with their own operations. They follow these rules so that React and SwiftUI behave the same way:
+Sign-in and sessions are not implemented here; [#233](https://github.com/tabiitha/niihon/issues/233), a part of #75, added registration (the [accounts module](accounts.md)); #76, #77, and #79 extend this contract with their own operations. They follow these rules so that React and SwiftUI behave the same way:
 
 - **Three separate resources.** The sign-in session (Nihon's opaque session), a linked external identity (Google or GitHub), and the permission to use an AI provider (ChatGPT) are distinct resources with distinct operations and states. Connecting AI never changes the active profile or adds a sign-in method.
 - **Provider identifiers** are stable `snake_case` strings (`google`, `github`, `chatgpt`), documented per operation as plain strings rather than response enumerations, for the compatibility reason above.
@@ -165,6 +169,6 @@ Provider integration tests stay in the authentication issues.
 | Page size | 100 items per page, 50 by default |
 | Cursor | 512 characters |
 | Request identifier | 64 characters |
-| Request bodies | Not parsed by the foundation (see [API server limits](api-server.md#limits)) |
+| Request bodies | 16 KiB unless the operation sets `maxBodyBytes` (see [API server limits](api-server.md#limits)) |
 
 These bounds are a starting point; tune them after measurement.

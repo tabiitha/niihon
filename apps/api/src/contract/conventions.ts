@@ -4,7 +4,7 @@ import { z } from 'zod';
  * Version of the REST contract published in contracts/openapi.json. Clients send the major part
  * in the `Nihon-API-Version` header; a different major is refused. See docs/architecture/api-contract.md.
  */
-export const apiVersion = '1.0.0';
+export const apiVersion = '1.1.0';
 export const apiMajorVersion = 1;
 
 export const apiVersionHeader = 'Nihon-API-Version';
@@ -15,6 +15,8 @@ export const errorCodes = {
   badRequest: 'bad_request',
   validationFailed: 'validation_failed',
   unsupportedApiVersion: 'unsupported_api_version',
+  payloadTooLarge: 'payload_too_large',
+  unsupportedMediaType: 'unsupported_media_type',
   notFound: 'not_found',
   internalError: 'internal_error',
   stopping: 'stopping',

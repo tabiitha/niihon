@@ -2,6 +2,7 @@ import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
 import { createApp } from './app.ts';
+import type { OAuthSettings } from './config.ts';
 import { openDatabase } from './database/database.ts';
 import type { MigrationOutcome } from './database/migrator.ts';
 import { acquireInstanceLock } from './instance-lock.ts';
@@ -21,6 +22,7 @@ export interface ServerOptions {
   readonly modules: readonly ApiModule[];
   readonly logger: Logger;
   readonly webDir?: string | undefined;
+  readonly oauth?: OAuthSettings;
   readonly shutdownGraceMs?: number;
   /** Migrations to apply instead of those packaged with the server; tests only. */
   readonly migrationsDir?: string;
@@ -64,6 +66,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
       modules: options.modules,
       database,
       logger: options.logger,
+      ...(options.oauth === undefined ? {} : { oauth: options.oauth }),
       isStopping: () => stopping,
       webDir: options.webDir,
     }),

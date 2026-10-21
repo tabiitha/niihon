@@ -16,6 +16,38 @@ describe('loadConfig', () => {
     assert.equal(config.webDir, undefined);
   });
 
+  it('has no provider credentials by default', () => {
+    assert.deepEqual(loadConfig({ NIHON_DATA_DIR: '/data' }, cwd).oauth, { providers: {}, redirectUris: [] });
+  });
+
+  it('reads provider credentials, which must come as a pair', () => {
+    const config = loadConfig(
+      {
+        NIHON_DATA_DIR: '/data',
+        NIHON_OAUTH_GOOGLE_CLIENT_ID: ' id-g ',
+        NIHON_OAUTH_GOOGLE_CLIENT_SECRET: 'secret-g',
+        NIHON_OAUTH_REDIRECT_URIS: 'https://nihon.example/cb, https://nihon.example/cb',
+      },
+      cwd,
+    );
+    assert.deepEqual(config.oauth, {
+      providers: { google: { clientId: 'id-g', clientSecret: 'secret-g' } },
+      redirectUris: ['https://nihon.example/cb'],
+    });
+    for (const env of [{ NIHON_OAUTH_GITHUB_CLIENT_ID: 'id' }, { NIHON_OAUTH_GITHUB_CLIENT_SECRET: 'secret-never-shown' }]) {
+      assert.throws(
+        () => loadConfig({ NIHON_DATA_DIR: '/data', ...env }, cwd),
+        (error: unknown) => error instanceof ConfigError && !error.message.includes('secret-never-shown'),
+      );
+    }
+  });
+
+  it('rejects return addresses that are not plain https addresses', () => {
+    for (const uri of ['http://nihon.example/cb', 'https://nihon.example/cb#x', 'nihon://cb', 'not a url', `https://nihon.example/${'a'.repeat(600)}`]) {
+      assert.throws(() => loadConfig({ NIHON_DATA_DIR: '/data', NIHON_OAUTH_REDIRECT_URIS: uri }, cwd), ConfigError, uri);
+    }
+  });
+
   it('resolves a relative Web directory and rejects an empty one', () => {
     assert.equal(loadConfig({ NIHON_DATA_DIR: '/data', NIHON_WEB_DIR: 'web' }, cwd).webDir, resolve(cwd, 'web'));
     assert.throws(() => loadConfig({ NIHON_DATA_DIR: '/data', NIHON_WEB_DIR: ' ' }, cwd), ConfigError);

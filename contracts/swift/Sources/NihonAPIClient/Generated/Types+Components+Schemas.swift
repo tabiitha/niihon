@@ -144,5 +144,280 @@ extension Components {
                 case error
             }
         }
+        /// A local Nihon profile. It carries no credential and no provider data.
+        ///
+        /// - Remark: Generated from `#/components/schemas/Profile`.
+        public struct Profile: Codable, Hashable, Sendable {
+            /// Opaque identifier of 1 to 64 characters `A-Z a-z 0-9 _ -`.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Profile/id`.
+            public var id: Swift.String
+            /// Display form of the username, NFKC-normalized, case preserved.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Profile/username`.
+            public var username: Swift.String
+            /// Permission role. Every new account is `user`; the role cannot be chosen at registration.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Profile/role`.
+            public var role: Swift.String
+            /// How the profile was created: `local` for a username and password, otherwise the provider identifier.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Profile/registeredWith`.
+            public var registeredWith: Swift.String
+            /// UTC timestamp, `YYYY-MM-DDTHH:mm:ss.sssZ`.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Profile/createdAt`.
+            public var createdAt: Foundation.Date
+            /// Creates a new `Profile`.
+            ///
+            /// - Parameters:
+            ///   - id: Opaque identifier of 1 to 64 characters `A-Z a-z 0-9 _ -`.
+            ///   - username: Display form of the username, NFKC-normalized, case preserved.
+            ///   - role: Permission role. Every new account is `user`; the role cannot be chosen at registration.
+            ///   - registeredWith: How the profile was created: `local` for a username and password, otherwise the provider identifier.
+            ///   - createdAt: UTC timestamp, `YYYY-MM-DDTHH:mm:ss.sssZ`.
+            public init(
+                id: Swift.String,
+                username: Swift.String,
+                role: Swift.String,
+                registeredWith: Swift.String,
+                createdAt: Foundation.Date
+            ) {
+                self.id = id
+                self.username = username
+                self.role = role
+                self.registeredWith = registeredWith
+                self.createdAt = createdAt
+            }
+            public enum CodingKeys: String, CodingKey {
+                case id
+                case username
+                case role
+                case registeredWith
+                case createdAt
+            }
+        }
+        /// Credentials of a new local account. Fields other than these two, such as `role`, are refused.
+        ///
+        /// - Remark: Generated from `#/components/schemas/LocalRegistration`.
+        public struct LocalRegistration: Codable, Hashable, Sendable {
+            /// Account name, 3 to 32 characters after Unicode NFKC normalization: letters of any script, digits, `_`, `-`, `.`, starting with a letter or digit. Two names that normalize to the same lowercase form are the same name.
+            ///
+            /// - Remark: Generated from `#/components/schemas/LocalRegistration/username`.
+            public var username: Swift.String
+            /// Local password, 8 to 128 characters after Unicode NFKC normalization, no control characters, different from the username. Hashed with Argon2id; never stored or returned as given.
+            ///
+            /// - Remark: Generated from `#/components/schemas/LocalRegistration/password`.
+            public var password: Swift.String
+            /// Creates a new `LocalRegistration`.
+            ///
+            /// - Parameters:
+            ///   - username: Account name, 3 to 32 characters after Unicode NFKC normalization: letters of any script, digits, `_`, `-`, `.`, starting with a letter or digit. Two names that normalize to the same lowercase form are the same name.
+            ///   - password: Local password, 8 to 128 characters after Unicode NFKC normalization, no control characters, different from the username. Hashed with Argon2id; never stored or returned as given.
+            public init(
+                username: Swift.String,
+                password: Swift.String
+            ) {
+                self.username = username
+                self.password = password
+            }
+            public enum CodingKeys: String, CodingKey {
+                case username
+                case password
+            }
+            public init(from decoder: any Swift.Decoder) throws {
+                let container = try decoder.container(keyedBy: CodingKeys.self)
+                self.username = try container.decode(
+                    Swift.String.self,
+                    forKey: .username
+                )
+                self.password = try container.decode(
+                    Swift.String.self,
+                    forKey: .password
+                )
+                try decoder.ensureNoAdditionalProperties(knownKeys: [
+                    "username",
+                    "password"
+                ])
+            }
+        }
+        /// Providers available for registration.
+        ///
+        /// - Remark: Generated from `#/components/schemas/OAuthProviderList`.
+        public struct OAuthProviderList: Codable, Hashable, Sendable {
+            /// - Remark: Generated from `#/components/schemas/OAuthProviderList/ItemsPayload`.
+            public struct ItemsPayloadPayload: Codable, Hashable, Sendable {
+                /// Provider identifier as listed by `listOAuthProviders`, such as `google` or `github`.
+                ///
+                /// - Remark: Generated from `#/components/schemas/OAuthProviderList/ItemsPayload/id`.
+                public var id: Swift.String
+                /// Creates a new `ItemsPayloadPayload`.
+                ///
+                /// - Parameters:
+                ///   - id: Provider identifier as listed by `listOAuthProviders`, such as `google` or `github`.
+                public init(id: Swift.String) {
+                    self.id = id
+                }
+                public enum CodingKeys: String, CodingKey {
+                    case id
+                }
+            }
+            /// Providers this installation is configured for; empty when it has none or is offline.
+            ///
+            /// - Remark: Generated from `#/components/schemas/OAuthProviderList/items`.
+            public typealias ItemsPayload = [Components.Schemas.OAuthProviderList.ItemsPayloadPayload]
+            /// Providers this installation is configured for; empty when it has none or is offline.
+            ///
+            /// - Remark: Generated from `#/components/schemas/OAuthProviderList/items`.
+            public var items: Components.Schemas.OAuthProviderList.ItemsPayload
+            /// Creates a new `OAuthProviderList`.
+            ///
+            /// - Parameters:
+            ///   - items: Providers this installation is configured for; empty when it has none or is offline.
+            public init(items: Components.Schemas.OAuthProviderList.ItemsPayload) {
+                self.items = items
+            }
+            public enum CodingKeys: String, CodingKey {
+                case items
+            }
+        }
+        /// A provider registration waiting for the browser to return.
+        ///
+        /// - Remark: Generated from `#/components/schemas/OAuthRegistrationStarted`.
+        public struct OAuthRegistrationStarted: Codable, Hashable, Sendable {
+            /// Address to open in the browser to authenticate with the provider.
+            ///
+            /// - Remark: Generated from `#/components/schemas/OAuthRegistrationStarted/authorizationUrl`.
+            public var authorizationUrl: Swift.String
+            /// Value the provider returns to `redirectUri`. The client compares it with the returned one, then sends it to `completeOAuthRegistration`.
+            ///
+            /// - Remark: Generated from `#/components/schemas/OAuthRegistrationStarted/state`.
+            public var state: Swift.String
+            /// The flow can be completed until this instant.
+            ///
+            /// - Remark: Generated from `#/components/schemas/OAuthRegistrationStarted/expiresAt`.
+            public var expiresAt: Foundation.Date
+            /// Creates a new `OAuthRegistrationStarted`.
+            ///
+            /// - Parameters:
+            ///   - authorizationUrl: Address to open in the browser to authenticate with the provider.
+            ///   - state: Value the provider returns to `redirectUri`. The client compares it with the returned one, then sends it to `completeOAuthRegistration`.
+            ///   - expiresAt: The flow can be completed until this instant.
+            public init(
+                authorizationUrl: Swift.String,
+                state: Swift.String,
+                expiresAt: Foundation.Date
+            ) {
+                self.authorizationUrl = authorizationUrl
+                self.state = state
+                self.expiresAt = expiresAt
+            }
+            public enum CodingKeys: String, CodingKey {
+                case authorizationUrl
+                case state
+                case expiresAt
+            }
+        }
+        /// Starts a provider registration for a chosen username.
+        ///
+        /// - Remark: Generated from `#/components/schemas/OAuthRegistrationStart`.
+        public struct OAuthRegistrationStart: Codable, Hashable, Sendable {
+            /// Provider identifier as listed by `listOAuthProviders`, such as `google` or `github`.
+            ///
+            /// - Remark: Generated from `#/components/schemas/OAuthRegistrationStart/provider`.
+            public var provider: Swift.String
+            /// Account name, 3 to 32 characters after Unicode NFKC normalization: letters of any script, digits, `_`, `-`, `.`, starting with a letter or digit. Two names that normalize to the same lowercase form are the same name.
+            ///
+            /// - Remark: Generated from `#/components/schemas/OAuthRegistrationStart/username`.
+            public var username: Swift.String
+            /// Where the browser returns after the provider: an `http://127.0.0.1`, `http://localhost`, or `http://[::1]` address, or an address the installation lists in `NIHON_OAUTH_REDIRECT_URIS`. Must also be registered with the provider.
+            ///
+            /// - Remark: Generated from `#/components/schemas/OAuthRegistrationStart/redirectUri`.
+            public var redirectUri: Swift.String
+            /// Creates a new `OAuthRegistrationStart`.
+            ///
+            /// - Parameters:
+            ///   - provider: Provider identifier as listed by `listOAuthProviders`, such as `google` or `github`.
+            ///   - username: Account name, 3 to 32 characters after Unicode NFKC normalization: letters of any script, digits, `_`, `-`, `.`, starting with a letter or digit. Two names that normalize to the same lowercase form are the same name.
+            ///   - redirectUri: Where the browser returns after the provider: an `http://127.0.0.1`, `http://localhost`, or `http://[::1]` address, or an address the installation lists in `NIHON_OAUTH_REDIRECT_URIS`. Must also be registered with the provider.
+            public init(
+                provider: Swift.String,
+                username: Swift.String,
+                redirectUri: Swift.String
+            ) {
+                self.provider = provider
+                self.username = username
+                self.redirectUri = redirectUri
+            }
+            public enum CodingKeys: String, CodingKey {
+                case provider
+                case username
+                case redirectUri
+            }
+            public init(from decoder: any Swift.Decoder) throws {
+                let container = try decoder.container(keyedBy: CodingKeys.self)
+                self.provider = try container.decode(
+                    Swift.String.self,
+                    forKey: .provider
+                )
+                self.username = try container.decode(
+                    Swift.String.self,
+                    forKey: .username
+                )
+                self.redirectUri = try container.decode(
+                    Swift.String.self,
+                    forKey: .redirectUri
+                )
+                try decoder.ensureNoAdditionalProperties(knownKeys: [
+                    "provider",
+                    "username",
+                    "redirectUri"
+                ])
+            }
+        }
+        /// The provider answer for a started registration. A flow can be completed once.
+        ///
+        /// - Remark: Generated from `#/components/schemas/OAuthRegistrationCompletion`.
+        public struct OAuthRegistrationCompletion: Codable, Hashable, Sendable {
+            /// `state` of the flow, as returned by the provider.
+            ///
+            /// - Remark: Generated from `#/components/schemas/OAuthRegistrationCompletion/state`.
+            public var state: Swift.String
+            /// Authorization code the provider returned to `redirectUri`.
+            ///
+            /// - Remark: Generated from `#/components/schemas/OAuthRegistrationCompletion/code`.
+            public var code: Swift.String
+            /// Creates a new `OAuthRegistrationCompletion`.
+            ///
+            /// - Parameters:
+            ///   - state: `state` of the flow, as returned by the provider.
+            ///   - code: Authorization code the provider returned to `redirectUri`.
+            public init(
+                state: Swift.String,
+                code: Swift.String
+            ) {
+                self.state = state
+                self.code = code
+            }
+            public enum CodingKeys: String, CodingKey {
+                case state
+                case code
+            }
+            public init(from decoder: any Swift.Decoder) throws {
+                let container = try decoder.container(keyedBy: CodingKeys.self)
+                self.state = try container.decode(
+                    Swift.String.self,
+                    forKey: .state
+                )
+                self.code = try container.decode(
+                    Swift.String.self,
+                    forKey: .code
+                )
+                try decoder.ensureNoAdditionalProperties(knownKeys: [
+                    "state",
+                    "code"
+                ])
+            }
+        }
     }
 }
