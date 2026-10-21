@@ -710,13 +710,21 @@ describe('provider exchange limits', () => {
       const started = (await app.post('/oauth-registrations', { provider: 'google', username: 'Unlucky_db', redirectUri })).body;
       const nonce = new URL(started.authorizationUrl).searchParams.get('nonce');
       const seconds = Math.floor(Date.now() / 1000);
-      fake.googleToken = () => ({
-        status: 200,
-        delayMs: 200,
-        body: { id_token: fake.signIdToken({ iss: googleIssuer, aud: googleClient.clientId, sub: 'sub-db', nonce, iat: seconds, exp: seconds + 3600 }) },
+      let exchangeStarted!: () => void;
+      const exchangeRequested = new Promise<void>((resolve) => {
+        exchangeStarted = resolve;
       });
+      fake.googleToken = () => {
+        exchangeStarted();
+        return {
+          status: 200,
+          delayMs: 200,
+          body: { id_token: fake.signIdToken({ iss: googleIssuer, aud: googleClient.clientId, sub: 'sub-db', nonce, iat: seconds, exp: seconds + 3600 }) },
+        };
+      };
       const completion = app.post('/oauth-registrations/completion', { state: started.state, code: 'c' });
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // The flow is consumed once the provider is being called: only then take the writer.
+      await exchangeRequested;
       // Occupy the writer while the exchange finishes, so the final write cannot get its turn in time.
       const blocker = app.database.write(() => new Promise((resolve) => setTimeout(resolve, 600)));
       const response = await completion;

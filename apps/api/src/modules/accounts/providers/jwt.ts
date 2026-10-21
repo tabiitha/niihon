@@ -29,7 +29,7 @@ const maxSubjectLength = 255;
 
 /**
  * Verifies an OpenID Connect ID token signed with RS256: signature against the provider's key,
- * issuer, audience (and `azp` when several), expiry, issue time, and nonce. Only RS256 is accepted,
+ * issuer, audience (and `azp` when present or when several audiences), expiry, issue time, and nonce. Only RS256 is accepted,
  * so `none` and symmetric algorithms cannot be forced by the token.
  */
 export async function verifyIdToken(token: string, expectations: IdTokenExpectations): Promise<IdTokenClaims> {

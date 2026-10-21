@@ -130,7 +130,7 @@ export const completeOAuthRegistration = defineOperation({
   path: '/oauth-registrations/completion',
   summary: 'Complete a provider registration with the returned code',
   description:
-    'Verifies the code and identity with the provider, then creates the profile and its provider link together or not at all. The flow is consumed on the first attempt, successful or not: a replayed or concurrent completion creates nothing. An email address is neither required nor read, and profiles are never merged by email.',
+    'Verifies the code and identity with the provider, then creates the profile and its provider link together or not at all. The flow is consumed by the first attempt that obtains an exchange slot and the database write turn, successful or not: a replayed or concurrent completion creates nothing, while a `503` refusal for lack of capacity leaves the flow intact. An email address is neither required nor read, and profiles are never merged by email.',
   body: oauthCompleteSchema,
   maxBodyBytes: maxRegistrationBodyBytes,
   responses: { 201: { description: 'The profile and its provider link were created.', schema: profileSchema } },

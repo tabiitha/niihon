@@ -31,7 +31,7 @@ public protocol APIProtocol: Sendable {
     func startOAuthRegistration(_ input: Operations.StartOAuthRegistration.Input) async throws -> Operations.StartOAuthRegistration.Output
     /// Complete a provider registration with the returned code
     ///
-    /// Verifies the code and identity with the provider, then creates the profile and its provider link together or not at all. The flow is consumed on the first attempt, successful or not: a replayed or concurrent completion creates nothing. An email address is neither required nor read, and profiles are never merged by email.
+    /// Verifies the code and identity with the provider, then creates the profile and its provider link together or not at all. The flow is consumed by the first attempt that obtains an exchange slot and the database write turn, successful or not: a replayed or concurrent completion creates nothing, while a `503` refusal for lack of capacity leaves the flow intact. An email address is neither required nor read, and profiles are never merged by email.
     ///
     /// - Remark: HTTP `POST /api/accounts/oauth-registrations/completion`.
     /// - Remark: Generated from `#/paths//api/accounts/oauth-registrations/completion/post(completeOAuthRegistration)`.
@@ -86,7 +86,7 @@ extension APIProtocol {
     }
     /// Complete a provider registration with the returned code
     ///
-    /// Verifies the code and identity with the provider, then creates the profile and its provider link together or not at all. The flow is consumed on the first attempt, successful or not: a replayed or concurrent completion creates nothing. An email address is neither required nor read, and profiles are never merged by email.
+    /// Verifies the code and identity with the provider, then creates the profile and its provider link together or not at all. The flow is consumed by the first attempt that obtains an exchange slot and the database write turn, successful or not: a replayed or concurrent completion creates nothing, while a `503` refusal for lack of capacity leaves the flow intact. An email address is neither required nor read, and profiles are never merged by email.
     ///
     /// - Remark: HTTP `POST /api/accounts/oauth-registrations/completion`.
     /// - Remark: Generated from `#/paths//api/accounts/oauth-registrations/completion/post(completeOAuthRegistration)`.
