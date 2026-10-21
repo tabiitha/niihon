@@ -18,5 +18,5 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["src", "test", "contract"]
+  "include": ["src", "test", "contract", "prisma", "bench"]
 }

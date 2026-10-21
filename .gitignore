@@ -41,6 +41,7 @@ node_modules/
 /apps/web/*.tsbuildinfo
 /apps/web/coverage/
 /apps/api/dist/
+/apps/api/src/generated/
 /apps/api/*.tsbuildinfo
 /apps/web/playwright-report/
 /apps/web/test-results/

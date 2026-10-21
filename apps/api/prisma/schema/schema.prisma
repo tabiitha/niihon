@@ -1,0 +1,15 @@
+// Base of the Nihon Prisma schema. Each module adds its models in its own file in this folder
+// (`<module>.prisma`) and its migrations under prisma/migrations; see docs/architecture/persistence.md.
+
+generator client {
+  provider               = "prisma-client"
+  output                 = "../../src/generated/prisma"
+  runtime                = "nodejs"
+  moduleFormat           = "esm"
+  generatedFileExtension = "ts"
+  importFileExtension    = "ts"
+}
+
+datasource db {
+  provider = "sqlite"
+}
