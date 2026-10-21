@@ -1,6 +1,6 @@
 # Persistence
 
-Nihon keeps all its data in one SQLite database per installation. Only the Express.js/TypeScript server opens it, through Prisma; the Web and macOS clients use the HTTP/JSON API and never read the file, and no auxiliary tool is part of the data path. This page describes the foundation delivered by [issue #3](https://github.com/tabiitha/niihon/issues/3): storage, connections, migrations, and snapshots. Each domain adds its own models and migrations in its own issue.
+Nihon keeps all its data in one SQLite database per installation. Only the Express.js/TypeScript server opens it, through Prisma; the Web and macOS clients use the HTTP/JSON API and never read the file, and no auxiliary tool is part of the data path. This page describes the foundation delivered by [issue #3](https://github.com/tabiitha/niihon/issues/3): storage, connections, migrations, and snapshots. Each domain adds its own models and migrations in its own issue; the first, `accounts` ([#233](https://github.com/tabiitha/niihon/issues/233)), is described in [accounts](accounts.md#data).
 
 ## Storage
 

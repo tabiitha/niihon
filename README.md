@@ -6,7 +6,7 @@ Rust and Unreal are removed from the active stack. Games are deferred and exclud
 
 ## Project Status
 
-The project is in early development. The Express.js/TypeScript server foundation from [issue #2](https://github.com/tabiitha/niihon/issues/2) runs and reports its availability. Since [issue #5](https://github.com/tabiitha/niihon/issues/5) it also serves the Web interface: navigation between the home, learning, kanji, library, profile, and administration spaces in English, French, and Japanese. Since [issue #73](https://github.com/tabiitha/niihon/issues/73), a native SwiftUI client for Apple silicon Macs running macOS 26 or later opens the same spaces and connects to the running server. No learning feature or account exists yet.
+The project is in early development. The Express.js/TypeScript server foundation from [issue #2](https://github.com/tabiitha/niihon/issues/2) runs and reports its availability. Since [issue #5](https://github.com/tabiitha/niihon/issues/5) it also serves the Web interface: navigation between the home, learning, kanji, library, profile, and administration spaces in English, French, and Japanese. Since [issue #73](https://github.com/tabiitha/niihon/issues/73), a native SwiftUI client for Apple silicon Macs running macOS 26 or later opens the same spaces and connects to the running server. Since [issue #233](https://github.com/tabiitha/niihon/issues/233), the API registers a local account with a username and password, or with an optional Google or GitHub identity; no registration screen, sign-in, or learning feature exists yet.
 
 ## Installation
 
@@ -49,7 +49,7 @@ On start, the server brings its database to the new release's schema before answ
 
 ## Development
 
-Install Node.js 24 or newer and Bun 1.4.3, then run from the repository root:
+Install Node.js 24.7 or newer and Bun 1.4.3, then run from the repository root:
 
 | Command | Effect |
 | --- | --- |
