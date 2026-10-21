@@ -24,11 +24,12 @@ CREATE TABLE "Parent" (
 -- CreateIndex
 CREATE UNIQUE INDEX "Parent_name_key" ON "Parent"("name");
 `,
+  // ON DELETE CASCADE: redefining "Parent" with foreign keys enforced would delete every child.
   '20260201000000_create_child': `-- CreateTable
 CREATE TABLE "Child" (
     "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     "parentId" INTEGER NOT NULL,
-    CONSTRAINT "Child_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Parent" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+    CONSTRAINT "Child_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Parent" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 `,
   // Transforms existing rows through Prisma's table redefinition.
@@ -199,6 +200,20 @@ describe('installation database', () => {
       });
     });
 
+    it('keeps the rows that reference a redefined table', async () => {
+      const previous = await open([...release1, '20260201000000_create_child']);
+      await addParents(previous.database, 'kana');
+      await previous.database.write((transaction) => transaction.$executeRaw`INSERT INTO "Child" ("parentId") SELECT "id" FROM "Parent"`);
+      await closeAll();
+
+      const { database } = await open(release2);
+      assert.deepEqual(await database.reader.$queryRaw`SELECT COUNT(*) AS "count" FROM "Child"`, [{ count: 1n }]);
+      await assert.rejects(
+        database.write((transaction) => transaction.$executeRaw`INSERT INTO "Child" ("parentId") VALUES (999)`),
+        /constraint|violat/i,
+      );
+    });
+
     it('keeps only the most recent snapshots and removes interrupted ones', async () => {
       await open(release1);
       await closeAll();
@@ -228,9 +243,10 @@ describe('installation database', () => {
         (error) =>
           error instanceof MigrationFailedError &&
           error.migration === '20260301000000_broken' &&
-          error.snapshot !== null &&
           /no such table: Missing/.test(error.message),
       );
+      // The rolled-back database is its own backup; the snapshot taken for this run is removed.
+      assert.deepEqual(readdirSync(join(dataDir, snapshotsDirName)), []);
 
       const { database, migration } = await open(release1);
       assert.deepEqual(migration.applied, []);
@@ -239,6 +255,20 @@ describe('installation database', () => {
       assert.deepEqual(
         (await history(database.reader)).map((row) => row.name),
         release1,
+      );
+    });
+
+    it('keeps earlier snapshots however often a failing migration is retried', async () => {
+      await open(release1);
+      await closeAll();
+      const { migration } = await open([...release1, '20260201000000_create_child']);
+      await closeAll();
+      for (let attempt = 0; attempt < maxSnapshots + 1; attempt += 1) {
+        await assert.rejects(open([...release1, '20260201000000_create_child', '20260301000000_broken']), MigrationFailedError);
+      }
+      assert.deepEqual(
+        readdirSync(join(dataDir, snapshotsDirName)).map((name) => join(dataDir, snapshotsDirName, name)),
+        [migration.snapshot],
       );
     });
 

@@ -7,7 +7,7 @@ import { IncompatibleDatabaseError, planMigrations, type AppliedMigration, type 
 
 /** Bookkeeping table of the migrations applied by the server; Prisma's CLI never writes it. */
 export const migrationsTable = 'nihon_schema_migrations';
-/** Snapshots kept in the snapshots directory; older ones are deleted after a new one is taken. */
+/** Snapshots kept in the snapshots directory; older ones are deleted after a successful migration. */
 export const maxSnapshots = 3;
 
 /** A migration run failed; the transaction was rolled back and the database is unchanged. */
@@ -15,9 +15,8 @@ export class MigrationFailedError extends Error {
   override name = 'MigrationFailedError';
 
   readonly migration: string | null;
-  readonly snapshot: string | null;
 
-  constructor(migration: string | null, snapshot: string | null, cause: unknown) {
+  constructor(migration: string | null, cause: unknown) {
     const reason = describe(cause);
     super(
       migration === null
@@ -26,7 +25,6 @@ export class MigrationFailedError extends Error {
       { cause },
     );
     this.migration = migration;
-    this.snapshot = snapshot;
   }
 }
 
@@ -123,11 +121,20 @@ export async function migrateDatabase(options: MigrationOptions): Promise<Migrat
         }
         await connection.executeScript('COMMIT');
       } catch (error) {
-        await connection.executeScript('ROLLBACK');
+        // SQLite has already rolled back after some errors, such as a full disk; keep the original error.
+        await connection.executeScript('ROLLBACK').catch(() => {});
         throw error;
       }
     } catch (error) {
-      throw new MigrationFailedError(current, snapshot, error);
+      // The rollback left the database as it was, so the snapshot adds nothing; removing it keeps a
+      // restart loop on a failing migration from replacing older snapshots.
+      if (snapshot !== null) {
+        rmSync(snapshot, { force: true });
+      }
+      throw new MigrationFailedError(current, error);
+    }
+    if (snapshot !== null) {
+      pruneSnapshots(snapshotsDir);
     }
     return { applied: pending.map((migration) => migration.name), schemaVersion: migrations.at(-1)?.name ?? null, snapshot };
   } finally {
@@ -198,7 +205,6 @@ async function takeSnapshot(connection: Connection, directory: string, schemaVer
     closeSync(descriptor);
   }
   renameSync(partial, path);
-  pruneSnapshots(directory);
   return path;
 }
 

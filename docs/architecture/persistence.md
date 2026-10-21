@@ -16,7 +16,7 @@ In Docker, `NIHON_DATA_DIR` is `/data`, a named volume mounted into the API cont
 | --- | --- |
 | Volume | `nihon-data` in `compose.yaml`; Docker names it `nihon_nihon-data` because the Compose project is `nihon` |
 | Owner | The image's `node` user (uid 1000), which runs the server |
-| Modes | `/data` is `700`; the database, its WAL files, and the snapshots are `600`. Only the server's user can read them |
+| Modes | The database, its WAL files, and the snapshots are `600`, and `snapshots/` is `700`: only the server's user can read them. `/data` is `700` in volumes created by this image; Docker copies the image's mode only into an empty volume, so a volume created by an earlier image keeps `755` |
 | Creation | On the first `docker compose up`; the server creates `nihon.db` and applies the migrations before it listens |
 | Upgrade | `docker compose up --build` replaces the container and keeps the volume; the new server migrates the database on start |
 | Retention | `docker compose stop`, `down`, container re-creation, and image upgrades keep the volume. Only `docker compose down --volumes` or `docker volume rm nihon_nihon-data` delete it |
@@ -82,6 +82,7 @@ Collections that grow are read by pages with the contract's [cursor pagination](
 1. Add or change models in `apps/api/prisma/schema/<module>.prisma`.
 2. Run `bun run db:migration <name>` (lowercase, digits, underscores). It runs `prisma migrate diff` from the existing migrations to the schema, against a temporary shadow database, and writes `prisma/migrations/<UTC timestamp>_<name>/migration.sql`.
 3. Review the SQL, adapt data transformations if needed, and commit it with the schema change. A committed migration is never edited.
+4. Before merging, check that no migration with a later timestamp reached `main` meanwhile. If one did, delete yours, update the branch, and write it again: a database that already has the later migration would refuse a release whose history places an unapplied migration before it (`out_of_order`).
 
 Do not run `prisma migrate dev`, `migrate deploy`, `db push`, or `migrate reset`: they would open the live database and keep their own history. The server is the only program that migrates the database.
 
@@ -101,17 +102,17 @@ On every start, after claiming the data directory and before listening, the serv
 | Outcome | Log event | Exit code | Database |
 | --- | --- | --- | --- |
 | Migrated | `database.migrated` (applied names, `schemaVersion`, snapshot path) | Server runs | At the packaged schema |
-| A migration or the snapshot failed | `database.migration_failed` (migration, or null for the snapshot; snapshot; SQLite message) | 5 | Rolled back: exactly as before the start, at the previous release's schema |
+| A migration or the snapshot failed | `database.migration_failed` (migration, or null for the snapshot; SQLite message) | 5 | Rolled back: exactly as before the start, at the previous release's schema |
 | Migrated by a newer release | `database.incompatible`, `reason: "newer"` | 4 | Untouched |
 | A packaged migration differs from the applied one | `database.incompatible`, `reason: "modified"` | 4 | Untouched |
 | History skips a packaged migration | `database.incompatible`, `reason: "out_of_order"` | 4 | Untouched |
 | SQLite file not created by Nihon | `database.incompatible`, `reason: "unrecognized"` | 4 | Untouched, not even switched to WAL |
 
-After exit code 5, the previous release still runs on the same data; reinstall it, or fix the migration and start again. After exit code 4 with `newer`, install that newer release, or restore a snapshot taken before the upgrade.
+After exit code 5, the previous release still runs on the same data; reinstall it, or fix the migration and start again. Compose restarts the container (`restart: unless-stopped`), so a failing migration is retried on each start; every attempt leaves the database unchanged and keeps the existing snapshots. Stop it with `docker compose stop` while you decide. After exit code 4 with `newer`, install that newer release, or restore a snapshot taken before the upgrade.
 
 ### Snapshots
 
-Before applying migrations to a database that already has a schema, the server writes a consistent copy with SQLite's `VACUUM INTO`, which reads one transaction even while WAL frames are pending. The copy is written to a `.partial` file, synced to disk, then renamed, so an interrupted snapshot never looks complete; leftover `.partial` files are deleted with the next snapshot. A snapshot that cannot be written aborts the start before any migration. The three most recent snapshots are kept.
+Before applying migrations to a database that already has a schema, the server writes a consistent copy with SQLite's `VACUUM INTO`, which reads one transaction even while WAL frames are pending. The copy is written to a `.partial` file, synced to disk, then renamed, so an interrupted snapshot never looks complete; leftover `.partial` files are deleted after the next successful migration. A snapshot that cannot be written aborts the start before any migration. When the migration fails, the rollback leaves the database as it was, so the snapshot of that attempt is deleted; repeated failures therefore never push older snapshots out. After a successful migration, the three most recent snapshots are kept.
 
 Every migration applied to an existing database is treated as potentially data-transforming, because Prisma's SQLite migrations often rebuild tables to change them. A new installation has no data, so it takes no snapshot.
 

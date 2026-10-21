@@ -53,7 +53,6 @@ async function main(logger: Logger): Promise<number> {
     if (error instanceof MigrationFailedError) {
       logger('error', 'database.migration_failed', {
         migration: error.migration,
-        snapshot: error.snapshot,
         message: error.message,
       });
       return exitCodes.migrationFailed;
