@@ -112,7 +112,7 @@ public enum Operations {
                     self.body = body
                 }
             }
-            /// Any other error, such as `internal_error` (500) or `stopping` (503).
+            /// Any other error, such as `internal_error` (500), `stopping` (503), or `database_busy` (503).
             ///
             /// - Remark: Generated from `#/paths//api/health/get(getHealth)/responses/default`.
             ///

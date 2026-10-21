@@ -1,13 +1,18 @@
 import assert from 'node:assert/strict';
 import { spawn, type ChildProcess } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 
+import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
+
 import { apiVersion } from './contract/conventions.ts';
+import { databaseFileName } from './database/database.ts';
+import { migrationsTable } from './database/migrator.ts';
+import { PrismaClient } from './generated/prisma/client.ts';
 
 // Exercises the real entry point in a child process. NIHON_API_ENTRY may point at the built dist/main.js.
 const entry = process.env['NIHON_API_ENTRY'] ?? fileURLToPath(new URL('./main.ts', import.meta.url));
@@ -144,4 +149,53 @@ describe('server process', () => {
     assert.equal(await server.exited, 2);
     assert.ok(server.events.some((event) => event.event === 'config.invalid'));
   });
+
+  it('creates the installation database before listening and keeps it across restarts', async () => {
+    const server = launch(dataDir);
+    const listening = await server.waitFor('server.listening');
+    assert.ok(existsSync(join(dataDir, databaseFileName)));
+    assert.ok('schemaVersion' in listening);
+    server.child.kill('SIGKILL');
+    await server.exited;
+
+    const restarted = launch(dataDir);
+    await health(await restarted.waitFor('server.listening'));
+    assert.ok(!restarted.events.some((event) => event.event === 'database.migrated'));
+  });
+
+  it('exits with code 4 when a newer release migrated the database, leaving it untouched', async () => {
+    await withDatabase(join(dataDir, databaseFileName), async (client) => {
+      await client.$executeRawUnsafe(
+        `CREATE TABLE "${migrationsTable}" ("name" TEXT NOT NULL PRIMARY KEY, "checksum" TEXT NOT NULL, "applied_at" TEXT NOT NULL)`,
+      );
+      await client.$executeRawUnsafe(
+        `INSERT INTO "${migrationsTable}" VALUES ('29990101000000_future', 'checksum', '2999-01-01T00:00:00.000Z')`,
+      );
+    });
+    const before = readFileSync(join(dataDir, databaseFileName));
+
+    const server = launch(dataDir);
+    assert.equal(await server.exited, 4);
+    const refused = server.events.find((event) => event.event === 'database.incompatible');
+    assert.equal(refused?.['reason'], 'newer');
+    assert.ok(!server.events.some((event) => event.event === 'server.listening'));
+    assert.deepEqual(readFileSync(join(dataDir, databaseFileName)), before);
+  });
+
+  it('exits with code 4 on an SQLite file that a Nihon server did not create', async () => {
+    await withDatabase(join(dataDir, databaseFileName), (client) => client.$executeRawUnsafe('CREATE TABLE "other" ("id" INTEGER)'));
+    const server = launch(dataDir);
+    assert.equal(await server.exited, 4);
+    assert.equal(server.events.find((event) => event.event === 'database.incompatible')?.['reason'], 'unrecognized');
+  });
 });
+
+/** Prepares a database file through Prisma, as an earlier or foreign program would have left it. */
+async function withDatabase(path: string, prepare: (client: PrismaClient) => Promise<unknown>): Promise<void> {
+  const client = new PrismaClient({ adapter: new PrismaBetterSqlite3({ url: path }) });
+  try {
+    await prepare(client);
+  } finally {
+    await client.$disconnect();
+  }
+}
