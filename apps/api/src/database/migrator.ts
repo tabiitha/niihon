@@ -121,8 +121,13 @@ export async function migrateDatabase(options: MigrationOptions): Promise<Migrat
         }
         await connection.executeScript('COMMIT');
       } catch (error) {
-        // SQLite has already rolled back after some errors, such as a full disk; keep the original error.
-        await connection.executeScript('ROLLBACK').catch(() => {});
+        // SQLite has already rolled back after some errors, such as a full disk or RAISE(ROLLBACK);
+        // keep the original error. The adapter throws synchronously, hence try rather than .catch.
+        try {
+          await connection.executeScript('ROLLBACK');
+        } catch {
+          // No transaction left to roll back.
+        }
         throw error;
       }
     } catch (error) {
@@ -134,7 +139,11 @@ export async function migrateDatabase(options: MigrationOptions): Promise<Migrat
       throw new MigrationFailedError(current, error);
     }
     if (snapshot !== null) {
-      pruneSnapshots(snapshotsDir);
+      try {
+        pruneSnapshots(snapshotsDir);
+      } catch {
+        // The migration is committed; an old snapshot that cannot be deleted yet goes at the next one.
+      }
     }
     return { applied: pending.map((migration) => migration.name), schemaVersion: migrations.at(-1)?.name ?? null, snapshot };
   } finally {

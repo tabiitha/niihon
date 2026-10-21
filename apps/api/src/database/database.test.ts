@@ -52,6 +52,11 @@ PRAGMA defer_foreign_keys=OFF;
   '20260301000000_broken': `UPDATE "Parent" SET "name" = 'changed';
 INSERT INTO "Missing" ("id") SELECT 1;
 `,
+  // Makes SQLite itself end the transaction, as a full disk would.
+  '20260301000000_raise': `CREATE TABLE "Guard" ("id" INTEGER);
+CREATE TRIGGER "Guard_insert" BEFORE INSERT ON "Guard" BEGIN SELECT RAISE(ROLLBACK, 'original cause'); END;
+INSERT INTO "Guard" ("id") VALUES (1);
+`,
   // Succeeds statement by statement but leaves a row that violates a foreign key.
   '20260301000000_orphan': `PRAGMA foreign_keys=OFF;
 INSERT INTO "Child" ("parentId") SELECT 999;
@@ -256,6 +261,17 @@ describe('installation database', () => {
         (await history(database.reader)).map((row) => row.name),
         release1,
       );
+    });
+
+    it('reports the original error when SQLite has already rolled back', async () => {
+      await open(release1);
+      await closeAll();
+      await assert.rejects(
+        open([...release1, '20260301000000_raise']),
+        (error) => error instanceof MigrationFailedError && /original cause/.test(error.message),
+      );
+      const { database } = await open(release1);
+      assert.deepEqual(await tables(database.reader), ['Parent', migrationsTable]);
     });
 
     it('keeps earlier snapshots however often a failing migration is retried', async () => {
