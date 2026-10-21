@@ -5,12 +5,39 @@ import NihonMacCore
 import OpenAPIRuntime
 import Testing
 
+/// The fake answers health only; any other operation of the contract is a test mistake.
+struct UnexpectedOperationError: Error {}
+
 /// A contract client whose health answer is chosen by the test.
 struct FakeContractClient: APIProtocol {
     let answer: @Sendable () async throws -> Operations.GetHealth.Output
 
     func getHealth(_ input: Operations.GetHealth.Input) async throws -> Operations.GetHealth.Output {
         try await answer()
+    }
+
+    func registerLocalAccount(_ input: Operations.RegisterLocalAccount.Input) async throws
+        -> Operations.RegisterLocalAccount.Output
+    {
+        throw UnexpectedOperationError()
+    }
+
+    func listOAuthProviders(_ input: Operations.ListOAuthProviders.Input) async throws
+        -> Operations.ListOAuthProviders.Output
+    {
+        throw UnexpectedOperationError()
+    }
+
+    func startOAuthRegistration(_ input: Operations.StartOAuthRegistration.Input) async throws
+        -> Operations.StartOAuthRegistration.Output
+    {
+        throw UnexpectedOperationError()
+    }
+
+    func completeOAuthRegistration(_ input: Operations.CompleteOAuthRegistration.Input) async throws
+        -> Operations.CompleteOAuthRegistration.Output
+    {
+        throw UnexpectedOperationError()
     }
 }
 
