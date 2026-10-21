@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=24"
+    "node": ">=24.7"
   },
   "scripts": {
     "dev": "bun run db:generate && NIHON_DATA_DIR=../../.local/data node --watch src/main.ts",
@@ -17,7 +17,8 @@
     "contract:check": "node contract/generate.ts --check",
     "db:generate": "CHECKPOINT_DISABLE=1 PRISMA_HIDE_UPDATE_MESSAGE=1 prisma generate --no-hints",
     "db:migration": "node prisma/create-migration.ts",
-    "bench:persistence": "bun run db:generate && node bench/persistence.ts"
+    "bench:persistence": "bun run db:generate && node bench/persistence.ts",
+    "bench:accounts": "bun run db:generate && node bench/accounts.ts"
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "7.10.1",

@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import express, { type ErrorRequestHandler, type Express, type RequestHandler } from 'express';
 
+import { noOAuthSettings, type OAuthSettings } from './config.ts';
 import {
   apiMajorVersion,
   apiVersion,
@@ -29,6 +30,8 @@ export interface AppOptions {
   /** The installation database, handed to each module. */
   readonly database: Database;
   readonly logger: Logger;
+  /** Provider credentials for the modules that offer provider sign-up; none by default. */
+  readonly oauth?: OAuthSettings;
   /** Reports whether the server is shutting down; new requests then receive 503. */
   readonly isStopping?: () => boolean;
   /** Directory of the built Web interface, served outside `/api`; omitted, only the API is served. */
@@ -39,7 +42,7 @@ export interface AppOptions {
  * Builds the HTTP adapter. It parses no request body globally: each module adds the bounded
  * parser or stream its routes need, so unread bodies are never buffered.
  */
-export function createApp({ version, modules, database, logger, isStopping = () => false, webDir }: AppOptions): Express {
+export function createApp({ version, modules, database, logger, oauth = noOAuthSettings, isStopping = () => false, webDir }: AppOptions): Express {
   const app = express();
   app.disable('x-powered-by');
 
@@ -56,7 +59,7 @@ export function createApp({ version, modules, database, logger, isStopping = () 
 
   for (const module of modules) {
     const router = express.Router();
-    module.register(router, { database });
+    module.register(router, { database, logger, oauth });
     app.use(`/api/${module.id}`, router);
   }
 

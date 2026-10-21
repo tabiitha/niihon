@@ -18,6 +18,83 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/accounts/local-registrations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Register a local account with a username and password
+         * @description Works offline. Creates the profile and its credential together or not at all. No session is opened.
+         */
+        post: operations["registerLocalAccount"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/accounts/oauth-providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the providers available for registration */
+        get: operations["listOAuthProviders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/accounts/oauth-registrations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start registering with a Google or GitHub identity
+         * @description Requires Internet to reach the provider. The username is checked now and again when the flow completes. The flow expires after 10 minutes.
+         */
+        post: operations["startOAuthRegistration"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/accounts/oauth-registrations/completion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Complete a provider registration with the returned code
+         * @description Verifies the code and identity with the provider, then creates the profile and its provider link together or not at all. The flow is consumed on the first attempt, successful or not: a replayed or concurrent completion creates nothing. An email address is neither required nor read, and profiles are never merged by email.
+         */
+        post: operations["completeOAuthRegistration"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -50,6 +127,85 @@ export interface components {
                 }[];
             };
         };
+        /** @description A local Nihon profile. It carries no credential and no provider data. */
+        Profile: {
+            /** @description Opaque identifier of 1 to 64 characters `A-Z a-z 0-9 _ -`. */
+            id: string;
+            /** @description Display form of the username, NFKC-normalized, case preserved. */
+            username: string;
+            /**
+             * @description Permission role. Every new account is `user`; the role cannot be chosen at registration.
+             * @example user
+             */
+            role: string;
+            /**
+             * @description How the profile was created: `local` for a username and password, otherwise the provider identifier.
+             * @example local
+             */
+            registeredWith: string;
+            /**
+             * Format: date-time
+             * @description UTC timestamp, `YYYY-MM-DDTHH:mm:ss.sssZ`.
+             * @example 2026-10-15T08:30:00.000Z
+             */
+            createdAt: string;
+        };
+        /** @description Credentials of a new local account. Fields other than these two, such as `role`, are refused. */
+        LocalRegistration: {
+            /**
+             * @description Account name, 3 to 32 characters after Unicode NFKC normalization: letters of any script, digits, `_`, `-`, `.`, starting with a letter or digit. Two names that normalize to the same lowercase form are the same name.
+             * @example sakura_42
+             */
+            username: string;
+            /** @description Local password, 8 to 128 characters after Unicode NFKC normalization, no control characters, different from the username. Hashed with Argon2id; never stored or returned as given. */
+            password: string;
+        };
+        /** @description Providers available for registration. */
+        OAuthProviderList: {
+            /** @description Providers this installation is configured for; empty when it has none or is offline. */
+            items: {
+                /**
+                 * @description Provider identifier as listed by `listOAuthProviders`, such as `google` or `github`.
+                 * @example google
+                 */
+                id: string;
+            }[];
+        };
+        /** @description A provider registration waiting for the browser to return. */
+        OAuthRegistrationStarted: {
+            /** @description Address to open in the browser to authenticate with the provider. */
+            authorizationUrl: string;
+            /** @description Value the provider returns to `redirectUri`. The client compares it with the returned one, then sends it to `completeOAuthRegistration`. */
+            state: string;
+            /**
+             * Format: date-time
+             * @description The flow can be completed until this instant.
+             * @example 2026-10-15T08:30:00.000Z
+             */
+            expiresAt: string;
+        };
+        /** @description Starts a provider registration for a chosen username. */
+        OAuthRegistrationStart: {
+            /**
+             * @description Provider identifier as listed by `listOAuthProviders`, such as `google` or `github`.
+             * @example google
+             */
+            provider: string;
+            /**
+             * @description Account name, 3 to 32 characters after Unicode NFKC normalization: letters of any script, digits, `_`, `-`, `.`, starting with a letter or digit. Two names that normalize to the same lowercase form are the same name.
+             * @example sakura_42
+             */
+            username: string;
+            /** @description Where the browser returns after the provider: an `http://127.0.0.1`, `http://localhost`, or `http://[::1]` address, or an address the installation lists in `NIHON_OAUTH_REDIRECT_URIS`. Must also be registered with the provider. */
+            redirectUri: string;
+        };
+        /** @description The provider answer for a started registration. A flow can be completed once. */
+        OAuthRegistrationCompletion: {
+            /** @description `state` of the flow, as returned by the provider. */
+            state: string;
+            /** @description Authorization code the provider returned to `redirectUri`. */
+            code: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -75,6 +231,296 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Health"];
+                };
+            };
+            /** @description Any other error, such as `internal_error` (500), `stopping` (503), or `database_busy` (503). */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    registerLocalAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LocalRegistration"];
+            };
+        };
+        responses: {
+            /** @description The profile was created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Profile"];
+                };
+            };
+            /** @description Refused request: invalid input (`validation_failed`) or incompatible client (`unsupported_api_version`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The normalized username is already used (`accounts_username_taken`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Body larger than 8192 bytes (`payload_too_large`). */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Body that is not `application/json` (`unsupported_media_type`). */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too many registrations are being processed; retry after `Retry-After` (`accounts_busy`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Any other error, such as `internal_error` (500), `stopping` (503), or `database_busy` (503). */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listOAuthProviders: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The configured providers. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OAuthProviderList"];
+                };
+            };
+            /** @description Refused request: incompatible client (`unsupported_api_version`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Any other error, such as `internal_error` (500), `stopping` (503), or `database_busy` (503). */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    startOAuthRegistration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OAuthRegistrationStart"];
+            };
+        };
+        responses: {
+            /** @description The flow was created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OAuthRegistrationStarted"];
+                };
+            };
+            /** @description Refused request: invalid input (`validation_failed`) or incompatible client (`unsupported_api_version`). `redirectUri` is not an accepted return address (`accounts_oauth_redirect_uri_invalid`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The normalized username is already used (`accounts_username_taken`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Body larger than 8192 bytes (`payload_too_large`). */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Body that is not `application/json` (`unsupported_media_type`). */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The provider is unknown or not configured on this installation (`accounts_oauth_provider_unavailable`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too many provider flows are pending; retry after `Retry-After` (`accounts_busy`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Any other error, such as `internal_error` (500), `stopping` (503), or `database_busy` (503). */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    completeOAuthRegistration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OAuthRegistrationCompletion"];
+            };
+        };
+        responses: {
+            /** @description The profile and its provider link were created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Profile"];
+                };
+            };
+            /** @description Refused request: invalid input (`validation_failed`) or incompatible client (`unsupported_api_version`). The flow is unknown or already used (`accounts_oauth_state_invalid`), expired (`accounts_oauth_state_expired`), the provider refused the code (`accounts_oauth_code_rejected`), or the identity could not be verified (`accounts_oauth_identity_unverified`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The username was taken meanwhile (`accounts_username_taken`), or this provider identity already has a profile (`accounts_identity_already_registered`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Body larger than 8192 bytes (`payload_too_large`). */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Body that is not `application/json` (`unsupported_media_type`). */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The provider could not be reached or answered unusably (`accounts_oauth_provider_failed`). */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too many provider exchanges are running; retry after `Retry-After` (`accounts_busy`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Any other error, such as `internal_error` (500), `stopping` (503), or `database_busy` (503). */

@@ -10,6 +10,32 @@ public protocol APIProtocol: Sendable {
     /// - Remark: HTTP `GET /api/health`.
     /// - Remark: Generated from `#/paths//api/health/get(getHealth)`.
     func getHealth(_ input: Operations.GetHealth.Input) async throws -> Operations.GetHealth.Output
+    /// Register a local account with a username and password
+    ///
+    /// Works offline. Creates the profile and its credential together or not at all. No session is opened.
+    ///
+    /// - Remark: HTTP `POST /api/accounts/local-registrations`.
+    /// - Remark: Generated from `#/paths//api/accounts/local-registrations/post(registerLocalAccount)`.
+    func registerLocalAccount(_ input: Operations.RegisterLocalAccount.Input) async throws -> Operations.RegisterLocalAccount.Output
+    /// List the providers available for registration
+    ///
+    /// - Remark: HTTP `GET /api/accounts/oauth-providers`.
+    /// - Remark: Generated from `#/paths//api/accounts/oauth-providers/get(listOAuthProviders)`.
+    func listOAuthProviders(_ input: Operations.ListOAuthProviders.Input) async throws -> Operations.ListOAuthProviders.Output
+    /// Start registering with a Google or GitHub identity
+    ///
+    /// Requires Internet to reach the provider. The username is checked now and again when the flow completes. The flow expires after 10 minutes.
+    ///
+    /// - Remark: HTTP `POST /api/accounts/oauth-registrations`.
+    /// - Remark: Generated from `#/paths//api/accounts/oauth-registrations/post(startOAuthRegistration)`.
+    func startOAuthRegistration(_ input: Operations.StartOAuthRegistration.Input) async throws -> Operations.StartOAuthRegistration.Output
+    /// Complete a provider registration with the returned code
+    ///
+    /// Verifies the code and identity with the provider, then creates the profile and its provider link together or not at all. The flow is consumed on the first attempt, successful or not: a replayed or concurrent completion creates nothing. An email address is neither required nor read, and profiles are never merged by email.
+    ///
+    /// - Remark: HTTP `POST /api/accounts/oauth-registrations/completion`.
+    /// - Remark: Generated from `#/paths//api/accounts/oauth-registrations/completion/post(completeOAuthRegistration)`.
+    func completeOAuthRegistration(_ input: Operations.CompleteOAuthRegistration.Input) async throws -> Operations.CompleteOAuthRegistration.Output
 }
 
 /// Convenience overloads for operation inputs.
@@ -20,6 +46,58 @@ extension APIProtocol {
     /// - Remark: Generated from `#/paths//api/health/get(getHealth)`.
     public func getHealth(headers: Operations.GetHealth.Input.Headers = .init()) async throws -> Operations.GetHealth.Output {
         try await getHealth(Operations.GetHealth.Input(headers: headers))
+    }
+    /// Register a local account with a username and password
+    ///
+    /// Works offline. Creates the profile and its credential together or not at all. No session is opened.
+    ///
+    /// - Remark: HTTP `POST /api/accounts/local-registrations`.
+    /// - Remark: Generated from `#/paths//api/accounts/local-registrations/post(registerLocalAccount)`.
+    public func registerLocalAccount(
+        headers: Operations.RegisterLocalAccount.Input.Headers = .init(),
+        body: Operations.RegisterLocalAccount.Input.Body
+    ) async throws -> Operations.RegisterLocalAccount.Output {
+        try await registerLocalAccount(Operations.RegisterLocalAccount.Input(
+            headers: headers,
+            body: body
+        ))
+    }
+    /// List the providers available for registration
+    ///
+    /// - Remark: HTTP `GET /api/accounts/oauth-providers`.
+    /// - Remark: Generated from `#/paths//api/accounts/oauth-providers/get(listOAuthProviders)`.
+    public func listOAuthProviders(headers: Operations.ListOAuthProviders.Input.Headers = .init()) async throws -> Operations.ListOAuthProviders.Output {
+        try await listOAuthProviders(Operations.ListOAuthProviders.Input(headers: headers))
+    }
+    /// Start registering with a Google or GitHub identity
+    ///
+    /// Requires Internet to reach the provider. The username is checked now and again when the flow completes. The flow expires after 10 minutes.
+    ///
+    /// - Remark: HTTP `POST /api/accounts/oauth-registrations`.
+    /// - Remark: Generated from `#/paths//api/accounts/oauth-registrations/post(startOAuthRegistration)`.
+    public func startOAuthRegistration(
+        headers: Operations.StartOAuthRegistration.Input.Headers = .init(),
+        body: Operations.StartOAuthRegistration.Input.Body
+    ) async throws -> Operations.StartOAuthRegistration.Output {
+        try await startOAuthRegistration(Operations.StartOAuthRegistration.Input(
+            headers: headers,
+            body: body
+        ))
+    }
+    /// Complete a provider registration with the returned code
+    ///
+    /// Verifies the code and identity with the provider, then creates the profile and its provider link together or not at all. The flow is consumed on the first attempt, successful or not: a replayed or concurrent completion creates nothing. An email address is neither required nor read, and profiles are never merged by email.
+    ///
+    /// - Remark: HTTP `POST /api/accounts/oauth-registrations/completion`.
+    /// - Remark: Generated from `#/paths//api/accounts/oauth-registrations/completion/post(completeOAuthRegistration)`.
+    public func completeOAuthRegistration(
+        headers: Operations.CompleteOAuthRegistration.Input.Headers = .init(),
+        body: Operations.CompleteOAuthRegistration.Input.Body
+    ) async throws -> Operations.CompleteOAuthRegistration.Output {
+        try await completeOAuthRegistration(Operations.CompleteOAuthRegistration.Input(
+            headers: headers,
+            body: body
+        ))
     }
 }
 

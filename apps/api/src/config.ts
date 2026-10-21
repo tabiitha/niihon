@@ -5,6 +5,25 @@ export const defaultPort = 4000;
 
 const moduleIdPattern = /^[a-z][a-z0-9-]*$/;
 
+/** Credentials of the Nihon application registered with one OAuth provider; the secret never leaves the server. */
+export interface OAuthClientCredentials {
+  readonly clientId: string;
+  readonly clientSecret: string;
+}
+
+/** Providers with a Nihon registration on this installation, and where the browser may return to. */
+export interface OAuthSettings {
+  readonly providers: Readonly<Record<string, OAuthClientCredentials>>;
+  /** Exact return addresses accepted in addition to loopback addresses (`http://127.0.0.1:<port>/...`). */
+  readonly redirectUris: readonly string[];
+}
+
+export const noOAuthSettings: OAuthSettings = { providers: {}, redirectUris: [] };
+
+/** Providers whose credentials the configuration can carry, with the variable name stem of each. */
+const oauthProviderVariables = { google: 'GOOGLE', github: 'GITHUB' } as const;
+export const maxRedirectUriLength = 512;
+
 export interface ServerConfig {
   readonly host: string;
   readonly port: number;
@@ -13,6 +32,8 @@ export interface ServerConfig {
   readonly enabledModuleIds: readonly string[] | undefined;
   /** Directory of the built Web interface to serve, or `undefined` to serve the API only. */
   readonly webDir: string | undefined;
+  /** Optional provider sign-up; empty when the installation has no provider credentials. */
+  readonly oauth: OAuthSettings;
 }
 
 export class ConfigError extends Error {
@@ -27,6 +48,7 @@ export function loadConfig(env: Readonly<Record<string, string | undefined>>, cw
     dataDir: parseDataDir(env['NIHON_DATA_DIR'], cwd),
     enabledModuleIds: parseModuleIds(env['NIHON_MODULES']),
     webDir: parseWebDir(env['NIHON_WEB_DIR'], cwd),
+    oauth: parseOAuth(env),
   };
 }
 
@@ -85,4 +107,46 @@ function parseModuleIds(value: string | undefined): readonly string[] | undefine
     }
   }
   return [...new Set(ids)];
+}
+
+function parseOAuth(env: Readonly<Record<string, string | undefined>>): OAuthSettings {
+  const providers: Record<string, OAuthClientCredentials> = {};
+  for (const [provider, stem] of Object.entries(oauthProviderVariables)) {
+    const idName = `NIHON_OAUTH_${stem}_CLIENT_ID`;
+    const secretName = `NIHON_OAUTH_${stem}_CLIENT_SECRET`;
+    const clientId = env[idName]?.trim() ?? '';
+    const clientSecret = env[secretName]?.trim() ?? '';
+    if (clientId === '' && clientSecret === '') {
+      continue;
+    }
+    if (clientId === '' || clientSecret === '') {
+      throw new ConfigError(`${idName} and ${secretName} must be set together.`);
+    }
+    providers[provider] = { clientId, clientSecret };
+  }
+  return { providers, redirectUris: parseRedirectUris(env['NIHON_OAUTH_REDIRECT_URIS']) };
+}
+
+function parseRedirectUris(value: string | undefined): readonly string[] {
+  const uris = (value ?? '')
+    .split(',')
+    .map((uri) => uri.trim())
+    .filter((uri) => uri !== '');
+  for (const uri of uris) {
+    if (uri.length > maxRedirectUriLength || !isHttpsAddressWithoutFragment(uri)) {
+      throw new ConfigError(
+        `NIHON_OAUTH_REDIRECT_URIS must list https addresses without fragment of at most ${maxRedirectUriLength} characters.`,
+      );
+    }
+  }
+  return [...new Set(uris)];
+}
+
+function isHttpsAddressWithoutFragment(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && url.hash === '' && url.username === '' && url.password === '';
+  } catch {
+    return false;
+  }
 }
