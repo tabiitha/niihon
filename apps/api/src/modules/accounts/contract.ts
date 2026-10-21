@@ -137,8 +137,9 @@ export const completeOAuthRegistration = defineOperation({
   errors: {
     400: 'The flow is unknown or already used (`accounts_oauth_state_invalid`), expired (`accounts_oauth_state_expired`), the provider refused the code (`accounts_oauth_code_rejected`), or the identity could not be verified (`accounts_oauth_identity_unverified`).',
     409: 'The username was taken meanwhile (`accounts_username_taken`), or this provider identity already has a profile (`accounts_identity_already_registered`).',
-    502: 'The provider could not be reached or answered unusably (`accounts_oauth_provider_failed`).',
-    503: 'Too many provider exchanges are running; retry after `Retry-After` (`accounts_busy`).',
+    422: 'The flow was started for a provider this installation no longer has configured (`accounts_oauth_provider_unavailable`); the flow is consumed.',
+    502: 'The provider could not be reached or answered unusably (`accounts_oauth_provider_failed`); the flow is consumed, start a new registration.',
+    503: 'Too many provider exchanges are running (`accounts_busy`, `Retry-After` set): the flow is untouched, retry the same completion. If instead the database stayed busy after the provider answered (`accounts_oauth_flow_consumed`, no `Retry-After`), nothing was created and the flow is used up: start a new registration.',
   },
 });
 
@@ -156,4 +157,5 @@ export const accountsErrorCodes = {
   identityUnverified: 'accounts_oauth_identity_unverified',
   providerFailed: 'accounts_oauth_provider_failed',
   identityAlreadyRegistered: 'accounts_identity_already_registered',
+  flowConsumed: 'accounts_oauth_flow_consumed',
 } as const;

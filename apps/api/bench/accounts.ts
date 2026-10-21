@@ -61,7 +61,7 @@ const percentile = (values: number[], fraction: number) => {
   return sorted[Math.min(sorted.length - 1, Math.ceil(fraction * sorted.length) - 1)] ?? 0;
 };
 const row = (label: string, values: number[]) =>
-  `| ${label} | ${values.length} | ${percentile(values, 0.5).toFixed(1)} ms | ${percentile(values, 0.95).toFixed(1)} ms | ${Math.max(...values).toFixed(1)} ms |`;
+  `| ${label} | ${values.length} | ${percentile(values, 0.5).toFixed(1)} ms | ${percentile(values, 0.95).toFixed(1)} ms | ${values.reduce((largest, value) => Math.max(largest, value), 0).toFixed(1)} ms |`;
 
 try {
   // Hashing alone.

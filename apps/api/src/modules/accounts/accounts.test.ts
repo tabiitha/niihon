@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
+import { createHash, type JsonWebKey } from 'node:crypto';
 import { after, afterEach, before, beforeEach, describe, it } from 'node:test';
 
 import { startAccountsApp, type AccountsApp } from '../../../test/fixtures/accounts-app.ts';
@@ -563,6 +563,19 @@ describe('provider registration', () => {
     assert.deepEqual(await count(), { profiles: 0, identities: 0, flows: 0 });
   });
 
+  it('ignores published keys that are not RS256 signing keys', async () => {
+    const started = (await start('google', 'Keyed')).body;
+    googleVouches(started.authorizationUrl, 'sub-key');
+    const published = fake.jwks;
+    fake.jwks = published.map((key) => ({ ...key, use: 'enc' }) as JsonWebKey);
+    try {
+      const response = await app.post('/oauth-registrations/completion', { state: started.state, code: 'c' });
+      assert.equal(response.body.error.code, 'accounts_oauth_identity_unverified');
+    } finally {
+      fake.jwks = published;
+    }
+  });
+
   it('creates nothing when GitHub returns no usable user', async () => {
     for (const user of [{ login: 'no-id' }, { id: 'string-id' }, { id: -4 }, { id: 1.5 }]) {
       const started = (await start('github', 'Nobody')).body;
@@ -657,7 +670,7 @@ describe('provider registration', () => {
 });
 
 describe('provider exchange limits', () => {
-  it('answers 503 accounts_busy when too many code exchanges run at once, without creating anything', async () => {
+  it('answers 503 accounts_busy without consuming the flow when too many code exchanges run at once', async () => {
     const fake = await startFakeProviders();
     const app = await startAccountsApp({
       oauth,
@@ -674,9 +687,77 @@ describe('provider exchange limits', () => {
       const responses = await Promise.all(flows.map((flow) => app.post('/oauth-registrations/completion', { state: flow.state, code: 'c' })));
       assert.deepEqual(responses.map((response) => response.body.error.code).sort(), ['accounts_busy', 'accounts_oauth_code_rejected']);
       assert.equal(await app.database.reader.profile.count(), 0);
+
+      // The refused completion left its flow intact, so retrying the same state is meaningful.
+      const refusedIndex = responses.findIndex((response) => response.body.error.code === 'accounts_busy');
+      const retry = await app.post('/oauth-registrations/completion', { state: flows[refusedIndex].state, code: 'c' });
+      assert.equal(retry.body.error.code, 'accounts_oauth_code_rejected', 'the retried flow reached the provider');
     } finally {
       await app.stop();
       await fake.stop();
+    }
+  });
+
+  it('says the flow is spent when the database stays busy after the provider answered', async () => {
+    const fake = await startFakeProviders();
+    const clockNow = () => new Date();
+    const app = await startAccountsApp({
+      oauth,
+      databaseLimits: { maxWriteWaitMs: 150, maxTransactionMs: 3000 },
+      module: { googleEndpoints: fake.endpoints.google, now: clockNow },
+    });
+    try {
+      const started = (await app.post('/oauth-registrations', { provider: 'google', username: 'Unlucky_db', redirectUri })).body;
+      const nonce = new URL(started.authorizationUrl).searchParams.get('nonce');
+      const seconds = Math.floor(Date.now() / 1000);
+      fake.googleToken = () => ({
+        status: 200,
+        delayMs: 200,
+        body: { id_token: fake.signIdToken({ iss: googleIssuer, aud: googleClient.clientId, sub: 'sub-db', nonce, iat: seconds, exp: seconds + 3600 }) },
+      });
+      const completion = app.post('/oauth-registrations/completion', { state: started.state, code: 'c' });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      // Occupy the writer while the exchange finishes, so the final write cannot get its turn in time.
+      const blocker = app.database.write(() => new Promise((resolve) => setTimeout(resolve, 600)));
+      const response = await completion;
+      await blocker;
+      assert.equal(response.status, 503);
+      assert.equal(response.body.error.code, 'accounts_oauth_flow_consumed');
+      assert.equal(response.headers.get('retry-after'), null);
+      assert.equal(await app.database.reader.profile.count(), 0);
+      const again = await app.post('/oauth-registrations/completion', { state: started.state, code: 'c' });
+      assert.equal(again.body.error.code, 'accounts_oauth_state_invalid');
+    } finally {
+      await app.stop();
+      await fake.stop();
+    }
+  });
+
+  it('answers 422 when a pending flow belongs to a provider that is no longer configured', async () => {
+    const app = await startAccountsApp({ oauth: { providers: { google: googleClient }, redirectUris: [] } });
+    try {
+      const state = 'S'.repeat(43);
+      await app.database.write((transaction) =>
+        transaction.oAuthFlow.create({
+          data: {
+            id: 'flow-1',
+            stateHash: createHash('sha256').update(state).digest('hex'),
+            provider: 'github',
+            codeVerifier: 'v'.repeat(43),
+            nonce: 'n'.repeat(22),
+            redirectUri,
+            username: 'Orphaned',
+            expiresAt: new Date(Date.now() + 60_000),
+          },
+        }),
+      );
+      const response = await app.post('/oauth-registrations/completion', { state, code: 'c' });
+      assert.equal(response.status, 422);
+      assert.equal(response.body.error.code, 'accounts_oauth_provider_unavailable');
+      assert.equal(await app.database.reader.oAuthFlow.count(), 0);
+      assert.equal(await app.database.reader.profile.count(), 0);
+    } finally {
+      await app.stop();
     }
   });
 });

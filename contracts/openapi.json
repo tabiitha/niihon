@@ -627,8 +627,18 @@
               }
             }
           },
+          "422": {
+            "description": "The flow was started for a provider this installation no longer has configured (`accounts_oauth_provider_unavailable`); the flow is consumed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "502": {
-            "description": "The provider could not be reached or answered unusably (`accounts_oauth_provider_failed`).",
+            "description": "The provider could not be reached or answered unusably (`accounts_oauth_provider_failed`); the flow is consumed, start a new registration.",
             "content": {
               "application/json": {
                 "schema": {
@@ -638,7 +648,7 @@
             }
           },
           "503": {
-            "description": "Too many provider exchanges are running; retry after `Retry-After` (`accounts_busy`).",
+            "description": "Too many provider exchanges are running (`accounts_busy`, `Retry-After` set): the flow is untouched, retry the same completion. If instead the database stayed busy after the provider answered (`accounts_oauth_flow_consumed`, no `Retry-After`), nothing was created and the flow is used up: start a new registration.",
             "content": {
               "application/json": {
                 "schema": {

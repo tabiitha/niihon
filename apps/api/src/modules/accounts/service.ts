@@ -3,6 +3,7 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { errorCodes } from '../../contract/conventions.ts';
 import { ApiError } from '../../contract/operation.ts';
 import type { Database, TransactionClient } from '../../database/database.ts';
+import { DatabaseBusyError, DatabaseClosedError } from '../../database/write-gate.ts';
 import type { Logger } from '../../log.ts';
 import { accountsErrorCodes } from './contract.ts';
 import { LimiterFullError, type Limiter } from './limiter.ts';
@@ -170,47 +171,56 @@ export function createAccountsService(options: AccountsServiceOptions) {
     },
 
     async completeOAuth(input: { state: string; code: string }): Promise<ProfileView> {
-      // The flow is consumed before anything else, whatever happens next: a replayed or concurrent
-      // completion finds nothing to use, and a refused code needs a new flow.
-      const flow = await database.write(async (transaction) => {
-        const found = await transaction.oAuthFlow.findUnique({ where: { stateHash: hashState(input.state) } });
-        if (found === null) {
-          return null;
+      // A slot is taken before the flow is consumed, so a refusal for lack of capacity leaves the
+      // flow intact and the client can retry. Once consumed, the flow is gone whatever happens next:
+      // a replayed or concurrent completion finds nothing, and a refused code needs a new flow.
+      const { identity, username: requestedUsername } = await bounded(exchangeLimiter, async () => {
+        const flow = await database.write(async (transaction) => {
+          const found = await transaction.oAuthFlow.findUnique({ where: { stateHash: hashState(input.state) } });
+          if (found === null) {
+            return null;
+          }
+          const deleted = await transaction.oAuthFlow.deleteMany({ where: { id: found.id } });
+          return deleted.count === 1 ? found : null;
+        });
+        if (flow === null) {
+          throw new ApiError(400, accountsErrorCodes.stateInvalid, 'The flow is unknown or was already used.');
         }
-        const deleted = await transaction.oAuthFlow.deleteMany({ where: { id: found.id } });
-        return deleted.count === 1 ? found : null;
-      });
-      if (flow === null) {
-        throw new ApiError(400, accountsErrorCodes.stateInvalid, 'The flow is unknown or was already used.');
-      }
-      if (flow.expiresAt.getTime() <= now().getTime()) {
-        throw new ApiError(400, accountsErrorCodes.stateExpired, 'The flow has expired; start again.');
-      }
-      const provider = providers.get(flow.provider);
-      if (provider === undefined) {
-        throw new ApiError(422, accountsErrorCodes.providerUnavailable, 'This provider is not available on this installation.');
-      }
-
-      let identity;
-      try {
-        identity = await bounded(exchangeLimiter, () =>
-          provider.verifyCode({
+        if (flow.expiresAt.getTime() <= now().getTime()) {
+          throw new ApiError(400, accountsErrorCodes.stateExpired, 'The flow has expired; start again.');
+        }
+        const provider = providers.get(flow.provider);
+        if (provider === undefined) {
+          throw new ApiError(422, accountsErrorCodes.providerUnavailable, 'This provider is not available on this installation.');
+        }
+        try {
+          const verified = await provider.verifyCode({
             code: input.code,
             codeVerifier: flow.codeVerifier,
             nonce: flow.nonce,
             redirectUri: flow.redirectUri,
-          }),
-        );
+          });
+          return { identity: verified, username: flow.username };
+        } catch (error) {
+          if (error instanceof ProviderError) {
+            logger('warn', 'account.oauth_failed', { provider: provider.id, reason: error.kind });
+            throw providerFailure(error);
+          }
+          throw error;
+        }
+      });
+
+      const username = readUsername(requestedUsername);
+      let profile;
+      try {
+        profile = await writeProfile(database, username, { kind: 'provider', identity }, now());
       } catch (error) {
-        if (error instanceof ProviderError) {
-          logger('warn', 'account.oauth_failed', { provider: provider.id, reason: error.kind });
-          throw providerFailure(error);
+        if (error instanceof DatabaseBusyError || error instanceof DatabaseClosedError) {
+          // Nothing was created, but the flow and the provider's single-use code are spent.
+          throw new ApiError(503, accountsErrorCodes.flowConsumed, 'Nothing was created, but this flow was used up; start a new registration.');
         }
         throw error;
       }
-
-      const username = readUsername(flow.username);
-      const profile = await writeProfile(database, username, { kind: 'provider', identity }, now());
       logger('info', 'account.registered', { profileId: profile.id, method: identity.provider });
       return toView(profile, identity.provider);
     },

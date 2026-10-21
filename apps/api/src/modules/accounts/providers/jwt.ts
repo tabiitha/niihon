@@ -79,7 +79,7 @@ export async function verifyIdToken(token: string, expectations: IdTokenExpectat
   if (!audiences.includes(expectations.audience)) {
     throw new IdTokenError('The ID token audience is not this application.');
   }
-  if (audiences.length > 1 && claims['azp'] !== expectations.audience) {
+  if ((audiences.length > 1 || claims['azp'] !== undefined) && claims['azp'] !== expectations.audience) {
     throw new IdTokenError('The ID token authorized party is not this application.');
   }
   const expiry = claims['exp'];

@@ -1567,6 +1567,57 @@ public enum Operations {
                     }
                 }
             }
+            public struct UnprocessableContent: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/api/accounts/oauth-registrations/completion/POST/responses/422/content`.
+                @frozen public enum Body: Sendable, Hashable {
+                    /// - Remark: Generated from `#/paths/api/accounts/oauth-registrations/completion/POST/responses/422/content/application\/json`.
+                    case json(Components.Schemas.ErrorResponse)
+                    /// The associated value of the enum case if `self` is `.json`.
+                    ///
+                    /// - Throws: An error if `self` is not `.json`.
+                    /// - SeeAlso: `.json`.
+                    public var json: Components.Schemas.ErrorResponse {
+                        get throws {
+                            switch self {
+                            case let .json(body):
+                                return body
+                            }
+                        }
+                    }
+                }
+                /// Received HTTP response body
+                public var body: Operations.CompleteOAuthRegistration.Output.UnprocessableContent.Body
+                /// Creates a new `UnprocessableContent`.
+                ///
+                /// - Parameters:
+                ///   - body: Received HTTP response body
+                public init(body: Operations.CompleteOAuthRegistration.Output.UnprocessableContent.Body) {
+                    self.body = body
+                }
+            }
+            /// The flow was started for a provider this installation no longer has configured (`accounts_oauth_provider_unavailable`); the flow is consumed.
+            ///
+            /// - Remark: Generated from `#/paths//api/accounts/oauth-registrations/completion/post(completeOAuthRegistration)/responses/422`.
+            ///
+            /// HTTP response code: `422 unprocessableContent`.
+            case unprocessableContent(Operations.CompleteOAuthRegistration.Output.UnprocessableContent)
+            /// The associated value of the enum case if `self` is `.unprocessableContent`.
+            ///
+            /// - Throws: An error if `self` is not `.unprocessableContent`.
+            /// - SeeAlso: `.unprocessableContent`.
+            public var unprocessableContent: Operations.CompleteOAuthRegistration.Output.UnprocessableContent {
+                get throws {
+                    switch self {
+                    case let .unprocessableContent(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "unprocessableContent",
+                            response: self
+                        )
+                    }
+                }
+            }
             public struct BadGateway: Sendable, Hashable {
                 /// - Remark: Generated from `#/paths/api/accounts/oauth-registrations/completion/POST/responses/502/content`.
                 @frozen public enum Body: Sendable, Hashable {
@@ -1595,7 +1646,7 @@ public enum Operations {
                     self.body = body
                 }
             }
-            /// The provider could not be reached or answered unusably (`accounts_oauth_provider_failed`).
+            /// The provider could not be reached or answered unusably (`accounts_oauth_provider_failed`); the flow is consumed, start a new registration.
             ///
             /// - Remark: Generated from `#/paths//api/accounts/oauth-registrations/completion/post(completeOAuthRegistration)/responses/502`.
             ///
@@ -1646,7 +1697,7 @@ public enum Operations {
                     self.body = body
                 }
             }
-            /// Too many provider exchanges are running; retry after `Retry-After` (`accounts_busy`).
+            /// Too many provider exchanges are running (`accounts_busy`, `Retry-After` set): the flow is untouched, retry the same completion. If instead the database stayed busy after the provider answered (`accounts_oauth_flow_consumed`, no `Retry-After`), nothing was created and the flow is used up: start a new registration.
             ///
             /// - Remark: Generated from `#/paths//api/accounts/oauth-registrations/completion/post(completeOAuthRegistration)/responses/503`.
             ///

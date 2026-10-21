@@ -21,9 +21,9 @@ All paths are under `/api/accounts`. Errors use the standard body; `accounts_*` 
 | `registerLocalAccount` `POST /local-registrations` | `{ username, password }` | `201` profile | `400 validation_failed`, `409 accounts_username_taken`, `503 accounts_busy` |
 | `listOAuthProviders` `GET /oauth-providers` | | `200 { items: [{ id }] }`, the configured providers | |
 | `startOAuthRegistration` `POST /oauth-registrations` | `{ provider, username, redirectUri }` | `201 { authorizationUrl, state, expiresAt }` | `400 validation_failed`, `400 accounts_oauth_redirect_uri_invalid`, `409 accounts_username_taken`, `422 accounts_oauth_provider_unavailable`, `503 accounts_busy` |
-| `completeOAuthRegistration` `POST /oauth-registrations/completion` | `{ state, code }` | `201` profile | `400 accounts_oauth_state_invalid`, `400 accounts_oauth_state_expired`, `400 accounts_oauth_code_rejected`, `400 accounts_oauth_identity_unverified`, `409 accounts_username_taken`, `409 accounts_identity_already_registered`, `502 accounts_oauth_provider_failed`, `503 accounts_busy` |
+| `completeOAuthRegistration` `POST /oauth-registrations/completion` | `{ state, code }` | `201` profile | `400 accounts_oauth_state_invalid`, `400 accounts_oauth_state_expired`, `400 accounts_oauth_code_rejected`, `400 accounts_oauth_identity_unverified`, `409 accounts_username_taken`, `409 accounts_identity_already_registered`, `422 accounts_oauth_provider_unavailable` (the provider was configured when the flow started but no longer is), `502 accounts_oauth_provider_failed`, `503 accounts_busy`, `503 accounts_oauth_flow_consumed` |
 
-The profile is `{ id, username, role, registeredWith, createdAt }`; `registeredWith` is `local` or the provider identifier. Every `503 accounts_busy` carries `Retry-After: 1`. Every response is `Cache-Control: no-store`. Local registration works without network, email, or an external account. Provider identifiers are plain strings (`google`, `github`), as the [authentication extension points](api-contract.md#authentication-extension-points) require.
+The profile is `{ id, username, role, registeredWith, createdAt }`; `registeredWith` is `local` or the provider identifier. Every `503 accounts_busy` carries `Retry-After: 1`; `accounts_oauth_flow_consumed` does not (see Provider Flow). Every response is `Cache-Control: no-store`. Local registration works without network, email, or an external account. Provider identifiers are plain strings (`google`, `github`), as the [authentication extension points](api-contract.md#authentication-extension-points) require.
 
 ## Provider Flow
 
@@ -44,10 +44,10 @@ client                    Nihon API                           provider
   │◄──────── 201 profile ────┤                                     │
 ```
 
-- **Single use.** The flow is deleted in the first transaction of `completeOAuthRegistration`, before any network call. A replayed or concurrent completion finds nothing and fails with `accounts_oauth_state_invalid` without calling the provider; a refused code needs a new flow. Only the SHA-256 of `state` is stored. Flows expire after 10 minutes; expired ones are deleted when a new flow starts, and at most 500 are pending (`503 accounts_busy` beyond).
+- **Single use.** A capacity slot for the exchange is taken first (`503 accounts_busy` if none: the flow is untouched and the same completion can be retried). The flow is then deleted in its first transaction, before any network call. A replayed or concurrent completion finds nothing and fails with `accounts_oauth_state_invalid` without calling the provider; once the flow is deleted, any failure (provider error or refusal, database still busy after the provider answered, which is `503 accounts_oauth_flow_consumed` and creates nothing) means the client must start a new registration. Only the SHA-256 of `state` is stored. Flows expire after 10 minutes; expired ones are deleted when a new flow starts, and at most 500 are pending (`503 accounts_busy` beyond).
 - **Return address.** `redirectUri` must be an `http` loopback address (`127.0.0.1`, `localhost`, `[::1]`, any port and path), which is what the Web client served by the server and a native client's local listener use, or an exact address in `NIHON_OAUTH_REDIRECT_URIS`. The provider enforces its own registered list as well. The same address is used for the code exchange.
 - **Username.** Chosen at the start, checked then (for early feedback) and again in the transaction that creates the profile (`409 accounts_username_taken` if it was taken meanwhile; nothing is created).
-- **Google.** OpenID Connect authorization code flow with PKCE (`S256`), scope `openid` only. The ID token must be RS256-signed by a key from Google's published key set (cached one hour, refreshed on an unknown key at most once a minute), with accepted `iss` (`https://accounts.google.com` or `accounts.google.com`, recorded as the first), `aud` equal to the client identifier (and `azp` when several), unexpired `exp` and not-future `iat` within 60 s of clock difference, and the flow's `nonce`. Other algorithms, including `none`, are refused. The subject is `sub`.
+- **Google.** OpenID Connect authorization code flow with PKCE (`S256`), scope `openid` only. The ID token must be RS256-signed by a key from Google's published key set (cached one hour, refreshed on an unknown key at most once a minute; keys that are not RSA signing keys for RS256 are ignored), with accepted `iss` (`https://accounts.google.com` or `accounts.google.com`, recorded as the first), `aud` equal to the client identifier (and `azp` whenever present or when there are several audiences), unexpired `exp` and not-future `iat` within 60 s of clock difference, and the flow's `nonce`. Other algorithms, including `none`, are refused. The subject is `sub`.
 - **GitHub.** OAuth app authorization code flow with PKCE, no scope. The access token is used once to read `GET https://api.github.com/user`; the subject is the numeric `id`, never the renamable `login`. The issuer recorded is `https://github.com`. The token is not stored, returned, or logged.
 - **Network.** Provider calls have a 10 s deadline, do not follow redirects, and read at most 1 MiB. Unreachable, slow, oversized, or malformed answers are `502 accounts_oauth_provider_failed`; a refused code is `accounts_oauth_code_rejected`; a token that fails verification is `accounts_oauth_identity_unverified`. At most four exchanges run at once and sixteen wait (`503 accounts_busy`). No network call happens inside a database transaction.
 
@@ -86,14 +86,14 @@ Measured with `bun run --cwd apps/api bench:accounts` against the real HTTP adap
 
 | Measure | Samples | p50 | p95 | Max |
 | --- | --- | --- | --- | --- |
-| Hash one password | 30 | 85.5 ms | 92.2 ms | 135.0 ms |
-| Register one account, sequential, warm | 100 | 87.9 ms | 89.7 ms | 90.9 ms |
-| Register one account, 10 at once | 200 | 269.7 ms | 450.0 ms | 454.8 ms |
-| Status read during 10 concurrent registrations | 113,508 | 0.1 ms | 0.1 ms | 4.9 ms |
-| Start a provider flow | 60 | 0.7 ms | 1.2 ms | 9.3 ms |
-| Complete a provider flow | 60 | 1.6 ms | 3.0 ms | 7.7 ms |
+| Hash one password | 30 | 72.7 ms | 75.0 ms | 76.7 ms |
+| Register one account, sequential, warm | 100 | 75.3 ms | 76.4 ms | 79.7 ms |
+| Register one account, 10 at once | 200 | 267.4 ms | 447.6 ms | 453.6 ms |
+| Status read during 10 concurrent registrations | 131,044 | 0.1 ms | 0.1 ms | 4.3 ms |
+| Start a provider flow | 60 | 0.5 ms | 1.2 ms | 7.8 ms |
+| Complete a provider flow | 60 | 1.3 ms | 2.1 ms | 7.1 ms |
 
-The issue's budgets are registration p95 ≤ 1 s and status reads p95 ≤ 100 ms during ten bounded concurrent requests. The benchmark process (server, database, client, and fake together) peaked at 431 MiB RSS. On macOS, SQLite's `fsync` does not force a drive cache flush, so write timings there understate Linux. The real Google and GitHub round trips are not measured.
+The issue's budgets are registration p95 ≤ 1 s and status reads p95 ≤ 100 ms during ten bounded concurrent requests. The benchmark process (server, database, client, and fake together) peaked at 430 MiB RSS. On macOS, SQLite's `fsync` does not force a drive cache flush, so write timings there understate Linux. The real Google and GitHub round trips are not measured.
 
 ## Limits
 

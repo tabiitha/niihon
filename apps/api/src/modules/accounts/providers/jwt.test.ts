@@ -68,6 +68,7 @@ describe('ID token verification', () => {
     assert.match(await refused(token({ ...validClaims, iss: 'https://evil.example' })), /issuer/);
     assert.match(await refused(token({ ...validClaims, aud: 'someone-else' })), /audience/);
     assert.match(await refused(token({ ...validClaims, aud: ['client', 'other'], azp: 'other' })), /authorized party/);
+    assert.match(await refused(token({ ...validClaims, azp: 'other' })), /authorized party/);
     assert.match(await refused(token({ ...validClaims, nonce: 'replayed' })), /nonce/);
     assert.match(await refused(token({ ...validClaims, nonce: undefined })), /nonce/);
     assert.match(await refused(token({ ...validClaims, sub: '' })), /subject/);

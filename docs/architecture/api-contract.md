@@ -59,7 +59,7 @@ Clients branch on `code`, never on `message`, which is an English explanation fo
 
 | Code | Status | Meaning |
 | --- | --- | --- |
-| `validation_failed` | 400 | A path or query parameter, or a cursor, is invalid; see `issues` |
+| `validation_failed` | 400 | A path or query parameter, a cursor, or a request body field is invalid or unexpected; see `issues` (paths `path.…`, `query.…`, `body.…`) |
 | `unsupported_api_version` | 400 | The client was generated for another major version |
 | `bad_request` | 4xx | The request could not be read (malformed URL encoding or JSON, for example) |
 | `payload_too_large` | 413 | The request body exceeds the operation's limit |

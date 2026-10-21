@@ -26,8 +26,8 @@ export function createKeySet(uri: string, fetchImpl: FetchFunction, now: () => D
         throw new ProviderError('unavailable', 'The provider published no signing keys.');
       }
       const next = new Map<string, JsonWebKey>();
-      for (const entry of list as (JsonWebKey & { kid?: unknown })[]) {
-        if (typeof entry === 'object' && entry !== null && typeof entry.kid === 'string' && entry.kty === 'RSA') {
+      for (const entry of list as unknown[]) {
+        if (isSigningKey(entry)) {
           next.set(entry.kid, entry);
         }
       }
@@ -53,4 +53,13 @@ export function createKeySet(uri: string, fetchImpl: FetchFunction, now: () => D
       return keys.get(keyId);
     },
   };
+}
+
+/** An RSA key meant for RS256 signatures, with an identifier. */
+function isSigningKey(entry: unknown): entry is JsonWebKey & { kid: string } {
+  if (typeof entry !== 'object' || entry === null) {
+    return false;
+  }
+  const { kid, kty, use, alg } = entry as Record<string, unknown>;
+  return typeof kid === 'string' && kty === 'RSA' && (use === undefined || use === 'sig') && (alg === undefined || alg === 'RS256');
 }

@@ -505,7 +505,16 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description The provider could not be reached or answered unusably (`accounts_oauth_provider_failed`). */
+            /** @description The flow was started for a provider this installation no longer has configured (`accounts_oauth_provider_unavailable`); the flow is consumed. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The provider could not be reached or answered unusably (`accounts_oauth_provider_failed`); the flow is consumed, start a new registration. */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -514,7 +523,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Too many provider exchanges are running; retry after `Retry-After` (`accounts_busy`). */
+            /** @description Too many provider exchanges are running (`accounts_busy`, `Retry-After` set): the flow is untouched, retry the same completion. If instead the database stayed busy after the provider answered (`accounts_oauth_flow_consumed`, no `Retry-After`), nothing was created and the flow is used up: start a new registration. */
             503: {
                 headers: {
                     [name: string]: unknown;
