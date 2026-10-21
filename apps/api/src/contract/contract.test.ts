@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { createApp } from '../app.ts';
 import { silentLogger } from '../log.ts';
 import { exampleItems, exampleModule } from '../../test/fixtures/example-module.ts';
+import { unusedDatabase } from '../../test/fixtures/unused-database.ts';
 import { apiMajorVersion, errorResponseSchema, timestampSchema } from './conventions.ts';
 import { decodeCursor, encodeCursor } from './cursor.ts';
 import { ApiError, toExpressPath } from './operation.ts';
@@ -17,7 +18,7 @@ describe('contract conventions over HTTP', () => {
   let baseUrl: string;
 
   before(async () => {
-    server = createServer(createApp({ version: '1.2.3', modules: [exampleModule], logger: silentLogger }));
+    server = createServer(createApp({ version: '1.2.3', modules: [exampleModule], database: unusedDatabase, logger: silentLogger }));
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
     baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   });

@@ -2,6 +2,8 @@ import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
 import { createApp } from './app.ts';
+import { openDatabase } from './database/database.ts';
+import type { MigrationOutcome } from './database/migrator.ts';
 import { acquireInstanceLock } from './instance-lock.ts';
 import type { Logger } from './log.ts';
 import type { ApiModule } from './modules/api-module.ts';
@@ -20,26 +22,47 @@ export interface ServerOptions {
   readonly logger: Logger;
   readonly webDir?: string | undefined;
   readonly shutdownGraceMs?: number;
+  /** Migrations to apply instead of those packaged with the server; tests only. */
+  readonly migrationsDir?: string;
 }
 
 export interface RunningServer {
   readonly host: string;
   readonly port: number;
-  /** Stops accepting connections, lets in-flight requests finish, then releases the data directory. */
+  /** What the database migration did before the server started listening. */
+  readonly migration: MigrationOutcome;
+  /**
+   * Stops accepting connections, lets in-flight requests finish, closes the database, then releases
+   * the data directory.
+   */
   stop(): Promise<void>;
 }
 
 /**
- * Claims the data directory, then listens. Throws `DataDirectoryInUseError` when another server
- * owns the directory, and releases the claim if listening fails.
+ * Claims the data directory, migrates and opens the database, then listens, so the service is
+ * only reachable once its schema is current. Throws `DataDirectoryInUseError` when another server
+ * owns the directory, `IncompatibleDatabaseError` or `MigrationFailedError` when the database
+ * cannot be brought to the packaged schema, and releases everything it acquired on failure.
  */
 export async function startServer(options: ServerOptions): Promise<RunningServer> {
   const lock = acquireInstanceLock(options.dataDir);
+  let opened;
+  try {
+    opened = await openDatabase({
+      dataDir: options.dataDir,
+      ...(options.migrationsDir === undefined ? {} : { migrationsDir: options.migrationsDir }),
+    });
+  } catch (error) {
+    lock.release();
+    throw error;
+  }
+  const { database, migration } = opened;
   let stopping = false;
   const server = createServer(
     createApp({
       version: options.version,
       modules: options.modules,
+      database,
       logger: options.logger,
       isStopping: () => stopping,
       webDir: options.webDir,
@@ -50,6 +73,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   try {
     await listen(server, options.host, options.port);
   } catch (error) {
+    await database.close();
     lock.release();
     throw error;
   }
@@ -59,9 +83,12 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   return {
     host: options.host,
     port,
+    migration,
     stop() {
       stopping = true;
-      stopped ??= closeServer(server, options.shutdownGraceMs ?? shutdownGraceMs).finally(() => lock.release());
+      stopped ??= closeServer(server, options.shutdownGraceMs ?? shutdownGraceMs)
+        .finally(() => database.close())
+        .finally(() => lock.release());
       return stopped;
     },
   };

@@ -12,6 +12,8 @@ import {
 } from './contract/conventions.ts';
 import { getHealth } from './contract/health.ts';
 import { addOperation, ApiError, type OperationContract, type ValidationIssue } from './contract/operation.ts';
+import type { Database } from './database/database.ts';
+import { DatabaseBusyError, DatabaseClosedError } from './database/write-gate.ts';
 import type { Logger } from './log.ts';
 import type { ApiModule } from './modules/api-module.ts';
 import { createWebHandler } from './web.ts';
@@ -24,6 +26,8 @@ export const coreOperations: readonly OperationContract[] = [getHealth];
 export interface AppOptions {
   readonly version: string;
   readonly modules: readonly ApiModule[];
+  /** The installation database, handed to each module. */
+  readonly database: Database;
   readonly logger: Logger;
   /** Reports whether the server is shutting down; new requests then receive 503. */
   readonly isStopping?: () => boolean;
@@ -35,7 +39,7 @@ export interface AppOptions {
  * Builds the HTTP adapter. It parses no request body globally: each module adds the bounded
  * parser or stream its routes need, so unread bodies are never buffered.
  */
-export function createApp({ version, modules, logger, isStopping = () => false, webDir }: AppOptions): Express {
+export function createApp({ version, modules, database, logger, isStopping = () => false, webDir }: AppOptions): Express {
   const app = express();
   app.disable('x-powered-by');
 
@@ -52,7 +56,7 @@ export function createApp({ version, modules, logger, isStopping = () => false, 
 
   for (const module of modules) {
     const router = express.Router();
-    module.register(router);
+    module.register(router, { database });
     app.use(`/api/${module.id}`, router);
   }
 
@@ -131,6 +135,12 @@ function handleError(logger: Logger): ErrorRequestHandler {
     }
     if (error instanceof ApiError) {
       sendError(response, error.status, error.code, error.message, error.issues);
+      return;
+    }
+    if (error instanceof DatabaseBusyError || error instanceof DatabaseClosedError) {
+      // Nothing was written: the write never got its turn. The client may retry.
+      response.set('Retry-After', '1');
+      sendError(response, 503, errorCodes.databaseBusy, 'The database is busy; retry the request.');
       return;
     }
     const status = clientErrorStatus(error);

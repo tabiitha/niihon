@@ -73,7 +73,7 @@ function responsesOf(operation: OperationContract): Record<string, ResponseConfi
     responses[status] = { description: meaning, content: { 'application/json': { schema: errorResponseSchema } } };
   }
   responses['default'] = {
-    description: 'Any other error, such as `internal_error` (500) or `stopping` (503).',
+    description: 'Any other error, such as `internal_error` (500), `stopping` (503), or `database_busy` (503).',
     content: { 'application/json': { schema: errorResponseSchema } },
   };
   return responses;

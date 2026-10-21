@@ -33,6 +33,11 @@ async function dockerExitCode(...args: string[]): Promise<number> {
   }
 }
 
+/** A Node.js script opening the volume's database with the image's own driver, as `db`; test setup only. */
+function sqlite(body: string): string {
+  return `const db = new (require('/app/apps/api/node_modules/better-sqlite3'))('/data/nihon.db'); ${body}; db.close();`;
+}
+
 async function publishedAddress(container: string): Promise<{ host: string; port: string }> {
   const mapping = (await docker('port', container, '4000/tcp')).split('\n')[0] ?? '';
   const separator = mapping.lastIndexOf(':');
@@ -125,7 +130,50 @@ describe(`container image ${image}`, () => {
     const store = await docker('run', '--rm', '--entrypoint', 'ls', image, '/app/node_modules/.bun');
     assert.match(store, /^express@/m);
     assert.match(store, /^zod@/m);
+    assert.match(store, /^@prisma\+client@/m);
+    assert.match(store, /^better-sqlite3@/m);
     // The Web interface ships as its built files only; React and the client are bundled into them.
-    assert.doesNotMatch(store, /typescript|@types|zod-to-openapi|react|openapi-fetch/);
+    // The Prisma CLI and its engines only generate the client and author migrations.
+    assert.doesNotMatch(store, /typescript|@types|zod-to-openapi|react|openapi-fetch|^prisma@|@prisma\+engines/m);
+  });
+
+  it('keeps the database private to the server user in the named volume', async () => {
+    await waitForHealth(primary);
+    const listing = await docker('exec', primary, 'stat', '-c', '%n %U %a', '/data', '/data/nihon.db', '/data/nihon.db-wal');
+    assert.deepEqual(listing.split('\n'), ['/data node 700', '/data/nihon.db node 600', '/data/nihon.db-wal node 600']);
+    const mode = await docker('exec', primary, 'node', '-e', sqlite("console.log(db.pragma('journal_mode', { simple: true }))"));
+    assert.equal(mode, 'wal');
+  });
+
+  it('keeps the data when the container is removed and recreated on the same volume', async () => {
+    await docker('exec', primary, 'node', '-e', sqlite("db.exec('CREATE TABLE IF NOT EXISTS retention_probe (value TEXT); INSERT INTO retention_probe VALUES (\\'kept\\')')"));
+    await docker('rm', '--force', primary);
+    await docker('run', '--detach', '--name', primary, '--volume', `${volume}:/data`, '--publish', '127.0.0.1::4000', image);
+    await waitForHealth(primary);
+    assert.match(await docker('logs', primary), /"event":"server.listening"/);
+    assert.doesNotMatch(await docker('logs', primary), /"event":"database.migrated"/);
+    const kept = await docker('exec', primary, 'node', '-e', sqlite("console.log(db.prepare('SELECT value FROM retention_probe').pluck().get())"));
+    assert.equal(kept, 'kept');
+  });
+
+  it('refuses a database migrated by a newer release and leaves the volume untouched', async () => {
+    await docker('stop', primary);
+    const future = `INSERT INTO nihon_schema_migrations VALUES ('29990101000000_future', 'checksum', '2999-01-01T00:00:00.000Z')`;
+    await docker('run', '--rm', '--volume', `${volume}:/data`, '--entrypoint', 'node', image, '-e', sqlite(`db.exec("${future}")`));
+    const before = await docker('run', '--rm', '--volume', `${volume}:/data`, '--entrypoint', 'sha256sum', image, '/data/nihon.db');
+
+    const refused = `nihon-test-refused-${suffix}`;
+    try {
+      assert.equal(await dockerExitCode('run', '--name', refused, '--volume', `${volume}:/data`, image), 4);
+      assert.match(await docker('logs', refused), /"event":"database.incompatible".*"reason":"newer"/);
+    } finally {
+      await dockerExitCode('rm', '--force', refused);
+    }
+    const after = await docker('run', '--rm', '--volume', `${volume}:/data`, '--entrypoint', 'sha256sum', image, '/data/nihon.db');
+    assert.equal(after, before);
+
+    await docker('run', '--rm', '--volume', `${volume}:/data`, '--entrypoint', 'node', image, '-e', sqlite(`db.exec("DELETE FROM nihon_schema_migrations WHERE name = '29990101000000_future'")`));
+    await docker('start', primary);
+    await waitForHealth(primary);
   });
 });

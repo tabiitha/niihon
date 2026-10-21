@@ -18,6 +18,7 @@ export const errorCodes = {
   notFound: 'not_found',
   internalError: 'internal_error',
   stopping: 'stopping',
+  databaseBusy: 'database_busy',
 } as const;
 
 export const errorResponseSchema = z

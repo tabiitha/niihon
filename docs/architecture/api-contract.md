@@ -63,6 +63,7 @@ Clients branch on `code`, never on `message`, which is an English explanation fo
 | `not_found` | 404 | No route matches |
 | `internal_error` | 500 | Unexpected failure; details are in the server log under the same `requestId` |
 | `stopping` | 503 | The server is shutting down |
+| `database_busy` | 503 | A write could not get its turn in time; nothing was written. `Retry-After: 1` is set; see [persistence](persistence.md#concurrency-and-durability) |
 
 Module codes start with the module identifier, such as `example_item_not_found`. Each operation documents its specific error statuses in `errors`; the generator adds `400` to every operation that is versioned or takes parameters, and a `default` error response to all of them.
 

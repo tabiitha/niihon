@@ -3,8 +3,11 @@ import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { after, before, describe, it } from 'node:test';
 
+import { unusedDatabase } from '../test/fixtures/unused-database.ts';
 import { createApp, type AppOptions } from './app.ts';
 import { apiVersion } from './contract/conventions.ts';
+import type { Database } from './database/database.ts';
+import { DatabaseBusyError } from './database/write-gate.ts';
 import { silentLogger } from './log.ts';
 import type { ApiModule } from './modules/api-module.ts';
 import { selectEnabledModules } from './modules/enablement.ts';
@@ -26,7 +29,7 @@ const exampleModule: ApiModule = {
 };
 
 async function serve(options: Partial<AppOptions> = {}): Promise<{ baseUrl: string; server: Server }> {
-  const app = createApp({ version: '1.2.3', modules: [], logger: silentLogger, ...options });
+  const app = createApp({ version: '1.2.3', modules: [], database: unusedDatabase, logger: silentLogger, ...options });
   const server = createServer(app);
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const { port } = server.address() as AddressInfo;
@@ -110,6 +113,34 @@ describe('disabled module', () => {
         assert.equal(((await response.json()) as { error: { code: string } }).error.code, 'not_found');
       }
       assert.equal((await fetch(`${baseUrl}/api/health`)).status, 200);
+    } finally {
+      await close(server);
+    }
+  });
+});
+
+describe('module database access', () => {
+  it('hands the database to modules and answers 503 when a write cannot get its turn', async () => {
+    const busyDatabase = {
+      write: () => Promise.reject(new DatabaseBusyError('A write waited too long.')),
+      close: () => Promise.resolve(),
+    } as unknown as Database;
+    const writer: ApiModule = {
+      id: 'writer',
+      operations: [],
+      register(router, { database }) {
+        router.post('/items', async (_request, response) => {
+          await database.write(() => Promise.resolve());
+          response.status(201).end();
+        });
+      },
+    };
+    const { baseUrl, server } = await serve({ modules: [writer], database: busyDatabase });
+    try {
+      const response = await fetch(`${baseUrl}/api/writer/items`, { method: 'POST' });
+      assert.equal(response.status, 503);
+      assert.equal(response.headers.get('retry-after'), '1');
+      assert.equal(((await response.json()) as { error: { code: string } }).error.code, 'database_busy');
     } finally {
       await close(server);
     }

@@ -5,8 +5,12 @@
 !apps/api/package.json
 !apps/api/tsconfig.json
 !apps/api/tsconfig.build.json
+!apps/api/prisma.config.ts
+!apps/api/prisma/schema/
+!apps/api/prisma/migrations/
 !apps/api/src/
 apps/api/src/**/*.test.ts
+apps/api/src/generated/
 !apps/web/package.json
 !apps/web/build.ts
 !apps/web/src/

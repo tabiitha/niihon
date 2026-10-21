@@ -1,5 +1,6 @@
 # Runs the Nihon API from source: `docker compose up --detach --build`.
-# The port is published on the host loopback interface only; data lives in a named volume.
+# The port is published on the host loopback interface only; data, including the SQLite database
+# (docs/architecture/persistence.md), lives in the named volume, which recreating the container keeps.
 name: nihon
 
 services:

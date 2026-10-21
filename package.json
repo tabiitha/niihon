@@ -17,6 +17,8 @@
     "test:container": "bun run --cwd apps/api test:container",
     "contract:generate": "bun run --cwd apps/api contract:generate",
     "contract:check": "bun run --cwd apps/api contract:check",
+    "db:generate": "bun run --cwd apps/api db:generate",
+    "db:migration": "bun run --cwd apps/api db:migration",
     "macos:generate": "node apps/macos/tools/generate-shared.mjs",
     "macos:check": "node apps/macos/tools/generate-shared.mjs --check"
   }

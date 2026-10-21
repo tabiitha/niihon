@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, before, describe, it } from 'node:test';
 
+import { unusedDatabase } from '../test/fixtures/unused-database.ts';
 import { createApp } from './app.ts';
 import { ConfigError } from './config.ts';
 import { silentLogger } from './log.ts';
@@ -14,7 +15,7 @@ import { assertWebDir, contentSecurityPolicy } from './web.ts';
 const shell = '<!doctype html><title>Nihon</title><div id="root"></div>';
 
 async function serve(webDir?: string): Promise<{ baseUrl: string; server: Server }> {
-  const server = createServer(createApp({ version: '1.2.3', modules: [], logger: silentLogger, webDir }));
+  const server = createServer(createApp({ version: '1.2.3', modules: [], database: unusedDatabase, logger: silentLogger, webDir }));
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   return { baseUrl: `http://127.0.0.1:${(server.address() as AddressInfo).port}`, server };
 }

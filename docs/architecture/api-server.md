@@ -1,6 +1,6 @@
 # API Server Foundation
 
-The Nihon API is an Express.js/TypeScript REST server running on Node.js. It is the only component that will own business rules, validation, and SQLite persistence; clients use its HTTP/JSON interface. This page describes the foundation delivered by [issue #2](https://github.com/tabiitha/niihon/issues/2). Installation commands live in the [root README](../../README.md).
+The Nihon API is an Express.js/TypeScript REST server running on Node.js. It is the only component that owns business rules, validation, and SQLite persistence; clients use its HTTP/JSON interface. This page describes the foundation delivered by [issue #2](https://github.com/tabiitha/niihon/issues/2). Installation commands live in the [root README](../../README.md).
 
 ## Repository Layout
 
@@ -11,6 +11,8 @@ The Nihon API is an Express.js/TypeScript REST server running on Node.js. It is 
 | `apps/web/` | The Web client ([Web client architecture](web-client.md)) |
 | `resources/themes/` | Theme tokens shared by the clients |
 | `apps/api/contract/` | OpenAPI document builder and client generation ([REST contract](api-contract.md)) |
+| `apps/api/prisma/`, `apps/api/prisma.config.ts` | Prisma schema and versioned SQL migrations ([persistence](persistence.md)) |
+| `apps/api/bench/` | Persistence measurement script |
 | `contracts/` | Published OpenAPI contract, generated TypeScript and Swift clients, conformance fixtures |
 | `compose.yaml`, `.dockerignore` | Docker Compose service built from source; build-context allowlist |
 | `.github/workflows/api.yml` | Application CI |
@@ -28,7 +30,8 @@ Only what is needed exists. `packaging/macos` is created by the issue that first
 | `src/app.ts` | HTTP adapter: request identifiers, version check, health route, module mounting, Web interface, JSON errors | HTTP |
 | `src/web.ts` | Serves the built Web interface outside `/api` | HTTP, file system |
 | `src/instance-lock.ts` | Exclusive ownership of the data directory | File system |
-| `src/server.ts` | Claims the directory, listens, stops gracefully | Network, file system |
+| `src/database/` | Migrations, snapshots, and the reader and writer Prisma clients ([persistence](persistence.md)) | SQLite, file system |
+| `src/server.ts` | Claims the directory, migrates and opens the database, listens, stops gracefully | Network, file system |
 | `src/main.ts` | Process entry: configuration errors, signals, exit codes | Process |
 
 Tests sit next to the code they cover (`*.test.ts`) and use Node's built-in test runner. `test/container.test.ts` checks a built image through the Docker CLI.
@@ -41,13 +44,15 @@ Nihon is a modular monolith: features live in the repository and are compiled in
 export interface ApiModule {
   readonly id: string;                                // lowercase letters, digits, hyphens
   readonly operations: readonly OperationContract[];  // declarations published in the contract
-  register(router: Router): void;                     // routes relative to /api/<id>/
+  register(router: Router, context: ModuleContext): void; // routes relative to /api/<id>/
 }
 ```
 
 To add a module, create its folder and add one entry to `src/modules/registry.ts`. Each route is declared as an operation and added with `addOperation`, as described in the [REST contract](api-contract.md#single-source); then run `bun run contract:generate`. Modules interact only through what another module exports. The registry is empty in this foundation.
 
-`NIHON_MODULES` selects the enabled modules. When it is unset, every registered module is enabled; when it is set, only the listed identifiers are (an empty value enables none). An identifier that no module carries stops startup with exit code 2. A disabled module's router is never mounted, so every path under `/api/<id>/` answers 404, exactly as if the module did not exist. Prisma models will stay separated per module when persistence arrives; that choice belongs to the persistence issue.
+`context.database` gives the module the installation database: `database.reader` for reads and `database.write(...)` for write transactions. A module keeps its Prisma models in `apps/api/prisma/schema/<id>.prisma` and adds its migrations with `bun run db:migration`; see [persistence](persistence.md).
+
+`NIHON_MODULES` selects the enabled modules. When it is unset, every registered module is enabled; when it is set, only the listed identifiers are (an empty value enables none). An identifier that no module carries stops startup with exit code 2. A disabled module's router is never mounted, so every path under `/api/<id>/` answers 404, exactly as if the module did not exist.
 
 ## HTTP Interface
 
@@ -66,7 +71,7 @@ Every response carries a `Nihon-Request-Id` header. Error codes, versioning, pag
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `NIHON_DATA_DIR` | required | Data directory, created if missing; relative paths resolve from the working directory |
+| `NIHON_DATA_DIR` | required | Data directory, created if missing; relative paths resolve from the working directory. It holds the database `nihon.db` ([persistence](persistence.md#storage)) |
 | `NIHON_HOST` | `127.0.0.1` | Listening interface. The image sets `0.0.0.0` inside the container; the host publishes the port on `127.0.0.1` only |
 | `NIHON_PORT` | `4000` | Listening port; `0` picks a free port |
 | `NIHON_MODULES` | unset | Comma-separated module identifiers, see [Modules](#modules) |
@@ -76,7 +81,9 @@ Every response carries a `Nihon-Request-Id` header. Error codes, versioning, pag
 
 ## Lifecycle
 
-The server writes one JSON object per line on standard output (`server.listening`, `server.stopping`, `server.stopped`, `instance.refused`, `config.invalid`, `request.failed`).
+The server writes one JSON object per line on standard output (`server.listening`, `server.stopping`, `server.stopped`, `instance.refused`, `config.invalid`, `database.migrated`, `database.incompatible`, `database.migration_failed`, `request.failed`).
+
+On start, the server validates its configuration, claims the data directory, migrates and opens the database, then listens; `server.listening` reports the `schemaVersion`. `/api/health` therefore never answers before the schema is current.
 
 | Exit code | Meaning |
 | --- | --- |
@@ -84,8 +91,10 @@ The server writes one JSON object per line on standard output (`server.listening
 | 1 | Unexpected failure, including a second signal during shutdown |
 | 2 | Invalid configuration |
 | 3 | Another server already uses the data directory |
+| 4 | The database belongs to a newer release or is not a Nihon database; it is left untouched |
+| 5 | A migration failed; it was rolled back and the data is unchanged |
 
-On SIGINT or SIGTERM the server stops accepting connections, answers 503 to new requests on open connections, lets in-flight requests finish for up to 10 seconds, closes the remaining sockets, then releases the data directory. Compose allows 15 seconds before killing the container.
+On SIGINT or SIGTERM the server stops accepting connections, answers 503 to new requests on open connections, lets in-flight requests finish for up to 10 seconds, closes the remaining sockets, closes the database after its running write, then releases the data directory. Compose allows 15 seconds before killing the container.
 
 ### Single Instance per Data Directory
 
@@ -96,6 +105,7 @@ Before listening, the server opens `nihon-instance.lock` in the data directory w
 | Resource | Bound |
 | --- | --- |
 | Open connections | 256 (`maxConnections`); further connections are refused |
+| Database | Two connections, writes one at a time with a 5 s wait and 64 queued at most, transactions of 5 s at most; see [persistence](persistence.md#connections-and-transactions) |
 | Request bodies | Not parsed globally: unread bodies are never buffered. Each module adds a bounded parser or stream for its own routes |
 | Request duration | Node defaults: 300 s per request, 60 s for headers |
 | Shutdown | 10 s grace for in-flight requests |
@@ -104,7 +114,7 @@ These bounds are a starting point; tune them after measurement.
 
 ## Container Image
 
-`apps/api/Dockerfile` builds from the repository root in four stages: compile the API with Bun and TypeScript, build the Web client with Bun, install the API's production dependencies only with `bun install --production --frozen-lockfile`, then copy the JavaScript output, the Web build, and production `node_modules` into `node:24.22.0-alpine`. Base images are pinned by digest. Build stages run on the builder's platform because they only produce JavaScript, so `linux/amd64` and `linux/arm64` images build without emulating the compiler. The server runs as the `node` user, data lives in `/data`, and an image `HEALTHCHECK` calls `/api/health`.
+`apps/api/Dockerfile` builds from the repository root in four stages: generate the Prisma client and compile the API with Bun and TypeScript, build the Web client with Bun, install the API's production dependencies only with `bun install --production --omit=peer --frozen-lockfile`, then copy the JavaScript output, the Web build, the SQL migrations, and production `node_modules` into `node:24.22.0-alpine`. Base images are pinned by digest. The compile stages run on the builder's platform because they only produce JavaScript, so `linux/amd64` and `linux/arm64` images build without emulating the compiler. The production dependencies install on the target platform, inside the Node.js runtime image, because better-sqlite3 needs the native binary for that architecture and C library; `--omit=peer` leaves out the Prisma CLI that `@prisma/client` lists as an optional peer. The server runs as the `node` user, data lives in `/data` (mode `700`), and an image `HEALTHCHECK` calls `/api/health`.
 
 ## Toolchain
 
@@ -115,5 +125,6 @@ These bounds are a starting point; tune them after measurement.
 | TypeScript | 7.0.2 | Type checking and build (strict) |
 | Express | 5.3.0 | HTTP framework |
 | zod | 4.6.7 | Contract schemas and runtime validation |
+| Prisma, better-sqlite3 | 7.10.1, 12.11.1 | Persistence, see [persistence](persistence.md#toolchain) |
 
 Development runs the TypeScript sources directly with Node's type stripping; the configuration enables `erasableSyntaxOnly` and `rewriteRelativeImportExtensions` so the same files compile to `dist/` for production.

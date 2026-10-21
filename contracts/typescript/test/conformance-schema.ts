@@ -129,7 +129,7 @@ export interface operations {
                     "application/json": components["schemas"]["Health"];
                 };
             };
-            /** @description Any other error, such as `internal_error` (500) or `stopping` (503). */
+            /** @description Any other error, such as `internal_error` (500), `stopping` (503), or `database_busy` (503). */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -172,7 +172,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Any other error, such as `internal_error` (500) or `stopping` (503). */
+            /** @description Any other error, such as `internal_error` (500), `stopping` (503), or `database_busy` (503). */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -222,7 +222,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Any other error, such as `internal_error` (500) or `stopping` (503). */
+            /** @description Any other error, such as `internal_error` (500), `stopping` (503), or `database_busy` (503). */
             default: {
                 headers: {
                     [name: string]: unknown;
