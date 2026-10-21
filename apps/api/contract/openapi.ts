@@ -2,7 +2,7 @@ import { OpenApiGeneratorV31, OpenAPIRegistry, type ResponseConfig } from '@aste
 
 import { coreOperations } from '../src/app.ts';
 import { apiMajorVersion, apiVersion, apiVersionHeader, errorResponseSchema, requestIdHeader } from '../src/contract/conventions.ts';
-import type { OperationContract } from '../src/contract/operation.ts';
+import { defaultMaxBodyBytes, type OperationContract } from '../src/contract/operation.ts';
 import type { ApiModule } from '../src/modules/api-module.ts';
 
 export interface OpenApiDocumentOptions {
@@ -41,6 +41,9 @@ export function buildOpenApiDocument({ title, modules }: OpenApiDocumentOptions)
         request: {
           ...(operation.params === undefined ? {} : { params: operation.params }),
           ...(operation.query === undefined ? {} : { query: operation.query }),
+          ...(operation.body === undefined
+            ? {}
+            : { body: { required: true, content: { 'application/json': { schema: operation.body } } } }),
         },
         responses: responsesOf(operation),
       });
@@ -61,8 +64,14 @@ function responsesOf(operation: OperationContract): Record<string, ResponseConfi
     responses[status] = { description: response.description, content: { 'application/json': { schema: response.schema } } };
   }
   const errors: Record<string, string> = { ...operation.errors };
+  if (operation.body !== undefined) {
+    errors[413] ??= `Body larger than ${String(operation.maxBodyBytes ?? defaultMaxBodyBytes)} bytes (\`payload_too_large\`).`;
+    errors[415] ??= 'Body that is not `application/json` (`unsupported_media_type`).';
+  }
   const commonBadRequest = [
-    ...(operation.params !== undefined || operation.query !== undefined ? ['invalid input (`validation_failed`)'] : []),
+    ...(operation.params !== undefined || operation.query !== undefined || operation.body !== undefined
+      ? ['invalid input (`validation_failed`)']
+      : []),
     ...(operation.versioned === false ? [] : ['incompatible client (`unsupported_api_version`)']),
   ];
   if (commonBadRequest.length > 0) {

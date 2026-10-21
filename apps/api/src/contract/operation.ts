@@ -1,7 +1,10 @@
-import type { Request, Router } from 'express';
+import express, { type Request, type RequestHandler, type Router } from 'express';
 import { z } from 'zod';
 
 import { errorCodes } from './conventions.ts';
+
+/** Body limit of an operation that does not set `maxBodyBytes`. */
+export const defaultMaxBodyBytes = 16 * 1024;
 
 export type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete';
 
@@ -24,6 +27,10 @@ export interface OperationContract {
   readonly description?: string;
   readonly params?: z.ZodObject;
   readonly query?: z.ZodObject;
+  /** JSON request body. Declare it with `z.strictObject` so that unexpected fields are refused. */
+  readonly body?: z.ZodType;
+  /** Largest accepted body in bytes; larger ones are refused with `413 payload_too_large`. Default `defaultMaxBodyBytes`. */
+  readonly maxBodyBytes?: number;
   /** Success responses by status code. */
   readonly responses: Readonly<Record<number, ResponseContract>>;
   /** Error statuses this operation documents beyond the common ones, with their meaning. */
@@ -42,6 +49,7 @@ type Parsed<Schema> = Schema extends z.ZodType ? z.output<Schema> : undefined;
 export interface OperationInput<Operation extends OperationContract> {
   readonly params: Parsed<Operation extends { params: infer Schema } ? Schema : undefined>;
   readonly query: Parsed<Operation extends { query: infer Schema } ? Schema : undefined>;
+  readonly body: Parsed<Operation extends { body: infer Schema } ? Schema : undefined>;
 }
 
 export type OperationResult<Operation extends OperationContract> = {
@@ -63,12 +71,21 @@ export class ApiError extends Error {
   readonly status: number;
   readonly code: string;
   readonly issues: readonly ValidationIssue[] | undefined;
+  /** Extra response headers, such as `Retry-After`. */
+  readonly headers: Readonly<Record<string, string>> | undefined;
 
-  constructor(status: number, code: string, message: string, issues?: readonly ValidationIssue[]) {
+  constructor(
+    status: number,
+    code: string,
+    message: string,
+    issues?: readonly ValidationIssue[],
+    headers?: Readonly<Record<string, string>>,
+  ) {
     super(message);
     this.status = status;
     this.code = code;
     this.issues = issues;
+    this.headers = headers;
   }
 }
 
@@ -87,10 +104,13 @@ export function parseInput<Schema extends z.ZodType>(schema: Schema, value: unkn
     400,
     errorCodes.validationFailed,
     'The request is invalid.',
-    result.error.issues.map((issue) => ({
-      path: [location, ...issue.path.map(String)].join('.'),
-      message: issue.message,
-    })),
+    result.error.issues.flatMap((issue) => {
+      const path = [location, ...issue.path.map(String)];
+      // An unexpected field is reported at its own path, without echoing its value.
+      return issue.code === 'unrecognized_keys'
+        ? issue.keys.map((key) => ({ path: [...path, key].join('.'), message: 'Unrecognized field.' }))
+        : [{ path: path.join('.'), message: issue.message }];
+    }),
   );
 }
 
@@ -105,15 +125,29 @@ export function addOperation<Operation extends OperationContract>(
 ): { handle(handler: OperationHandler<Operation>): void } {
   return {
     handle(handler) {
-      router[operation.method](toExpressPath(operation.path), async (request, response) => {
+      const parsers = operation.body === undefined ? [] : [jsonBody(operation.maxBodyBytes ?? defaultMaxBodyBytes)];
+      router[operation.method](toExpressPath(operation.path), ...parsers, async (request, response) => {
         const input = {
           params: operation.params === undefined ? undefined : parseInput(operation.params, request.params, 'path'),
           query: operation.query === undefined ? undefined : parseInput(operation.query, request.query, 'query'),
+          body: operation.body === undefined ? undefined : parseInput(operation.body, request.body, 'body'),
         } as OperationInput<Operation>;
         const result = await handler(input, request);
         response.status(result.status).json(result.body);
       });
     },
+  };
+}
+
+/** Reads a JSON body of at most `limit` bytes; the body of a route without one is never read. */
+function jsonBody(limit: number): RequestHandler {
+  const parse = express.json({ limit, type: 'application/json', strict: true });
+  return (request, response, next) => {
+    if (!request.is('application/json')) {
+      next(new ApiError(415, errorCodes.unsupportedMediaType, 'The request body must be application/json.'));
+      return;
+    }
+    parse(request, response, next);
   };
 }
 

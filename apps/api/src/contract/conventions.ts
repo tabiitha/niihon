@@ -15,6 +15,8 @@ export const errorCodes = {
   badRequest: 'bad_request',
   validationFailed: 'validation_failed',
   unsupportedApiVersion: 'unsupported_api_version',
+  payloadTooLarge: 'payload_too_large',
+  unsupportedMediaType: 'unsupported_media_type',
   notFound: 'not_found',
   internalError: 'internal_error',
   stopping: 'stopping',

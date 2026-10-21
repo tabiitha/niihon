@@ -134,6 +134,7 @@ function handleError(logger: Logger): ErrorRequestHandler {
       return;
     }
     if (error instanceof ApiError) {
+      response.set({ ...error.headers });
       sendError(response, error.status, error.code, error.message, error.issues);
       return;
     }
@@ -141,6 +142,10 @@ function handleError(logger: Logger): ErrorRequestHandler {
       // Nothing was written: the write never got its turn. The client may retry.
       response.set('Retry-After', '1');
       sendError(response, 503, errorCodes.databaseBusy, 'The database is busy; retry the request.');
+      return;
+    }
+    if (hasErrorType(error, 'entity.too.large')) {
+      sendError(response, 413, errorCodes.payloadTooLarge, 'The request body is too large.');
       return;
     }
     const status = clientErrorStatus(error);
@@ -156,6 +161,10 @@ function handleError(logger: Logger): ErrorRequestHandler {
     });
     sendError(response, 500, errorCodes.internalError, 'An unexpected error occurred.');
   };
+}
+
+function hasErrorType(error: unknown, type: string): boolean {
+  return typeof error === 'object' && error !== null && 'type' in error && error.type === type;
 }
 
 /** Express and its parsers attach a 4xx `status` to errors caused by the client. */
