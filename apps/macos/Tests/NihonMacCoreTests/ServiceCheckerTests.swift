@@ -39,6 +39,36 @@ struct FakeContractClient: APIProtocol {
     {
         throw UnexpectedOperationError()
     }
+
+    func signIn(_ input: Operations.SignIn.Input) async throws
+        -> Operations.SignIn.Output
+    {
+        throw UnexpectedOperationError()
+    }
+
+    func startOAuthSignIn(_ input: Operations.StartOAuthSignIn.Input) async throws
+        -> Operations.StartOAuthSignIn.Output
+    {
+        throw UnexpectedOperationError()
+    }
+
+    func completeOAuthSignIn(_ input: Operations.CompleteOAuthSignIn.Input) async throws
+        -> Operations.CompleteOAuthSignIn.Output
+    {
+        throw UnexpectedOperationError()
+    }
+
+    func getCurrentSession(_ input: Operations.GetCurrentSession.Input) async throws
+        -> Operations.GetCurrentSession.Output
+    {
+        throw UnexpectedOperationError()
+    }
+
+    func signOut(_ input: Operations.SignOut.Input) async throws
+        -> Operations.SignOut.Output
+    {
+        throw UnexpectedOperationError()
+    }
 }
 
 func health(apiVersion: String = NihonAPIVersion.version) -> Operations.GetHealth.Output {
