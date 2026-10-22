@@ -17,6 +17,7 @@ import {
   type OperationResult,
 } from '../contract/operation.ts';
 import type { Database, TransactionClient } from '../database/database.ts';
+import { currentSession } from '../sessions/sessions.ts';
 
 /**
  * Runs the write that carries a command's effect. Under an idempotency key, the value `work`
@@ -64,14 +65,20 @@ export const defaultCommandLimits: CommandLimits = {
   purgeBatch: 100,
 };
 
-/** Caller of every request until sign-in exists (#76), which will identify the session's profile. */
+/** Caller of a request without a valid session. */
 export const anonymousCaller = 'anonymous';
+
+/** The default caller: the profile of the request's session (see src/sessions), or `anonymous`. */
+export function sessionCaller(request: Request): string {
+  const session = currentSession(request);
+  return session === undefined ? anonymousCaller : `profile:${session.profile.id}`;
+}
 
 export interface CommandOptions {
   readonly database: Database;
   /** Installation secret keying the fingerprints (see command-key.ts); a random one when omitted. */
   readonly key?: Buffer;
-  /** Identity on whose behalf a request runs; a key used by one caller is refused to another. */
+  /** Identity on whose behalf a request runs; a key used by one caller is refused to another. Default `sessionCaller`. */
   readonly identifyCaller?: (request: Request) => string;
   readonly now?: () => Date;
   readonly limits?: Partial<CommandLimits>;
@@ -89,7 +96,7 @@ export interface CommandOptions {
 export function createCommands(options: CommandOptions): Commands {
   const { database } = options;
   const key = options.key ?? randomBytes(32);
-  const identifyCaller = options.identifyCaller ?? (() => anonymousCaller);
+  const identifyCaller = options.identifyCaller ?? sessionCaller;
   const now = options.now ?? (() => new Date());
   const limits = { ...defaultCommandLimits, ...options.limits };
   // Keys whose command is running in this process; one server owns the database (instance-lock.ts).

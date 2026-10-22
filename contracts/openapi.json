@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Nihon API",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "description": "REST contract of the local Nihon server. Generated from the server's operation declarations; do not edit.\n\nGenerated clients send `Nihon-API-Version: 1`. The server refuses a different major version with `400 unsupported_api_version`; `GET /api/health` stays available to every client and reports `apiVersion`. Every response carries `Nihon-Request-Id`, also present in error bodies. Conventions: docs/architecture/api-contract.md."
   },
   "servers": [
@@ -20,6 +20,19 @@
     }
   ],
   "components": {
+    "securitySchemes": {
+      "sessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "nihon_session",
+        "description": "HttpOnly session cookie set by the server for a `web` client at sign-in."
+      },
+      "sessionToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Opaque session token returned to a `native` client at sign-in, sent as `Authorization: Bearer <token>`."
+      }
+    },
     "schemas": {
       "Health": {
         "type": "object",
@@ -287,6 +300,236 @@
         ],
         "additionalProperties": false,
         "description": "The provider answer for a started registration. A flow can be completed once."
+      },
+      "SignedIn": {
+        "type": "object",
+        "properties": {
+          "session": {
+            "$ref": "#/components/schemas/Session"
+          },
+          "token": {
+            "type": "string",
+            "description": "Present for a `native` client only: the opaque session token, shown once. Send it as `Authorization: Bearer <token>`; keep it in secure storage, never in a URL or a log."
+          }
+        },
+        "required": [
+          "session"
+        ],
+        "description": "A new session. A `web` client receives its token as an HttpOnly cookie instead."
+      },
+      "Session": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,64}$",
+            "description": "Opaque identifier of 1 to 64 characters `A-Z a-z 0-9 _ -`."
+          },
+          "profile": {
+            "$ref": "#/components/schemas/SessionProfile"
+          },
+          "client": {
+            "type": "string",
+            "description": "Client kind the session was opened for: `web` or `native`.",
+            "examples": [
+              "web"
+            ]
+          },
+          "signedInWith": {
+            "type": "string",
+            "description": "`local` for a password, otherwise the provider identifier.",
+            "examples": [
+              "local"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "UTC timestamp, `YYYY-MM-DDTHH:mm:ss.sssZ`.",
+            "examples": [
+              "2026-10-15T08:30:00.000Z"
+            ]
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The session stops authorizing anything at this instant; using it does not extend it.",
+            "examples": [
+              "2026-10-15T08:30:00.000Z"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "profile",
+          "client",
+          "signedInWith",
+          "createdAt",
+          "expiresAt"
+        ],
+        "description": "A signed-in Nihon session. It never carries the token or any provider token."
+      },
+      "SessionProfile": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,64}$",
+            "description": "Opaque identifier of 1 to 64 characters `A-Z a-z 0-9 _ -`."
+          },
+          "username": {
+            "type": "string",
+            "description": "Display form of the username."
+          },
+          "role": {
+            "type": "string",
+            "description": "Permission role of the profile, such as `user`.",
+            "examples": [
+              "user"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "role"
+        ],
+        "description": "The profile the session acts for."
+      },
+      "LocalSignIn": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "description": "Account name, 3 to 32 characters after Unicode NFKC normalization: letters of any script, digits, `_`, `-`, `.`, starting with a letter or digit. Two names that normalize to the same lowercase form are the same name.",
+            "examples": [
+              "sakura_42"
+            ]
+          },
+          "password": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "description": "Local password of the profile."
+          },
+          "client": {
+            "type": "string",
+            "enum": [
+              "web",
+              "native"
+            ],
+            "description": "How this client keeps its session. `web`: the server sets an HttpOnly `nihon_session` cookie and the response carries no token. `native`: the response carries `token`, which the client keeps in secure storage and sends as `Authorization: Bearer <token>`.",
+            "examples": [
+              "web"
+            ]
+          }
+        },
+        "required": [
+          "username",
+          "password",
+          "client"
+        ],
+        "additionalProperties": false,
+        "description": "Credentials of an existing local profile."
+      },
+      "OAuthSignInStarted": {
+        "type": "object",
+        "properties": {
+          "authorizationUrl": {
+            "type": "string",
+            "description": "Address to open in the browser to authenticate with the provider."
+          },
+          "state": {
+            "type": "string",
+            "description": "Value the provider returns to `redirectUri`. The client compares it with the returned one, then sends it to `completeOAuthSignIn`."
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The flow can be completed until this instant.",
+            "examples": [
+              "2026-10-15T08:30:00.000Z"
+            ]
+          },
+          "clientBinding": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{43}$",
+            "description": "Present for a `native` client only: send it back to `completeOAuthSignIn`. A `web` client holds it as an HttpOnly cookie instead. Only the client that started the flow can complete it."
+          }
+        },
+        "required": [
+          "authorizationUrl",
+          "state",
+          "expiresAt"
+        ],
+        "description": "A provider sign-in waiting for the browser to return."
+      },
+      "OAuthSignInStart": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,31}$",
+            "description": "Provider identifier as listed by `listOAuthProviders`, such as `google` or `github`.",
+            "examples": [
+              "google"
+            ]
+          },
+          "redirectUri": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "description": "Where the browser returns after the provider: an `http://127.0.0.1`, `http://localhost`, or `http://[::1]` address, or an address the installation lists in `NIHON_OAUTH_REDIRECT_URIS`. Must also be registered with the provider."
+          },
+          "client": {
+            "type": "string",
+            "enum": [
+              "web",
+              "native"
+            ],
+            "description": "How this client keeps its session. `web`: the server sets an HttpOnly `nihon_session` cookie and the response carries no token. `native`: the response carries `token`, which the client keeps in secure storage and sends as `Authorization: Bearer <token>`.",
+            "examples": [
+              "web"
+            ]
+          }
+        },
+        "required": [
+          "provider",
+          "redirectUri",
+          "client"
+        ],
+        "additionalProperties": false,
+        "description": "Starts signing in with a provider identity already linked to a profile."
+      },
+      "OAuthSignInCompletion": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string",
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "description": "`state` of the flow, as returned by the provider."
+          },
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "description": "Authorization code the provider returned to `redirectUri`."
+          },
+          "clientBinding": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{43}$",
+            "description": "`clientBinding` of the start response; required for a `native` flow, omitted on the Web."
+          }
+        },
+        "required": [
+          "state",
+          "code"
+        ],
+        "additionalProperties": false,
+        "description": "The provider answer for a started sign-in. A flow can be completed once."
       }
     },
     "parameters": {}
@@ -713,6 +956,394 @@
           },
           "503": {
             "description": "Too many provider exchanges are running (`accounts_busy`, `Retry-After` set): the flow is untouched, retry the same completion. If instead the database stayed busy after the provider answered (`accounts_oauth_flow_consumed`, no `Retry-After`), nothing was created and the flow is used up: start a new registration. Too many recent keyed commands are recorded (`idempotency_capacity_reached`): nothing was done; space frees as records expire, and the command can be sent without a key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Any other error, such as `internal_error` (500), `stopping` (503), or `database_busy` (503).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/accounts/sessions": {
+      "post": {
+        "operationId": "signIn",
+        "summary": "Sign in with a username and password",
+        "description": "Works offline. Opens a new session that expires 30 days later. An unknown username and a wrong password are refused alike. A session the request already presents (cookie or bearer token) is revoked in the same transaction, so switching profiles on one client leaves no session behind.",
+        "tags": [
+          "accounts"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocalSignIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The session was opened.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignedIn"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Refused request: invalid input (`validation_failed`) or incompatible client (`unsupported_api_version`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The username and password do not match a profile with a local password (`accounts_credentials_invalid`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body larger than 8192 bytes (`payload_too_large`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Body that is not `application/json` (`unsupported_media_type`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Too many sign-ins are being processed or too many sessions are open; retry after `Retry-After` (`accounts_busy`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Any other error, such as `internal_error` (500), `stopping` (503), or `database_busy` (503).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/accounts/oauth-sign-ins": {
+      "post": {
+        "operationId": "startOAuthSignIn",
+        "summary": "Start signing in with a Google or GitHub identity",
+        "description": "Requires Internet to reach the provider. The flow expires after 10 minutes and can only be completed by the client that started it. Starting again from the same browser supersedes its previous flow, whose late return is then refused.",
+        "tags": [
+          "accounts"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OAuthSignInStart"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The flow was created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OAuthSignInStarted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Refused request: invalid input (`validation_failed`) or incompatible client (`unsupported_api_version`). `redirectUri` is not an accepted return address (`accounts_oauth_redirect_uri_invalid`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body larger than 8192 bytes (`payload_too_large`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Body that is not `application/json` (`unsupported_media_type`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The provider is unknown or not configured on this installation (`accounts_oauth_provider_unavailable`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Too many provider flows are pending; retry after `Retry-After` (`accounts_busy`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Any other error, such as `internal_error` (500), `stopping` (503), or `database_busy` (503).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/accounts/oauth-sign-ins/completion": {
+      "post": {
+        "operationId": "completeOAuthSignIn",
+        "summary": "Complete a provider sign-in with the returned code",
+        "description": "Checks that the flow belongs to this client, consumes it, verifies the code and identity with the provider, then opens a session for the profile linked to that identity. The provider's tokens are discarded: they never authorize Nihon operations. An email address is neither required nor read. A session the request already presents (cookie or bearer token) is revoked in the same transaction, so switching profiles on one client leaves no session behind.",
+        "tags": [
+          "accounts"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OAuthSignInCompletion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The session was opened.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignedIn"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Refused request: invalid input (`validation_failed`) or incompatible client (`unsupported_api_version`). The flow is unknown, already used, or superseded (`accounts_oauth_state_invalid`), expired (`accounts_oauth_state_expired`), started by another client (`accounts_oauth_client_mismatch`, the flow is untouched), the provider refused the code (`accounts_oauth_code_rejected`), or the identity could not be verified (`accounts_oauth_identity_unverified`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The verified provider identity is not linked to any profile (`accounts_identity_not_registered`); register first.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body larger than 8192 bytes (`payload_too_large`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Body that is not `application/json` (`unsupported_media_type`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The flow was started for a provider this installation no longer has configured (`accounts_oauth_provider_unavailable`); the flow is consumed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "The provider could not be reached or answered unusably (`accounts_oauth_provider_failed`); the flow is consumed, start again.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Too many provider exchanges are running (`accounts_busy`, `Retry-After` set): the flow is untouched, retry the same completion. If instead the database stayed busy after the provider answered (`accounts_oauth_flow_consumed`, no `Retry-After`), no session was opened and the flow is used up: start again.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Any other error, such as `internal_error` (500), `stopping` (503), or `database_busy` (503).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/accounts/sessions/current": {
+      "get": {
+        "operationId": "getCurrentSession",
+        "summary": "Read the session this request is signed in with",
+        "tags": [
+          "accounts"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "sessionToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The current session.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Refused request: incompatible client (`unsupported_api_version`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session: never signed in, signed out, or expired (`authentication_required`); sign in again.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Any other error, such as `internal_error` (500), `stopping` (503), or `database_busy` (503).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "signOut",
+        "summary": "Sign out: revoke the session this request presents",
+        "description": "The session is deleted at once: its token no longer authorizes any operation, on any client. The Web cookie is cleared. Always answers `204`, also when the session had already expired or been revoked, so a retry is safe. It does not disconnect any provider account.",
+        "tags": [
+          "accounts"
+        ],
+        "responses": {
+          "204": {
+            "description": "No session remains for the presented token."
+          },
+          "400": {
+            "description": "Refused request: incompatible client (`unsupported_api_version`).",
             "content": {
               "application/json": {
                 "schema": {

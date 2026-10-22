@@ -1,0 +1,19 @@
+// Opaque Nihon sign-in sessions (issue #269); see docs/architecture/sessions.md.
+
+/// One signed-in client. `tokenHash` is the SHA-256 of the opaque token the client holds (an
+/// HttpOnly cookie on the Web, a bearer token for a native client); the token itself is never
+/// stored. Signing out deletes the row, so a revoked token matches nothing.
+model Session {
+  id           String   @id
+  tokenHash    String   @unique
+  profileId    String
+  client       String
+  signedInWith String
+  createdAt    DateTime
+  expiresAt    DateTime
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, createdAt])
+  @@index([expiresAt])
+}

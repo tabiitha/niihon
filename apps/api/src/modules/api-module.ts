@@ -5,6 +5,7 @@ import type { OAuthSettings } from '../config.ts';
 import type { OperationContract } from '../contract/operation.ts';
 import type { Database } from '../database/database.ts';
 import type { Logger } from '../log.ts';
+import type { Sessions } from '../sessions/sessions.ts';
 
 /** Services the server hands to every module when registering its routes. */
 export interface ModuleContext {
@@ -12,6 +13,11 @@ export interface ModuleContext {
   readonly database: Database;
   /** Adds idempotent commands, whose response is stored with their effect under the client's key. */
   readonly commands: Commands;
+  /**
+   * Opens and revokes sign-in sessions. The session a request was authenticated with is
+   * `currentSession(request)`; operations declared `authenticated` refuse requests without one.
+   */
+  readonly sessions: Sessions;
   /** The server log; never pass it credentials or request bodies. */
   readonly logger: Logger;
   /** Provider credentials and return addresses configured for this installation. */

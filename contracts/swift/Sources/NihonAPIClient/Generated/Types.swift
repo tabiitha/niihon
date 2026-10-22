@@ -36,6 +36,39 @@ public protocol APIProtocol: Sendable {
     /// - Remark: HTTP `POST /api/accounts/oauth-registrations/completion`.
     /// - Remark: Generated from `#/paths//api/accounts/oauth-registrations/completion/post(completeOAuthRegistration)`.
     func completeOAuthRegistration(_ input: Operations.CompleteOAuthRegistration.Input) async throws -> Operations.CompleteOAuthRegistration.Output
+    /// Sign in with a username and password
+    ///
+    /// Works offline. Opens a new session that expires 30 days later. An unknown username and a wrong password are refused alike. A session the request already presents (cookie or bearer token) is revoked in the same transaction, so switching profiles on one client leaves no session behind.
+    ///
+    /// - Remark: HTTP `POST /api/accounts/sessions`.
+    /// - Remark: Generated from `#/paths//api/accounts/sessions/post(signIn)`.
+    func signIn(_ input: Operations.SignIn.Input) async throws -> Operations.SignIn.Output
+    /// Start signing in with a Google or GitHub identity
+    ///
+    /// Requires Internet to reach the provider. The flow expires after 10 minutes and can only be completed by the client that started it. Starting again from the same browser supersedes its previous flow, whose late return is then refused.
+    ///
+    /// - Remark: HTTP `POST /api/accounts/oauth-sign-ins`.
+    /// - Remark: Generated from `#/paths//api/accounts/oauth-sign-ins/post(startOAuthSignIn)`.
+    func startOAuthSignIn(_ input: Operations.StartOAuthSignIn.Input) async throws -> Operations.StartOAuthSignIn.Output
+    /// Complete a provider sign-in with the returned code
+    ///
+    /// Checks that the flow belongs to this client, consumes it, verifies the code and identity with the provider, then opens a session for the profile linked to that identity. The provider's tokens are discarded: they never authorize Nihon operations. An email address is neither required nor read. A session the request already presents (cookie or bearer token) is revoked in the same transaction, so switching profiles on one client leaves no session behind.
+    ///
+    /// - Remark: HTTP `POST /api/accounts/oauth-sign-ins/completion`.
+    /// - Remark: Generated from `#/paths//api/accounts/oauth-sign-ins/completion/post(completeOAuthSignIn)`.
+    func completeOAuthSignIn(_ input: Operations.CompleteOAuthSignIn.Input) async throws -> Operations.CompleteOAuthSignIn.Output
+    /// Read the session this request is signed in with
+    ///
+    /// - Remark: HTTP `GET /api/accounts/sessions/current`.
+    /// - Remark: Generated from `#/paths//api/accounts/sessions/current/get(getCurrentSession)`.
+    func getCurrentSession(_ input: Operations.GetCurrentSession.Input) async throws -> Operations.GetCurrentSession.Output
+    /// Sign out: revoke the session this request presents
+    ///
+    /// The session is deleted at once: its token no longer authorizes any operation, on any client. The Web cookie is cleared. Always answers `204`, also when the session had already expired or been revoked, so a retry is safe. It does not disconnect any provider account.
+    ///
+    /// - Remark: HTTP `DELETE /api/accounts/sessions/current`.
+    /// - Remark: Generated from `#/paths//api/accounts/sessions/current/delete(signOut)`.
+    func signOut(_ input: Operations.SignOut.Input) async throws -> Operations.SignOut.Output
 }
 
 /// Convenience overloads for operation inputs.
@@ -98,6 +131,67 @@ extension APIProtocol {
             headers: headers,
             body: body
         ))
+    }
+    /// Sign in with a username and password
+    ///
+    /// Works offline. Opens a new session that expires 30 days later. An unknown username and a wrong password are refused alike. A session the request already presents (cookie or bearer token) is revoked in the same transaction, so switching profiles on one client leaves no session behind.
+    ///
+    /// - Remark: HTTP `POST /api/accounts/sessions`.
+    /// - Remark: Generated from `#/paths//api/accounts/sessions/post(signIn)`.
+    public func signIn(
+        headers: Operations.SignIn.Input.Headers = .init(),
+        body: Operations.SignIn.Input.Body
+    ) async throws -> Operations.SignIn.Output {
+        try await signIn(Operations.SignIn.Input(
+            headers: headers,
+            body: body
+        ))
+    }
+    /// Start signing in with a Google or GitHub identity
+    ///
+    /// Requires Internet to reach the provider. The flow expires after 10 minutes and can only be completed by the client that started it. Starting again from the same browser supersedes its previous flow, whose late return is then refused.
+    ///
+    /// - Remark: HTTP `POST /api/accounts/oauth-sign-ins`.
+    /// - Remark: Generated from `#/paths//api/accounts/oauth-sign-ins/post(startOAuthSignIn)`.
+    public func startOAuthSignIn(
+        headers: Operations.StartOAuthSignIn.Input.Headers = .init(),
+        body: Operations.StartOAuthSignIn.Input.Body
+    ) async throws -> Operations.StartOAuthSignIn.Output {
+        try await startOAuthSignIn(Operations.StartOAuthSignIn.Input(
+            headers: headers,
+            body: body
+        ))
+    }
+    /// Complete a provider sign-in with the returned code
+    ///
+    /// Checks that the flow belongs to this client, consumes it, verifies the code and identity with the provider, then opens a session for the profile linked to that identity. The provider's tokens are discarded: they never authorize Nihon operations. An email address is neither required nor read. A session the request already presents (cookie or bearer token) is revoked in the same transaction, so switching profiles on one client leaves no session behind.
+    ///
+    /// - Remark: HTTP `POST /api/accounts/oauth-sign-ins/completion`.
+    /// - Remark: Generated from `#/paths//api/accounts/oauth-sign-ins/completion/post(completeOAuthSignIn)`.
+    public func completeOAuthSignIn(
+        headers: Operations.CompleteOAuthSignIn.Input.Headers = .init(),
+        body: Operations.CompleteOAuthSignIn.Input.Body
+    ) async throws -> Operations.CompleteOAuthSignIn.Output {
+        try await completeOAuthSignIn(Operations.CompleteOAuthSignIn.Input(
+            headers: headers,
+            body: body
+        ))
+    }
+    /// Read the session this request is signed in with
+    ///
+    /// - Remark: HTTP `GET /api/accounts/sessions/current`.
+    /// - Remark: Generated from `#/paths//api/accounts/sessions/current/get(getCurrentSession)`.
+    public func getCurrentSession(headers: Operations.GetCurrentSession.Input.Headers = .init()) async throws -> Operations.GetCurrentSession.Output {
+        try await getCurrentSession(Operations.GetCurrentSession.Input(headers: headers))
+    }
+    /// Sign out: revoke the session this request presents
+    ///
+    /// The session is deleted at once: its token no longer authorizes any operation, on any client. The Web cookie is cleared. Always answers `204`, also when the session had already expired or been revoked, so a retry is safe. It does not disconnect any provider account.
+    ///
+    /// - Remark: HTTP `DELETE /api/accounts/sessions/current`.
+    /// - Remark: Generated from `#/paths//api/accounts/sessions/current/delete(signOut)`.
+    public func signOut(headers: Operations.SignOut.Input.Headers = .init()) async throws -> Operations.SignOut.Output {
+        try await signOut(Operations.SignOut.Input(headers: headers))
     }
 }
 

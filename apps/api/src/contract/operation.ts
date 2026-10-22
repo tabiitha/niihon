@@ -1,6 +1,7 @@
 import express, { type Request, type RequestHandler, type Router } from 'express';
 import { z } from 'zod';
 
+import { currentSession } from '../sessions/sessions.ts';
 import { errorCodes } from './conventions.ts';
 
 /** Body limit of an operation that does not set `maxBodyBytes`. */
@@ -10,7 +11,8 @@ export type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete';
 
 export interface ResponseContract {
   readonly description: string;
-  readonly schema: z.ZodType;
+  /** JSON body; omitted for a response without a body, such as `204`. */
+  readonly schema?: z.ZodType;
 }
 
 /**
@@ -42,6 +44,11 @@ export interface OperationContract {
    * be registered with `context.commands.add`, which stores that response with the effect.
    */
   readonly idempotent?: boolean;
+  /**
+   * Requires a signed-in session (src/sessions). Without a valid one the request is refused with
+   * `401 authentication_required` before its input is read.
+   */
+  readonly authenticated?: boolean;
 }
 
 /** Keeps the literal types of a declaration so handlers are checked against it. */
@@ -60,7 +67,7 @@ export interface OperationInput<Operation extends OperationContract> {
 export type OperationResult<Operation extends OperationContract> = {
   [Status in keyof Operation['responses'] & number]: {
     readonly status: Status;
-    readonly body: z.input<Operation['responses'][Status]['schema']>;
+    readonly body: Operation['responses'][Status] extends { schema: infer Schema extends z.ZodType } ? z.input<Schema> : undefined;
   };
 }[keyof Operation['responses'] & number];
 
@@ -141,7 +148,10 @@ export function routeOperation<Operation extends OperationContract>(
 ): { handle(handler: OperationHandler<Operation>): void } {
   return {
     handle(handler) {
-      const parsers = operation.body === undefined ? [] : [jsonBody(operation.maxBodyBytes ?? defaultMaxBodyBytes)];
+      const parsers = [
+        ...(operation.authenticated === true ? [requireSession] : []),
+        ...(operation.body === undefined ? [] : [jsonBody(operation.maxBodyBytes ?? defaultMaxBodyBytes)]),
+      ];
       router[operation.method](toExpressPath(operation.path), ...parsers, async (request, response) => {
         const input = {
           params: operation.params === undefined ? undefined : parseInput(operation.params, request.params, 'path'),
@@ -149,11 +159,24 @@ export function routeOperation<Operation extends OperationContract>(
           body: operation.body === undefined ? undefined : parseInput(operation.body, request.body, 'body'),
         } as OperationInput<Operation>;
         const result = await handler(input, request);
-        response.status(result.status).json(result.body);
+        if (result.body === undefined) {
+          response.status(result.status).end();
+        } else {
+          response.status(result.status).json(result.body);
+        }
       });
     },
   };
 }
+
+/** Refuses a request without a valid session before anything else of it is read. */
+const requireSession: RequestHandler = (request, _response, next) => {
+  next(
+    currentSession(request) === undefined
+      ? new ApiError(401, errorCodes.authenticationRequired, 'Sign in to use this operation.', undefined, { 'WWW-Authenticate': 'Bearer' })
+      : undefined,
+  );
+};
 
 /** Reads a JSON body of at most `limit` bytes; the body of a route without one is never read. */
 function jsonBody(limit: number): RequestHandler {
