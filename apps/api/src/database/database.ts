@@ -4,15 +4,12 @@ import { fileURLToPath } from 'node:url';
 
 import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
 
+import { dataDirEntries } from '../data-dir.ts';
 import { PrismaClient, type Prisma } from '../generated/prisma/client.ts';
 import { loadMigrations } from './migrations.ts';
 import { migrateDatabase, type MigrationOutcome } from './migrator.ts';
 import { createWriteGate } from './write-gate.ts';
 
-/** The single database of an installation, in the data directory. */
-export const databaseFileName = 'nihon.db';
-/** Directory of the snapshots taken before migrating, in the data directory. */
-export const snapshotsDirName = 'snapshots';
 /** Migrations packaged with the server: apps/api/prisma/migrations, from both src/ and dist/. */
 export const packagedMigrationsDir = fileURLToPath(new URL('../../prisma/migrations', import.meta.url));
 
@@ -72,10 +69,10 @@ export interface OpenedDatabase {
 export async function openDatabase(options: DatabaseOptions): Promise<OpenedDatabase> {
   const limits = { ...defaultDatabaseLimits, ...options.limits };
   mkdirSync(options.dataDir, { recursive: true });
-  const databasePath = join(options.dataDir, databaseFileName);
+  const databasePath = join(options.dataDir, dataDirEntries.database);
   const migration = await migrateDatabase({
     databasePath,
-    snapshotsDir: join(options.dataDir, snapshotsDirName),
+    snapshotsDir: join(options.dataDir, dataDirEntries.snapshots),
     migrations: loadMigrations(options.migrationsDir ?? packagedMigrationsDir),
     busyTimeoutMs: limits.busyTimeoutMs,
   });

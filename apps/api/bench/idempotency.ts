@@ -9,7 +9,8 @@ import { performance } from 'node:perf_hooks';
 import { createApp } from '../src/app.ts';
 import { loadCommandKey } from '../src/commands/command-key.ts';
 import { createCommands, defaultCommandLimits } from '../src/commands/idempotency.ts';
-import { databaseFileName, openDatabase } from '../src/database/database.ts';
+import { dataDirEntries } from '../src/data-dir.ts';
+import { openDatabase } from '../src/database/database.ts';
 import { silentLogger } from '../src/log.ts';
 import { createAccountsModule } from '../src/modules/accounts/index.ts';
 
@@ -160,7 +161,7 @@ try {
       return 0;
     }
   };
-  const databaseBytes = fileSize(databaseFileName) + fileSize(`${databaseFileName}-wal`);
+  const databaseBytes = fileSize(dataDirEntries.database) + fileSize(`${dataDirEntries.database}-wal`);
 
   process.stdout.write(
     [

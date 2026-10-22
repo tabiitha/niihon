@@ -4,7 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 
-import { CommandKeyError, commandKeyBytes, commandKeyFileName, loadCommandKey } from './command-key.ts';
+import { dataDirEntries } from '../data-dir.ts';
+import { CommandKeyError, commandKeyBytes, loadCommandKey } from './command-key.ts';
 
 describe('loadCommandKey', () => {
   let dataDir: string;
@@ -16,7 +17,7 @@ describe('loadCommandKey', () => {
   it('creates a random key readable by the server user only, then returns the same key on every start', () => {
     const key = loadCommandKey(dataDir);
     assert.equal(key.length, commandKeyBytes);
-    const path = join(dataDir, commandKeyFileName);
+    const path = join(dataDir, dataDirEntries.commandKey);
     assert.deepEqual(readFileSync(path), key);
     assert.equal(existsSync(`${path}.partial`), false);
     if (process.platform !== 'win32') {
@@ -33,17 +34,17 @@ describe('loadCommandKey', () => {
   });
 
   it('refuses a key file of the wrong size and leaves it untouched', () => {
-    const path = join(dataDir, commandKeyFileName);
+    const path = join(dataDir, dataDirEntries.commandKey);
     writeFileSync(path, 'truncated');
     assert.throws(() => loadCommandKey(dataDir), CommandKeyError);
     assert.equal(readFileSync(path, 'utf8'), 'truncated');
   });
 
   it('replaces a partial file left by an interrupted creation, still readable by the server user only', () => {
-    writeFileSync(join(dataDir, `${commandKeyFileName}.partial`), 'half', { mode: 0o644 });
+    writeFileSync(join(dataDir, `${dataDirEntries.commandKey}.partial`), 'half', { mode: 0o644 });
     assert.equal(loadCommandKey(dataDir).length, commandKeyBytes);
     if (process.platform !== 'win32') {
-      assert.equal(statSync(join(dataDir, commandKeyFileName)).mode & 0o777, 0o600);
+      assert.equal(statSync(join(dataDir, dataDirEntries.commandKey)).mode & 0o777, 0o600);
     }
   });
 });

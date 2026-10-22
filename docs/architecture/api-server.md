@@ -29,6 +29,7 @@ Only what is needed exists. `packaging/macos` is created by the issue that first
 | `src/contract/` | Contract conventions (versions, errors, identifiers, timestamps, pagination) and operation declarations with runtime validation | None |
 | `src/app.ts` | HTTP adapter: request identifiers, version check, health route, module mounting, Web interface, JSON errors | HTTP |
 | `src/web.ts` | Serves the built Web interface outside `/api` | HTTP, file system |
+| `src/data-dir.ts` | Names of the files and directories the server keeps in the data directory | None |
 | `src/instance-lock.ts` | Exclusive ownership of the data directory | File system |
 | `src/database/` | Migrations, snapshots, and the reader and writer Prisma clients ([persistence](persistence.md)) | SQLite, file system |
 | `src/commands/` | Idempotent commands: replay of a committed command under the client's key, and the installation's command key ([command idempotency](command-idempotency.md)) | SQLite, file system |

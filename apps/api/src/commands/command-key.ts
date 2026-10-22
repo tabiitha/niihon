@@ -2,8 +2,8 @@ import { randomBytes } from 'node:crypto';
 import { closeSync, fsyncSync, openSync, readFileSync, renameSync, rmSync, writeSync } from 'node:fs';
 import { join } from 'node:path';
 
-/** Secret of the installation that keys the fingerprints of idempotent commands, in the data directory. */
-export const commandKeyFileName = 'nihon-command.key';
+import { dataDirEntries } from '../data-dir.ts';
+
 export const commandKeyBytes = 32;
 
 /** The key file exists but does not hold a key; it is left untouched. */
@@ -17,7 +17,7 @@ export class CommandKeyError extends Error {
  * an interrupted creation never leaves a truncated key; only the server's user can read it.
  */
 export function loadCommandKey(dataDir: string): Buffer {
-  const path = join(dataDir, commandKeyFileName);
+  const path = join(dataDir, dataDirEntries.commandKey);
   let existing: Buffer | undefined;
   try {
     existing = readFileSync(path);
