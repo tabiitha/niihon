@@ -19,7 +19,8 @@
     "db:migration": "node prisma/create-migration.ts",
     "bench:persistence": "bun run db:generate && node bench/persistence.ts",
     "bench:accounts": "bun run db:generate && node bench/accounts.ts",
-    "bench:idempotency": "bun run db:generate && node bench/idempotency.ts"
+    "bench:idempotency": "bun run db:generate && node bench/idempotency.ts",
+    "bench:sign-in": "bun run db:generate && node bench/sign-in.ts"
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "7.10.1",
