@@ -316,7 +316,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Too many registrations are being processed; retry after `Retry-After` (`accounts_busy`). Too many recent keyed commands are recorded; retry after `Retry-After` (`idempotency_capacity_reached`). */
+            /** @description Too many registrations are being processed; retry after `Retry-After` (`accounts_busy`). Too many recent keyed commands are recorded (`idempotency_capacity_reached`): nothing was done; space frees as records expire, and the command can be sent without a key. */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -542,7 +542,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Too many provider exchanges are running (`accounts_busy`, `Retry-After` set): the flow is untouched, retry the same completion. If instead the database stayed busy after the provider answered (`accounts_oauth_flow_consumed`, no `Retry-After`), nothing was created and the flow is used up: start a new registration. Too many recent keyed commands are recorded; retry after `Retry-After` (`idempotency_capacity_reached`). */
+            /** @description Too many provider exchanges are running (`accounts_busy`, `Retry-After` set): the flow is untouched, retry the same completion. If instead the database stayed busy after the provider answered (`accounts_oauth_flow_consumed`, no `Retry-After`), nothing was created and the flow is used up: start a new registration. Too many recent keyed commands are recorded (`idempotency_capacity_reached`): nothing was done; space frees as records expire, and the command can be sent without a key. */
             503: {
                 headers: {
                     [name: string]: unknown;

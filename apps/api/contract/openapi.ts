@@ -92,7 +92,7 @@ function responsesOf(operation: OperationContract): Record<string, ResponseConfi
     const idempotencyErrors: Record<number, string> = {
       409: `A request with the same \`${idempotencyKeyHeader}\` is still running; retry after \`Retry-After\` (\`idempotency_key_in_use\`).`,
       422: `The \`${idempotencyKeyHeader}\` was already used by another caller, operation, or input (\`idempotency_key_reused\`); nothing was done.`,
-      503: `Too many recent keyed commands are recorded; retry after \`Retry-After\` (\`idempotency_capacity_reached\`).`,
+      503: `Too many recent keyed commands are recorded (\`idempotency_capacity_reached\`): nothing was done; space frees as records expire, and the command can be sent without a key.`,
     };
     for (const [status, meaning] of Object.entries(idempotencyErrors)) {
       errors[Number(status)] = errors[Number(status)] === undefined ? meaning : `${errors[Number(status)]} ${meaning}`;

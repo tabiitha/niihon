@@ -234,11 +234,38 @@ describe('retention and bounds', () => {
     assert.equal(await app.effects(), 7);
   });
 
+  it('purges only expired records and keeps every unexpired proof', async () => {
+    let clock = Date.parse('2026-10-22T10:00:00.000Z');
+    app = await startCommandApp({ now: () => new Date(clock), limits: { retentionMs: 60_000, purgeBatch: 100 } });
+    const oldKeys: string[] = [newKey(), newKey()];
+    for (const key of oldKeys) {
+      await app.post('/effects', { label: 'old' }, { key });
+    }
+    clock += 30_000;
+    const liveKey = newKey();
+    const live = await app.post('/effects', { label: 'live' }, { key: liveKey });
+    clock += 30_000;
+    // The first two expired a moment ago, the third has 30 s left; this command purges.
+    await app.post('/effects', { label: 'new' }, { key: newKey() });
+    const kept = await app.database.reader.idempotencyRecord.findMany({ select: { key: true } });
+    assert.equal(kept.length, 2);
+    assert.ok(kept.some((record) => record.key === liveKey));
+    assert.ok(!kept.some((record) => oldKeys.includes(record.key)));
+    assert.deepEqual((await app.post('/effects', { label: 'live' }, { key: liveKey })).body, live.body);
+  });
+
   it('refuses a keyed command when the records are full, without doing it, while unkeyed commands still run', async () => {
     app = await startCommandApp({ limits: { maxRecords: 2 } });
     await app.post('/effects', { label: 'a' }, { key: newKey() });
     await app.post('/effects', { label: 'b' }, { key: newKey() });
+    let handled = 0;
+    app.hooks.beforeCommit = () => {
+      handled += 1;
+    };
     const full = await app.post('/effects', { label: 'c' }, { key: newKey() });
+    // Refused before the handler runs, so no work a domain does before its commit is spent.
+    assert.equal(handled, 0);
+    delete app.hooks.beforeCommit;
     assert.equal(full.status, 503);
     assert.equal(full.body.error.code, 'idempotency_capacity_reached');
     assert.equal(full.headers.get('retry-after'), '60');

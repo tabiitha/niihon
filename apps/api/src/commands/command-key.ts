@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { closeSync, fsyncSync, openSync, readFileSync, renameSync, writeSync } from 'node:fs';
+import { closeSync, fsyncSync, openSync, readFileSync, renameSync, rmSync, writeSync } from 'node:fs';
 import { join } from 'node:path';
 
 /** Secret of the installation that keys the fingerprints of idempotent commands, in the data directory. */
@@ -35,7 +35,9 @@ export function loadCommandKey(dataDir: string): Buffer {
 
   const key = randomBytes(commandKeyBytes);
   const partial = `${path}.partial`;
-  const descriptor = openSync(partial, 'w', 0o600);
+  // A partial file left by an interrupted creation is removed, so the new one is created with mode 600.
+  rmSync(partial, { force: true });
+  const descriptor = openSync(partial, 'wx', 0o600);
   try {
     writeSync(descriptor, key);
     fsyncSync(descriptor);

@@ -39,8 +39,11 @@ describe('loadCommandKey', () => {
     assert.equal(readFileSync(path, 'utf8'), 'truncated');
   });
 
-  it('replaces a partial file left by an interrupted creation', () => {
-    writeFileSync(join(dataDir, `${commandKeyFileName}.partial`), 'half');
+  it('replaces a partial file left by an interrupted creation, still readable by the server user only', () => {
+    writeFileSync(join(dataDir, `${commandKeyFileName}.partial`), 'half', { mode: 0o644 });
     assert.equal(loadCommandKey(dataDir).length, commandKeyBytes);
+    if (process.platform !== 'win32') {
+      assert.equal(statSync(join(dataDir, commandKeyFileName)).mode & 0o777, 0o600);
+    }
   });
 });

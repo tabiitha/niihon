@@ -25,9 +25,11 @@ request with key K ──► K running? ──yes──► 409 idempotency_key_i
                   unexpired record for K? ──yes──► same caller, operation, fingerprint?
                           │no                         │yes ──► stored response, Idempotent-Replayed: true
                           ▼                           │no  ──► 422 idempotency_key_reused
+                  unexpired records at the bound? ──yes──► 503 idempotency_capacity_reached
+                          │no
+                          ▼
                   handler runs; its commit opens ONE write transaction:
                     purge a batch of expired records
-                    refuse if the unexpired records are at the bound (503)
                     write the effect                  ◄── the domain's work
                     insert record {K, caller, operation, fingerprint, response}
                   COMMIT ──► response
@@ -60,7 +62,7 @@ The fingerprint is an HMAC-SHA256 of the operation and its input, keyed with a 3
 
 | Item | Location |
 | --- | --- |
-| Command key | `<NIHON_DATA_DIR>/nihon-command.key`, created on the first start, mode `600` (written to `nihon-command.key.partial`, synced, then renamed) |
+| Command key | `<NIHON_DATA_DIR>/nihon-command.key`, created on the first start, mode `600` (written to a freshly created `nihon-command.key.partial`, synced, then renamed; a leftover partial file is deleted first) |
 | Records | Table `IdempotencyRecord` (model in `apps/api/prisma/schema/idempotency.prisma`, migration `20261022132104_idempotency`): `key` (primary key), `caller`, `operation`, `fingerprint`, `status`, `response` (JSON), `createdAt`, `expiresAt` (indexed) |
 
 If the key file is deleted, a new key is created on the next start and pending retries of earlier commands are refused with `422` until their records expire: the server refuses rather than repeats. A key file that does not hold 32 bytes stops the start with exit code 1 and is left untouched; delete it to create a new one.
@@ -79,7 +81,7 @@ If the key file is deleted, a new key is created on the next start and pending r
 | Resource | Bound |
 | --- | --- |
 | Retention of a committed command | 24 hours |
-| Unexpired records | 20,000; a further keyed command is refused with `503 idempotency_capacity_reached` and `Retry-After: 60`, without its effect, while commands without a key still run |
+| Unexpired records | 20,000; a further keyed command is refused with `503 idempotency_capacity_reached` and `Retry-After: 60` before its handler runs, so nothing is done, not even a domain's work before its commit (a provider flow stays usable). Space only frees as records expire, up to 24 hours later; sending the command without a key always works. Commands already past the check when the bound is reached still commit, so the bound can be exceeded by at most the keyed requests running at once (256 connections) |
 | Stored response | 4 KiB of JSON |
 | Expired records deleted per keyed command | 100 |
 | Key | 16 to 64 characters |
@@ -92,10 +94,10 @@ Measured with `bun run --cwd apps/api bench:idempotency`: local registrations th
 
 | Operation | p50 (3 series) | p95 (3 series) |
 | --- | --- | --- |
-| Keyed registration, first execution (mutation) | 0.77–0.95 ms | 1.12–1.27 ms |
-| Unkeyed registration (mutation, reference) | 0.39–0.46 ms | 0.55–0.72 ms |
-| Replay of a committed registration (read) | 0.20–0.23 ms | 0.27–0.32 ms |
-| Key reused with other input (read, refused) | 0.21–0.22 ms | 0.27–0.33 ms |
-| Keyed registration purging 100 expired records (mutation), with 10,000 expired records added before each series | 1.14–1.38 ms | 4.66–4.97 ms |
+| Keyed registration, first execution (mutation) | 0.80–1.00 ms | 1.10–1.48 ms |
+| Unkeyed registration (mutation, reference) | 0.40–0.43 ms | 0.57–0.63 ms |
+| Replay of a committed registration (read) | 0.21–0.24 ms | 0.28–0.35 ms |
+| Key reused with other input (read, refused) | 0.21–0.22 ms | 0.28–0.31 ms |
+| Keyed registration purging 100 expired records (mutation), with 10,000 expired records added before each series | 1.21–1.29 ms | 4.72–4.77 ms |
 
-The issue's budgets are p95 ≤ 100 ms for reads and ≤ 200 ms for mutations, excluding password hashing. At the end the table held 11,260 records and the database with its WAL 14.9 MiB; the benchmark process (server, database, and client together) peaked at 558 MiB RSS. On macOS, SQLite's `fsync` does not force a drive cache flush, so write timings there understate Linux.
+The issue's budgets are p95 ≤ 100 ms for reads and ≤ 200 ms for mutations, excluding password hashing. At the end the table held 11,260 records and the database with its WAL 15.2 MiB; the benchmark process (server, database, and client together) peaked at 514 MiB RSS. On macOS, SQLite's `fsync` does not force a drive cache flush, so write timings there understate Linux.

@@ -473,6 +473,28 @@ describe('provider registration', () => {
     assert.equal(fake.requests.filter((request) => request.path === '/google/token').length, 1);
   });
 
+  it('leaves the flow intact when the idempotency records are full, so the completion can be retried', async () => {
+    const full = await startAccountsApp({
+      oauth,
+      commandLimits: { maxRecords: 1 },
+      module: { googleEndpoints: fake.endpoints.google, githubEndpoints: fake.endpoints.github, now: () => clock },
+    });
+    try {
+      assert.equal((await full.post('/local-registrations', { username: 'Filler', password }, { idempotencyKey: randomUUID() })).status, 201);
+      const started = (await full.post('/oauth-registrations', { provider: 'google', username: 'Hanami', redirectUri })).body;
+      googleVouches(started.authorizationUrl, 'sub-full');
+      const body = { state: started.state, code: 'c' };
+      const refused = await full.post('/oauth-registrations/completion', body, { idempotencyKey: randomUUID() });
+      assert.equal(refused.status, 503);
+      assert.equal(refused.body.error.code, 'idempotency_capacity_reached');
+      assert.equal(await full.database.reader.oAuthFlow.count(), 1);
+      assert.equal(fake.requests.filter((request) => request.path === '/google/token').length, 0, 'the provider is not called');
+      assert.equal((await full.post('/oauth-registrations/completion', body)).status, 201);
+    } finally {
+      await full.stop();
+    }
+  });
+
   it('creates exactly one profile and one link when the same callback arrives concurrently', async () => {
     const started = (await start('google', 'Hanami')).body;
     googleVouches(started.authorizationUrl, 'sub-race');

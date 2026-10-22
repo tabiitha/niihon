@@ -46,7 +46,10 @@ export interface Commands {
 export interface CommandLimits {
   /** How long a committed command can be replayed; its key may then be used again. */
   readonly retentionMs: number;
-  /** Unexpired records kept at most; a further keyed command is refused until some expire. */
+  /**
+   * Unexpired records before a further keyed command is refused, until some expire. Commands that
+   * passed the check while others commit may exceed it by at most the requests running at once.
+   */
   readonly maxRecords: number;
   /** Largest stored response, in bytes of JSON. */
   readonly maxResponseBytes: number;
@@ -136,6 +139,20 @@ export function createCommands(options: CommandOptions): Commands {
                 request.res?.set(idempotentReplayedHeader, 'true');
                 return { status: stored.status, body: JSON.parse(stored.response) } as OperationResult<typeof operation>;
               }
+              // Checked before the handler runs, so a refusal leaves everything untouched, including work
+              // a domain does before its commit (such as consuming a single-use provider flow). Only
+              // unexpired records count: expired ones prove nothing and leave in batches. Commands
+              // already past this check may exceed the bound by at most the requests running at once.
+              const [{ records } = { records: 0 }] = await database.reader.$queryRaw<{ records: bigint | number }[]>`SELECT COUNT(*) AS "records" FROM "IdempotencyRecord" WHERE "expiresAt" > ${started}`;
+              if (Number(records) >= limits.maxRecords) {
+                throw new ApiError(
+                  503,
+                  errorCodes.idempotencyCapacityReached,
+                  'Too many recent commands are recorded; retry later or send the command without a key.',
+                  undefined,
+                  { 'Retry-After': '60' },
+                );
+              }
 
               let committed: { readonly body: unknown } | undefined;
               let commits = 0;
@@ -146,22 +163,11 @@ export function createCommands(options: CommandOptions): Commands {
                 }
                 return database.write(async (transaction) => {
                   const instant = now();
-                  // The table stays bounded without a timer: each keyed command drops a batch of expired
-                  // records, and this key's own record if it expired. Plain SQL: Prisma's findMany here
+                  // Each keyed command drops a batch of expired records, and this key's own record if it
+                  // expired, so expired records leave without a timer. Plain SQL: Prisma's findMany here
                   // costs milliseconds on a large table even when nothing has expired.
                   await transaction.$executeRaw`DELETE FROM "IdempotencyRecord" WHERE "key" IN (SELECT "key" FROM "IdempotencyRecord" WHERE "expiresAt" <= ${instant} AND "key" <> ${idempotencyKey} LIMIT ${limits.purgeBatch})`;
                   await transaction.idempotencyRecord.deleteMany({ where: { key: idempotencyKey, expiresAt: { lte: instant } } });
-                  // Only unexpired records count: expired ones are proof of nothing and leave in batches.
-                  const [{ records } = { records: 0 }] = await transaction.$queryRaw<{ records: bigint | number }[]>`SELECT COUNT(*) AS "records" FROM "IdempotencyRecord" WHERE "expiresAt" > ${instant}`;
-                  if (Number(records) >= limits.maxRecords) {
-                    throw new ApiError(
-                      503,
-                      errorCodes.idempotencyCapacityReached,
-                      'Too many recent commands are recorded; retry later or send the command without a key.',
-                      undefined,
-                      { 'Retry-After': '60' },
-                    );
-                  }
                   const body = await work(transaction);
                   const response = JSON.stringify(body);
                   if (Buffer.byteLength(response) > limits.maxResponseBytes) {

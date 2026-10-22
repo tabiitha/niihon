@@ -571,7 +571,7 @@ public enum Operations {
                     self.body = body
                 }
             }
-            /// Too many registrations are being processed; retry after `Retry-After` (`accounts_busy`). Too many recent keyed commands are recorded; retry after `Retry-After` (`idempotency_capacity_reached`).
+            /// Too many registrations are being processed; retry after `Retry-After` (`accounts_busy`). Too many recent keyed commands are recorded (`idempotency_capacity_reached`): nothing was done; space frees as records expire, and the command can be sent without a key.
             ///
             /// - Remark: Generated from `#/paths//api/accounts/local-registrations/post(registerLocalAccount)/responses/503`.
             ///
@@ -1816,7 +1816,7 @@ public enum Operations {
                     self.body = body
                 }
             }
-            /// Too many provider exchanges are running (`accounts_busy`, `Retry-After` set): the flow is untouched, retry the same completion. If instead the database stayed busy after the provider answered (`accounts_oauth_flow_consumed`, no `Retry-After`), nothing was created and the flow is used up: start a new registration. Too many recent keyed commands are recorded; retry after `Retry-After` (`idempotency_capacity_reached`).
+            /// Too many provider exchanges are running (`accounts_busy`, `Retry-After` set): the flow is untouched, retry the same completion. If instead the database stayed busy after the provider answered (`accounts_oauth_flow_consumed`, no `Retry-After`), nothing was created and the flow is used up: start a new registration. Too many recent keyed commands are recorded (`idempotency_capacity_reached`): nothing was done; space frees as records expire, and the command can be sent without a key.
             ///
             /// - Remark: Generated from `#/paths//api/accounts/oauth-registrations/completion/post(completeOAuthRegistration)/responses/503`.
             ///
