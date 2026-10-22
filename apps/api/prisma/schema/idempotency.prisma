@@ -1,0 +1,18 @@
+// Proof of the commands already committed under a client idempotency key (issue #70); see
+// docs/architecture/command-idempotency.md.
+
+/// The response of one committed command, stored in the same transaction as its effect. `key` is
+/// the client's `Idempotency-Key`, unique across callers; `fingerprint` is the HMAC-SHA256 of the
+/// operation and its validated input, so the input itself is never stored.
+model IdempotencyRecord {
+  key         String   @id
+  caller      String
+  operation   String
+  fingerprint String
+  status      Int
+  response    String
+  createdAt   DateTime
+  expiresAt   DateTime
+
+  @@index([expiresAt])
+}

@@ -1,5 +1,6 @@
 import type { Router } from 'express';
 
+import type { Commands } from '../commands/idempotency.ts';
 import type { OAuthSettings } from '../config.ts';
 import type { OperationContract } from '../contract/operation.ts';
 import type { Database } from '../database/database.ts';
@@ -9,6 +10,8 @@ import type { Logger } from '../log.ts';
 export interface ModuleContext {
   /** The installation database; modules read through `reader` and write through `write`. */
   readonly database: Database;
+  /** Adds idempotent commands, whose response is stored with their effect under the client's key. */
+  readonly commands: Commands;
   /** The server log; never pass it credentials or request bodies. */
   readonly logger: Logger;
   /** Provider credentials and return addresses configured for this installation. */

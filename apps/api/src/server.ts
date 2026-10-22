@@ -2,6 +2,8 @@ import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
 import { createApp } from './app.ts';
+import { loadCommandKey } from './commands/command-key.ts';
+import { createCommands } from './commands/idempotency.ts';
 import type { OAuthSettings } from './config.ts';
 import { openDatabase } from './database/database.ts';
 import type { MigrationOutcome } from './database/migrator.ts';
@@ -49,7 +51,9 @@ export interface RunningServer {
 export async function startServer(options: ServerOptions): Promise<RunningServer> {
   const lock = acquireInstanceLock(options.dataDir);
   let opened;
+  let commandKey;
   try {
+    commandKey = loadCommandKey(options.dataDir);
     opened = await openDatabase({
       dataDir: options.dataDir,
       ...(options.migrationsDir === undefined ? {} : { migrationsDir: options.migrationsDir }),
@@ -65,6 +69,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
       version: options.version,
       modules: options.modules,
       database,
+      commands: createCommands({ database, key: commandKey }),
       logger: options.logger,
       ...(options.oauth === undefined ? {} : { oauth: options.oauth }),
       isStopping: () => stopping,

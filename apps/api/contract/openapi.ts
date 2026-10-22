@@ -1,7 +1,17 @@
 import { OpenApiGeneratorV31, OpenAPIRegistry, type ResponseConfig } from '@asteasolutions/zod-to-openapi';
+import { z } from 'zod';
 
 import { coreOperations } from '../src/app.ts';
-import { apiMajorVersion, apiVersion, apiVersionHeader, errorResponseSchema, requestIdHeader } from '../src/contract/conventions.ts';
+import {
+  apiMajorVersion,
+  apiVersion,
+  apiVersionHeader,
+  errorResponseSchema,
+  idempotencyKeyHeader,
+  idempotencyKeySchema,
+  idempotentReplayedHeader,
+  requestIdHeader,
+} from '../src/contract/conventions.ts';
 import { defaultMaxBodyBytes, type OperationContract } from '../src/contract/operation.ts';
 import type { ApiModule } from '../src/modules/api-module.ts';
 
@@ -41,6 +51,7 @@ export function buildOpenApiDocument({ title, modules }: OpenApiDocumentOptions)
         request: {
           ...(operation.params === undefined ? {} : { params: operation.params }),
           ...(operation.query === undefined ? {} : { query: operation.query }),
+          ...(operation.idempotent === true ? { headers: z.object({ [idempotencyKeyHeader]: idempotencyKeySchema.optional() }) } : {}),
           ...(operation.body === undefined
             ? {}
             : { body: { required: true, content: { 'application/json': { schema: operation.body } } } }),
@@ -61,9 +72,32 @@ export function buildOpenApiDocument({ title, modules }: OpenApiDocumentOptions)
 function responsesOf(operation: OperationContract): Record<string, ResponseConfig> {
   const responses: Record<string, ResponseConfig> = {};
   for (const [status, response] of Object.entries(operation.responses)) {
-    responses[status] = { description: response.description, content: { 'application/json': { schema: response.schema } } };
+    responses[status] = {
+      description: response.description,
+      ...(operation.idempotent === true
+        ? {
+            headers: {
+              [idempotentReplayedHeader]: {
+                description: `\`true\` when this is the stored response of a command already committed under the same \`${idempotencyKeyHeader}\`; the effect was not repeated.`,
+                schema: { type: 'string', enum: ['true'] },
+              },
+            },
+          }
+        : {}),
+      content: { 'application/json': { schema: response.schema } },
+    };
   }
   const errors: Record<string, string> = { ...operation.errors };
+  if (operation.idempotent === true) {
+    const idempotencyErrors: Record<number, string> = {
+      409: `A request with the same \`${idempotencyKeyHeader}\` is still running; retry after \`Retry-After\` (\`idempotency_key_in_use\`).`,
+      422: `The \`${idempotencyKeyHeader}\` was already used by another caller, operation, or input (\`idempotency_key_reused\`); nothing was done.`,
+      503: `Too many recent keyed commands are recorded; retry after \`Retry-After\` (\`idempotency_capacity_reached\`).`,
+    };
+    for (const [status, meaning] of Object.entries(idempotencyErrors)) {
+      errors[Number(status)] = errors[Number(status)] === undefined ? meaning : `${errors[Number(status)]} ${meaning}`;
+    }
+  }
   if (operation.body !== undefined) {
     errors[413] ??= `Body larger than ${String(operation.maxBodyBytes ?? defaultMaxBodyBytes)} bytes (\`payload_too_large\`).`;
     errors[415] ??= 'Body that is not `application/json` (`unsupported_media_type`).';

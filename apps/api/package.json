@@ -18,7 +18,8 @@
     "db:generate": "CHECKPOINT_DISABLE=1 PRISMA_HIDE_UPDATE_MESSAGE=1 prisma generate --no-hints",
     "db:migration": "node prisma/create-migration.ts",
     "bench:persistence": "bun run db:generate && node bench/persistence.ts",
-    "bench:accounts": "bun run db:generate && node bench/accounts.ts"
+    "bench:accounts": "bun run db:generate && node bench/accounts.ts",
+    "bench:idempotency": "bun run db:generate && node bench/idempotency.ts"
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "7.10.1",

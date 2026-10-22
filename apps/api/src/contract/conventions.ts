@@ -9,6 +9,10 @@ export const apiMajorVersion = 1;
 
 export const apiVersionHeader = 'Nihon-API-Version';
 export const requestIdHeader = 'Nihon-Request-Id';
+/** Optional client key that makes a command safe to retry; see docs/architecture/command-idempotency.md. */
+export const idempotencyKeyHeader = 'Idempotency-Key';
+/** Set to `true` on the stored response of a command replayed under its idempotency key. */
+export const idempotentReplayedHeader = 'Idempotent-Replayed';
 
 /** Stable error codes owned by the server foundation. Modules add their own, prefixed by their identifier. */
 export const errorCodes = {
@@ -21,6 +25,9 @@ export const errorCodes = {
   internalError: 'internal_error',
   stopping: 'stopping',
   databaseBusy: 'database_busy',
+  idempotencyKeyInUse: 'idempotency_key_in_use',
+  idempotencyKeyReused: 'idempotency_key_reused',
+  idempotencyCapacityReached: 'idempotency_capacity_reached',
 } as const;
 
 export const errorResponseSchema = z
@@ -54,6 +61,16 @@ export const identifierSchema = z
   .string()
   .regex(/^[A-Za-z0-9_-]{1,64}$/)
   .meta({ description: 'Opaque identifier of 1 to 64 characters `A-Z a-z 0-9 _ -`.' });
+
+/** Client-chosen key of one command, such as a UUID: 16 to 64 characters `A-Z a-z 0-9 _ -`. */
+export const idempotencyKeySchema = z
+  .string()
+  .regex(/^[A-Za-z0-9_-]{16,64}$/)
+  .meta({
+    description:
+      'Key chosen by the client for one command, such as a random UUID, sent unquoted: 16 to 64 characters `A-Z a-z 0-9 _ -`. Retrying with the same key and the same input returns the confirmed response without repeating the effect; a key is never reused for another command.',
+    examples: ['9b2f4c1e-7d3a-4e8b-a6f0-2c5d8e1b3a77'],
+  });
 
 export const defaultPageLimit = 50;
 export const maxPageLimit = 100;
