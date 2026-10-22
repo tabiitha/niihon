@@ -71,8 +71,11 @@ Clients branch on `code`, never on `message`, which is an English explanation fo
 | `idempotency_key_in_use` | 409 | Another request with the same `Idempotency-Key` is still running; `Retry-After: 1` is set |
 | `idempotency_key_reused` | 422 | The `Idempotency-Key` was already used by another caller, operation, or input; nothing was done |
 | `idempotency_capacity_reached` | 503 | Too many recent keyed commands are recorded; `Retry-After: 60` is set, nothing was done |
+| `authentication_required` | 401 | The operation needs a signed-in session and the request has none valid (never signed in, signed out, or expired); `WWW-Authenticate: Bearer` is set. See [sessions](sessions.md) |
 
-Module codes start with the module identifier, such as `example_item_not_found`. Each operation documents its specific error statuses in `errors`; the generator adds `400` to every operation that is versioned or takes parameters or a body, `413` and `415` to every operation with a body, `409`, `422`, and `503` to every [command](command-idempotency.md), and a `default` error response to all of them.
+Module codes start with the module identifier, such as `example_item_not_found`. Each operation documents its specific error statuses in `errors`; the generator adds `400` to every operation that is versioned or takes parameters or a body, `413` and `415` to every operation with a body, `409`, `422`, and `503` to every [command](command-idempotency.md), `401` to every operation declared `authenticated: true`, and a `default` error response to all of them.
+
+An operation declared `authenticated: true` requires a [session](sessions.md); the contract lists the `sessionCookie` (`nihon_session` cookie, Web) and `sessionToken` (`Authorization: Bearer`, native clients) security schemes on it. A success response declared without a `schema`, such as the `204` of `signOut`, has no body.
 
 ### Request Correlation
 
@@ -97,7 +100,7 @@ A read that is no longer needed is cancelled by the client: pass an `AbortSignal
 
 ## Versioning and Compatibility
 
-The contract is at version 1.2.0 (account registration added to 1.0.0 in 1.1.0, idempotency keys on commands in 1.2.0). The contract version is `info.version` in `contracts/openapi.json` (`apiVersion` in `apps/api/src/contract/conventions.ts`). Generated clients send its major part in a `Nihon-API-Version` header on every request.
+The contract is at version 1.3.0 (account registration added to 1.0.0 in 1.1.0, idempotency keys on commands in 1.2.0, sign-in and sessions in 1.3.0). The contract version is `info.version` in `contracts/openapi.json` (`apiVersion` in `apps/api/src/contract/conventions.ts`). Generated clients send its major part in a `Nihon-API-Version` header on every request.
 
 | Request | Server answer |
 | --- | --- |
@@ -154,7 +157,7 @@ CI runs the TypeScript tests and the drift check without Swift on Linux, macOS, 
 
 ## Authentication Extension Points
 
-Sign-in and sessions are not implemented here; [#233](https://github.com/tabiitha/niihon/issues/233), a part of #75, added registration (the [accounts module](accounts.md)); #76, #77, and #79 extend this contract with their own operations. They follow these rules so that React and SwiftUI behave the same way:
+[#233](https://github.com/tabiitha/niihon/issues/233), a part of #75, added registration (the [accounts module](accounts.md)) and [#269](https://github.com/tabiitha/niihon/issues/269), a part of #76, sign-in and sessions ([sessions](sessions.md)); #77 and #79 extend this contract with their own operations. They follow these rules so that React and SwiftUI behave the same way:
 
 - **Three separate resources.** The sign-in session (Nihon's opaque session), a linked external identity (Google or GitHub), and the permission to use an AI provider (ChatGPT) are distinct resources with distinct operations and states. Connecting AI never changes the active profile or adds a sign-in method.
 - **Provider identifiers** are stable `snake_case` strings (`google`, `github`, `chatgpt`), documented per operation as plain strings rather than response enumerations, for the compatibility reason above.

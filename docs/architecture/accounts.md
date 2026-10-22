@@ -1,6 +1,6 @@
 # Account Registration
 
-The `accounts` module registers one local Nihon profile, either from a username and password or from a verified Google or GitHub identity. It is delivered by [issue #233](https://github.com/tabiitha/niihon/issues/233), the backend part of [#75](https://github.com/tabiitha/niihon/issues/75). Sign-in and sessions ([#76](https://github.com/tabiitha/niihon/issues/76), which reuses the provider adapters described here), the screens ([#234](https://github.com/tabiitha/niihon/issues/234), [#235](https://github.com/tabiitha/niihon/issues/235)), adding a local password to a provider profile ([#79](https://github.com/tabiitha/niihon/issues/79)), and the avatar ([#78](https://github.com/tabiitha/niihon/issues/78)) are separate. Registration opens no session. The module follows the [API server](api-server.md#modules) and [REST contract](api-contract.md) conventions.
+The `accounts` module registers one local Nihon profile, either from a username and password or from a verified Google or GitHub identity. It is delivered by [issue #233](https://github.com/tabiitha/niihon/issues/233), the backend part of [#75](https://github.com/tabiitha/niihon/issues/75). Sign-in and sessions ([sessions](sessions.md), [#269](https://github.com/tabiitha/niihon/issues/269) for [#76](https://github.com/tabiitha/niihon/issues/76), which reuses the provider adapters described here), the screens ([#234](https://github.com/tabiitha/niihon/issues/234), [#235](https://github.com/tabiitha/niihon/issues/235)), adding a local password to a provider profile ([#79](https://github.com/tabiitha/niihon/issues/79)), and the avatar ([#78](https://github.com/tabiitha/niihon/issues/78)) are separate. Registration opens no session. The module follows the [API server](api-server.md#modules) and [REST contract](api-contract.md) conventions.
 
 ## Rules
 
@@ -78,9 +78,11 @@ Prisma models in `apps/api/prisma/schema/accounts.prisma`, migration `2026102104
 | `ExternalIdentity` | `profileId`, `provider`, `issuer`, `subject`, unique on the three together |
 | `OAuthFlow` | Pending provider flows: `stateHash` (unique), `provider`, PKCE verifier, `nonce`, `redirectUri`, requested `username`, `expiresAt` |
 
+The same file holds `OAuthSignInFlow`, the pending provider sign-ins; sessions are in `sessions.prisma`. Both are described in [sessions](sessions.md#data).
+
 ## Password Hashing
 
-Argon2id through `node:crypto` (`crypto.argon2`, Node.js 24.7 or newer), so no dependency was added. Parameters: 64 MiB, 3 passes, 1 lane, 16-byte random salt, 32-byte tag, above the OWASP minimum (19 MiB, 2 passes, 1 lane). The hash is a PHC string (`$argon2id$v=19$m=65536,t=3,p=1$<salt>$<tag>`) that carries its own parameters, so raising them later does not invalidate existing passwords; `verifyPassword` (for #76) reads them from the string and refuses hashes asking for more than 256 MiB or 10 passes. Hashing runs on the libuv thread pool, not the event loop. At most 2 hashes run at once and 16 wait (`503 accounts_busy` beyond), bounding hashing memory to 128 MiB. The password is normalized with NFKC before hashing.
+Argon2id through `node:crypto` (`crypto.argon2`, Node.js 24.7 or newer), so no dependency was added. Parameters: 64 MiB, 3 passes, 1 lane, 16-byte random salt, 32-byte tag, above the OWASP minimum (19 MiB, 2 passes, 1 lane). The hash is a PHC string (`$argon2id$v=19$m=65536,t=3,p=1$<salt>$<tag>`) that carries its own parameters, so raising them later does not invalidate existing passwords; `verifyPassword` (used by [sign-in](sessions.md)) reads them from the string and refuses hashes asking for more than 256 MiB or 10 passes. Hashing runs on the libuv thread pool, not the event loop. At most 2 hashes run at once and 16 wait (`503 accounts_busy` beyond), bounding hashing memory to 128 MiB. The password is normalized with NFKC before hashing.
 
 ## Performance
 
