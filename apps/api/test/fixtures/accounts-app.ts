@@ -15,7 +15,7 @@ export interface AccountsApp {
   readonly database: Database;
   /** Every log line the server wrote. */
   readonly logs: string[];
-  post(path: string, body: unknown, init?: { contentType?: string; raw?: string }): Promise<{ status: number; body: any; headers: Headers }>;
+  post(path: string, body: unknown, init?: { contentType?: string; raw?: string; idempotencyKey?: string }): Promise<{ status: number; body: any; headers: Headers }>;
   get(path: string): Promise<{ status: number; body: any; headers: Headers }>;
   stop(): Promise<void>;
 }
@@ -50,8 +50,12 @@ export async function startAccountsApp(
     baseUrl,
     database,
     logs,
-    post: (path, body, { contentType = 'application/json', raw } = {}) =>
-      call(path, { method: 'POST', headers: { 'content-type': contentType }, body: raw ?? JSON.stringify(body) }),
+    post: (path, body, { contentType = 'application/json', raw, idempotencyKey } = {}) =>
+      call(path, {
+        method: 'POST',
+        headers: { 'content-type': contentType, ...(idempotencyKey === undefined ? {} : { 'idempotency-key': idempotencyKey }) },
+        body: raw ?? JSON.stringify(body),
+      }),
     get: (path) => call(path, {}),
     async stop() {
       await new Promise<void>((resolve) => server.close(() => resolve()));

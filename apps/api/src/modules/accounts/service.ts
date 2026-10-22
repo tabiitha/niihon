@@ -2,6 +2,7 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 
 import { errorCodes } from '../../contract/conventions.ts';
 import { ApiError } from '../../contract/operation.ts';
+import type { Commit } from '../../commands/idempotency.ts';
 import type { Database, TransactionClient } from '../../database/database.ts';
 import { DatabaseBusyError, DatabaseClosedError } from '../../database/write-gate.ts';
 import type { Logger } from '../../log.ts';
@@ -82,14 +83,6 @@ export function createAccountsService(options: AccountsServiceOptions) {
   const usernameIsTaken = async (key: string): Promise<boolean> =>
     (await database.reader.profile.findUnique({ where: { usernameKey: key }, select: { id: true } })) !== null;
 
-  const toView = (profile: { id: string; username: string; role: string; createdAt: Date }, registeredWith: string): ProfileView => ({
-    id: profile.id,
-    username: profile.username,
-    role: profile.role,
-    registeredWith,
-    createdAt: profile.createdAt.toISOString(),
-  });
-
   const bounded = async <T>(limiter: Limiter, work: () => Promise<T>): Promise<T> => {
     try {
       return await limiter.run(work);
@@ -106,7 +99,8 @@ export function createAccountsService(options: AccountsServiceOptions) {
       return [...providers.keys()].sort();
     },
 
-    async registerLocal(input: { username: string; password: string }): Promise<ProfileView> {
+    /** `commit` carries the creation; under an idempotency key it stores the returned profile with it. */
+    async registerLocal(input: { username: string; password: string }, commit: Commit): Promise<ProfileView> {
       const username = readUsername(input.username);
       const passwordProblem = checkPassword(input.password, username.key);
       if (passwordProblem !== undefined) {
@@ -117,9 +111,9 @@ export function createAccountsService(options: AccountsServiceOptions) {
         throw usernameTaken();
       }
       const passwordHash = await bounded(hashLimiter, () => hashPassword(input.password));
-      const profile = await writeProfile(database, username, { kind: 'local', passwordHash }, now());
+      const profile = await writeProfile(commit, username, { kind: 'local', passwordHash }, now());
       logger('info', 'account.registered', { profileId: profile.id, method: localRegistration });
-      return toView(profile, localRegistration);
+      return profile;
     },
 
     async startOAuth(input: { provider: string; username: string; redirectUri: string }) {
@@ -170,7 +164,7 @@ export function createAccountsService(options: AccountsServiceOptions) {
       };
     },
 
-    async completeOAuth(input: { state: string; code: string }): Promise<ProfileView> {
+    async completeOAuth(input: { state: string; code: string }, commit: Commit): Promise<ProfileView> {
       // A slot is taken before the flow is consumed, so a refusal for lack of capacity leaves the
       // flow intact and the client can retry. Once consumed, the flow is gone whatever happens next:
       // a replayed or concurrent completion finds nothing, and a refused code needs a new flow.
@@ -213,7 +207,7 @@ export function createAccountsService(options: AccountsServiceOptions) {
       const username = readUsername(requestedUsername);
       let profile;
       try {
-        profile = await writeProfile(database, username, { kind: 'provider', identity }, now());
+        profile = await writeProfile(commit, username, { kind: 'provider', identity }, now());
       } catch (error) {
         if (error instanceof DatabaseBusyError || error instanceof DatabaseClosedError) {
           // Nothing was created, but the flow and the provider's single-use code are spent.
@@ -222,7 +216,7 @@ export function createAccountsService(options: AccountsServiceOptions) {
         throw error;
       }
       logger('info', 'account.registered', { profileId: profile.id, method: identity.provider });
-      return toView(profile, identity.provider);
+      return profile;
     },
   };
 }
@@ -233,10 +227,14 @@ type Credential =
   | { readonly kind: 'local'; readonly passwordHash: string }
   | { readonly kind: 'provider'; readonly identity: { readonly provider: string; readonly issuer: string; readonly subject: string } };
 
-/** Creates the profile and its sign-in method atomically; a refusal rolls everything back. */
-async function writeProfile(database: Database, username: NormalizedUsername, credential: Credential, created: Date) {
+/**
+ * Creates the profile and its sign-in method atomically, through the command's `commit`; a refusal
+ * rolls everything back. Returns the view built inside the transaction, which is what an
+ * idempotent command stores as its response.
+ */
+async function writeProfile(commit: Commit, username: NormalizedUsername, credential: Credential, created: Date): Promise<ProfileView> {
   try {
-    return await database.write(async (transaction: TransactionClient) => {
+    return await commit(async (transaction: TransactionClient) => {
       if (
         (await transaction.profile.findUnique({ where: { usernameKey: username.key }, select: { id: true } })) !== null
       ) {
@@ -252,7 +250,7 @@ async function writeProfile(database: Database, username: NormalizedUsername, cr
           throw new Refusal(accountsErrorCodes.identityAlreadyRegistered);
         }
       }
-      return await transaction.profile.create({
+      const profile = await transaction.profile.create({
         data: {
           id: randomUUID(),
           username: username.username,
@@ -264,6 +262,13 @@ async function writeProfile(database: Database, username: NormalizedUsername, cr
             : { externalIdentities: { create: { id: randomUUID(), ...credential.identity, createdAt: created } } }),
         },
       });
+      return {
+        id: profile.id,
+        username: profile.username,
+        role: profile.role,
+        registeredWith: credential.kind === 'local' ? localRegistration : credential.identity.provider,
+        createdAt: profile.createdAt.toISOString(),
+      };
     });
   } catch (error) {
     if (error instanceof Refusal) {

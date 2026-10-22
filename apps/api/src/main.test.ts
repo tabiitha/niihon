@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, it } from 'node:test';
 
 import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
 
+import { commandKeyFileName } from './commands/command-key.ts';
 import { apiVersion } from './contract/conventions.ts';
 import { databaseFileName } from './database/database.ts';
 import { migrationsTable } from './database/migrator.ts';
@@ -161,6 +162,29 @@ describe('server process', () => {
     const restarted = launch(dataDir);
     await health(await restarted.waitFor('server.listening'));
     assert.ok(!restarted.events.some((event) => event.event === 'database.migrated'));
+  });
+
+  it('replays a registration committed before a crash with the same key after restart, and keeps the command key file', async () => {
+    const register = (listening: LogEvent) =>
+      fetch(`http://127.0.0.1:${String(listening['port'])}/api/accounts/local-registrations`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'idempotency-key': 'restart-key-0123456789' },
+        body: JSON.stringify({ username: 'Restarted', password: 'correct horse battery' }),
+      });
+    const crashed = launch(dataDir);
+    const first = await register(await crashed.waitFor('server.listening'));
+    assert.equal(first.status, 201);
+    const created = await first.json();
+    const key = readFileSync(join(dataDir, commandKeyFileName));
+    crashed.child.kill('SIGKILL');
+    await crashed.exited;
+
+    const restarted = launch(dataDir);
+    const retried = await register(await restarted.waitFor('server.listening'));
+    assert.equal(retried.status, 201);
+    assert.equal(retried.headers.get('idempotent-replayed'), 'true');
+    assert.deepEqual(await retried.json(), created);
+    assert.deepEqual(readFileSync(join(dataDir, commandKeyFileName)), key);
   });
 
   it('exits with code 4 when a newer release migrated the database, leaving it untouched', async () => {

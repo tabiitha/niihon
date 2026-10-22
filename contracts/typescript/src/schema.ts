@@ -29,7 +29,7 @@ export interface paths {
         put?: never;
         /**
          * Register a local account with a username and password
-         * @description Works offline. Creates the profile and its credential together or not at all. No session is opened.
+         * @description Works offline. Creates the profile and its credential together or not at all. No session is opened. With an `Idempotency-Key`, a retry after the profile was created returns the same profile instead of `accounts_username_taken`.
          */
         post: operations["registerLocalAccount"];
         delete?: never;
@@ -86,7 +86,7 @@ export interface paths {
         put?: never;
         /**
          * Complete a provider registration with the returned code
-         * @description Verifies the code and identity with the provider, then creates the profile and its provider link together or not at all. The flow is consumed by the first attempt that obtains an exchange slot and the database write turn, successful or not: a replayed or concurrent completion creates nothing, while a `503` refusal for lack of capacity leaves the flow intact. An email address is neither required nor read, and profiles are never merged by email.
+         * @description Verifies the code and identity with the provider, then creates the profile and its provider link together or not at all. The flow is consumed by the first attempt that obtains an exchange slot and the database write turn, successful or not: a replayed or concurrent completion creates nothing, while a `503` refusal for lack of capacity leaves the flow intact. An email address is neither required nor read, and profiles are never merged by email. With an `Idempotency-Key`, a retry after the profile was created returns the same profile instead of `accounts_oauth_state_invalid`, without calling the provider again.
          */
         post: operations["completeOAuthRegistration"];
         delete?: never;
@@ -247,7 +247,10 @@ export interface operations {
     registerLocalAccount: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Key chosen by the client for one command, such as a random UUID, sent unquoted: 16 to 64 characters `A-Z a-z 0-9 _ -`. Retrying with the same key and the same input returns the confirmed response without repeating the effect; a key is never reused for another command. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -260,6 +263,8 @@ export interface operations {
             /** @description The profile was created. */
             201: {
                 headers: {
+                    /** @description `true` when this is the stored response of a command already committed under the same `Idempotency-Key`; the effect was not repeated. */
+                    "Idempotent-Replayed"?: "true";
                     [name: string]: unknown;
                 };
                 content: {
@@ -275,7 +280,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description The normalized username is already used (`accounts_username_taken`). */
+            /** @description The normalized username is already used (`accounts_username_taken`). A request with the same `Idempotency-Key` is still running; retry after `Retry-After` (`idempotency_key_in_use`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -302,7 +307,16 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Too many registrations are being processed; retry after `Retry-After` (`accounts_busy`). */
+            /** @description The `Idempotency-Key` was already used by another caller, operation, or input (`idempotency_key_reused`); nothing was done. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too many registrations are being processed; retry after `Retry-After` (`accounts_busy`). Too many recent keyed commands are recorded; retry after `Retry-After` (`idempotency_capacity_reached`). */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -450,7 +464,10 @@ export interface operations {
     completeOAuthRegistration: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Key chosen by the client for one command, such as a random UUID, sent unquoted: 16 to 64 characters `A-Z a-z 0-9 _ -`. Retrying with the same key and the same input returns the confirmed response without repeating the effect; a key is never reused for another command. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -463,6 +480,8 @@ export interface operations {
             /** @description The profile and its provider link were created. */
             201: {
                 headers: {
+                    /** @description `true` when this is the stored response of a command already committed under the same `Idempotency-Key`; the effect was not repeated. */
+                    "Idempotent-Replayed"?: "true";
                     [name: string]: unknown;
                 };
                 content: {
@@ -478,7 +497,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description The username was taken meanwhile (`accounts_username_taken`), or this provider identity already has a profile (`accounts_identity_already_registered`). */
+            /** @description The username was taken meanwhile (`accounts_username_taken`), or this provider identity already has a profile (`accounts_identity_already_registered`). A request with the same `Idempotency-Key` is still running; retry after `Retry-After` (`idempotency_key_in_use`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -505,7 +524,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description The flow was started for a provider this installation no longer has configured (`accounts_oauth_provider_unavailable`); the flow is consumed. */
+            /** @description The flow was started for a provider this installation no longer has configured (`accounts_oauth_provider_unavailable`); the flow is consumed. The `Idempotency-Key` was already used by another caller, operation, or input (`idempotency_key_reused`); nothing was done. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -523,7 +542,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Too many provider exchanges are running (`accounts_busy`, `Retry-After` set): the flow is untouched, retry the same completion. If instead the database stayed busy after the provider answered (`accounts_oauth_flow_consumed`, no `Retry-After`), nothing was created and the flow is used up: start a new registration. */
+            /** @description Too many provider exchanges are running (`accounts_busy`, `Retry-After` set): the flow is untouched, retry the same completion. If instead the database stayed busy after the provider answered (`accounts_oauth_flow_consumed`, no `Retry-After`), nothing was created and the flow is used up: start a new registration. Too many recent keyed commands are recorded; retry after `Retry-After` (`idempotency_capacity_reached`). */
             503: {
                 headers: {
                     [name: string]: unknown;

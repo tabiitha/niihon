@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createHash, type JsonWebKey } from 'node:crypto';
+import { createHash, randomUUID, type JsonWebKey } from 'node:crypto';
 import { after, afterEach, before, beforeEach, describe, it } from 'node:test';
 
 import { startAccountsApp, type AccountsApp } from '../../../test/fixtures/accounts-app.ts';
@@ -152,6 +152,31 @@ describe('local registration', () => {
     assert.ok(!everything.includes(secret));
     assert.ok(!everything.includes(hash));
     assert.ok(!everything.includes('argon2id'));
+  });
+
+  it('returns the same profile to a registration retried with its idempotency key, and refuses the key for other credentials', async () => {
+    const idempotencyKey = randomUUID();
+    const created = await app.post('/local-registrations', { username: 'Retry', password }, { idempotencyKey });
+    assert.equal(created.status, 201);
+    const retried = await app.post('/local-registrations', { username: 'Retry', password }, { idempotencyKey });
+    assert.equal(retried.status, 201);
+    assert.deepEqual(retried.body, created.body);
+    assert.equal(retried.headers.get('idempotent-replayed'), 'true');
+    assert.equal(retried.headers.get('cache-control'), 'no-store');
+
+    const otherPassword = await app.post('/local-registrations', { username: 'Retry', password: `${password}!` }, { idempotencyKey });
+    assert.equal(otherPassword.status, 422);
+    assert.equal(otherPassword.body.error.code, 'idempotency_key_reused');
+    // Without the key, the retry is a new registration and the username is taken.
+    assert.equal((await app.post('/local-registrations', { username: 'Retry', password })).body.error.code, 'accounts_username_taken');
+    assert.equal(await profiles(), 1);
+
+    // The stored proof holds neither the password nor its hash.
+    const record = await app.database.reader.idempotencyRecord.findFirstOrThrow();
+    const hash = (await app.database.reader.localCredential.findFirstOrThrow()).passwordHash;
+    assert.ok(!JSON.stringify(record).includes(password));
+    assert.ok(!JSON.stringify(record).includes(hash));
+    assert.match(record.fingerprint, /^[0-9a-f]{64}$/);
   });
 
   it('leaves no partial account when the credential cannot be written', async () => {
@@ -430,6 +455,22 @@ describe('provider registration', () => {
     assert.equal(replay.body.error.code, 'accounts_oauth_state_invalid');
     assert.deepEqual(await count(), { profiles: 1, identities: 1, flows: 0 });
     assert.equal(fake.requests.filter((request) => request.path === '/google/token').length, 1, 'the provider is not called again');
+  });
+
+  it('returns the same profile to a completion retried with its idempotency key, without calling the provider again', async () => {
+    const started = (await start('google', 'Hanami')).body;
+    googleVouches(started.authorizationUrl, 'sub-retry');
+    const body = { state: started.state, code: 'c' };
+    const idempotencyKey = randomUUID();
+    const created = await app.post('/oauth-registrations/completion', body, { idempotencyKey });
+    assert.equal(created.status, 201);
+    const retried = await app.post('/oauth-registrations/completion', body, { idempotencyKey });
+    assert.equal(retried.status, 201);
+    assert.deepEqual(retried.body, created.body);
+    assert.equal(retried.headers.get('idempotent-replayed'), 'true');
+    assert.equal((await app.post('/oauth-registrations/completion', { ...body, code: 'd' }, { idempotencyKey })).status, 422);
+    assert.deepEqual(await count(), { profiles: 1, identities: 1, flows: 0 });
+    assert.equal(fake.requests.filter((request) => request.path === '/google/token').length, 1);
   });
 
   it('creates exactly one profile and one link when the same callback arrives concurrently', async () => {
