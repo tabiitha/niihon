@@ -1,6 +1,6 @@
 # Persistence
 
-Nihon keeps all its data in one SQLite database per installation. Only the Express.js/TypeScript server opens it, through Prisma; the Web and macOS clients use the HTTP/JSON API and never read the file, and no auxiliary tool is part of the data path. This page describes the foundation delivered by [issue #3](https://github.com/tabiitha/niihon/issues/3): storage, connections, migrations, and snapshots. Each domain adds its own models and migrations in its own issue; the first, `accounts` ([#233](https://github.com/tabiitha/niihon/issues/233)), is described in [accounts](accounts.md#data).
+Nihon keeps all its data in one SQLite database per installation. Only the Express.js/TypeScript server opens it, through Prisma; the Web and macOS clients use the HTTP/JSON API and never read the file, and no auxiliary tool is part of the data path. This page describes the foundation delivered by [issue #3](https://github.com/tabiitha/niihon/issues/3): storage, connections, migrations, and snapshots. Each domain adds its own models and migrations in its own issue; the first, `accounts` ([#233](https://github.com/tabiitha/niihon/issues/233)), is described in [accounts](accounts.md#data). The records of committed idempotent commands ([#70](https://github.com/tabiitha/niihon/issues/70)) are described in [command idempotency](command-idempotency.md#fingerprint-and-key-file).
 
 ## Storage
 
@@ -9,6 +9,7 @@ Nihon keeps all its data in one SQLite database per installation. Only the Expre
 | Database | `<NIHON_DATA_DIR>/nihon.db`, with its `nihon.db-wal` and `nihon.db-shm` companions while the server runs |
 | Migration snapshots | `<NIHON_DATA_DIR>/snapshots/nihon-<UTC timestamp>-<schema version>.db` |
 | Instance lock | `<NIHON_DATA_DIR>/nihon-instance.lock`, see the [API server](api-server.md#single-instance-per-data-directory) |
+| Command key | `<NIHON_DATA_DIR>/nihon-command.key`, the secret keying the fingerprints of idempotent commands, see [command idempotency](command-idempotency.md#fingerprint-and-key-file) |
 
 In Docker, `NIHON_DATA_DIR` is `/data`, a named volume mounted into the API container. There is no separate database container: SQLite is a library inside the server process.
 
@@ -16,7 +17,7 @@ In Docker, `NIHON_DATA_DIR` is `/data`, a named volume mounted into the API cont
 | --- | --- |
 | Volume | `nihon-data` in `compose.yaml`; Docker names it `nihon_nihon-data` because the Compose project is `nihon` |
 | Owner | The image's `node` user (uid 1000), which runs the server |
-| Modes | The database, its WAL files, and the snapshots are `600`, and `snapshots/` is `700`: only the server's user can read them. `/data` is `700` in volumes created by this image; Docker copies the image's mode only into an empty volume, so a volume created by an earlier image keeps `755` |
+| Modes | The database, its WAL files, the snapshots, and the command key are `600`, and `snapshots/` is `700`: only the server's user can read them. `/data` is `700` in volumes created by this image; Docker copies the image's mode only into an empty volume, so a volume created by an earlier image keeps `755` |
 | Creation | On the first `docker compose up`; the server creates `nihon.db` and applies the migrations before it listens |
 | Upgrade | `docker compose up --build` replaces the container and keeps the volume; the new server migrates the database on start |
 | Retention | `docker compose stop`, `down`, container re-creation, and image upgrades keep the volume. Only `docker compose down --volumes` or `docker volume rm nihon_nihon-data` delete it |

@@ -12,7 +12,7 @@ The Nihon API is an Express.js/TypeScript REST server running on Node.js. It is 
 | `resources/themes/` | Theme tokens shared by the clients |
 | `apps/api/contract/` | OpenAPI document builder and client generation ([REST contract](api-contract.md)) |
 | `apps/api/prisma/`, `apps/api/prisma.config.ts` | Prisma schema and versioned SQL migrations ([persistence](persistence.md)) |
-| `apps/api/bench/` | Persistence measurement script |
+| `apps/api/bench/` | Measurement scripts (persistence, accounts, command idempotency) |
 | `contracts/` | Published OpenAPI contract, generated TypeScript and Swift clients, conformance fixtures |
 | `compose.yaml`, `.dockerignore` | Docker Compose service built from source; build-context allowlist |
 | `.github/workflows/api.yml` | Application CI |
@@ -31,6 +31,7 @@ Only what is needed exists. `packaging/macos` is created by the issue that first
 | `src/web.ts` | Serves the built Web interface outside `/api` | HTTP, file system |
 | `src/instance-lock.ts` | Exclusive ownership of the data directory | File system |
 | `src/database/` | Migrations, snapshots, and the reader and writer Prisma clients ([persistence](persistence.md)) | SQLite, file system |
+| `src/commands/` | Idempotent commands: replay of a committed command under the client's key, and the installation's command key ([command idempotency](command-idempotency.md)) | SQLite, file system |
 | `src/server.ts` | Claims the directory, migrates and opens the database, listens, stops gracefully | Network, file system |
 | `src/main.ts` | Process entry: configuration errors, signals, exit codes | Process |
 
@@ -50,7 +51,7 @@ export interface ApiModule {
 
 To add a module, create its folder and add one entry to `src/modules/registry.ts`. Each route is declared as an operation and added with `addOperation`, as described in the [REST contract](api-contract.md#single-source); then run `bun run contract:generate`. Modules interact only through what another module exports. The registry holds the [accounts](accounts.md) module.
 
-`context.database` gives the module the installation database: `database.reader` for reads and `database.write(...)` for write transactions. A module keeps its Prisma models in `apps/api/prisma/schema/<id>.prisma` and adds its migrations with `bun run db:migration`; see [persistence](persistence.md).
+`context.database` gives the module the installation database: `database.reader` for reads and `database.write(...)` for write transactions. `context.commands.add(router, operation)` adds a command that a client can retry safely with an `Idempotency-Key`; see [command idempotency](command-idempotency.md#writing-a-command). A module keeps its Prisma models in `apps/api/prisma/schema/<id>.prisma` and adds its migrations with `bun run db:migration`; see [persistence](persistence.md).
 
 `NIHON_MODULES` selects the enabled modules. When it is unset, every registered module is enabled; when it is set, only the listed identifiers are (an empty value enables none). An identifier that no module carries stops startup with exit code 2. A disabled module's router is never mounted, so every path under `/api/<id>/` answers 404, exactly as if the module did not exist.
 
@@ -71,7 +72,7 @@ Every response carries a `Nihon-Request-Id` header. Error codes, versioning, pag
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `NIHON_DATA_DIR` | required | Data directory, created if missing; relative paths resolve from the working directory. It holds the database `nihon.db` ([persistence](persistence.md#storage)) |
+| `NIHON_DATA_DIR` | required | Data directory, created if missing; relative paths resolve from the working directory. It holds the database `nihon.db` ([persistence](persistence.md#storage)) and the command key `nihon-command.key` ([command idempotency](command-idempotency.md#fingerprint-and-key-file)) |
 | `NIHON_HOST` | `127.0.0.1` | Listening interface. The image sets `0.0.0.0` inside the container; the host publishes the port on `127.0.0.1` only |
 | `NIHON_PORT` | `4000` | Listening port; `0` picks a free port |
 | `NIHON_MODULES` | unset | Comma-separated module identifiers, see [Modules](#modules) |
@@ -85,7 +86,7 @@ Every response carries a `Nihon-Request-Id` header. Error codes, versioning, pag
 
 The server writes one JSON object per line on standard output (`server.listening`, `server.stopping`, `server.stopped`, `instance.refused`, `config.invalid`, `database.migrated`, `database.incompatible`, `database.migration_failed`, `request.failed`).
 
-On start, the server validates its configuration, claims the data directory, migrates and opens the database, then listens; `server.listening` reports the `schemaVersion`. `/api/health` therefore never answers before the schema is current.
+On start, the server validates its configuration, claims the data directory, reads or creates the command key, migrates and opens the database, then listens; `server.listening` reports the `schemaVersion`. `/api/health` therefore never answers before the schema is current.
 
 | Exit code | Meaning |
 | --- | --- |
@@ -111,6 +112,7 @@ Before listening, the server opens `nihon-instance.lock` in the data directory w
 | Request bodies | Not parsed globally: unread bodies are never buffered. An operation that declares a `body` gets a JSON parser limited to 16 KiB unless it sets `maxBodyBytes` (accounts: 8 KiB); a larger body is `413 payload_too_large`, another media type `415 unsupported_media_type` |
 | Request duration | Node defaults: 300 s per request, 60 s for headers |
 | Shutdown | 10 s grace for in-flight requests |
+| Idempotent commands | 24 h replay, 20,000 unexpired records, 4 KiB per stored response; see [command idempotency](command-idempotency.md#limits) |
 
 These bounds are a starting point; tune them after measurement.
 
