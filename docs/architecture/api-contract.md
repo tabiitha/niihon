@@ -34,7 +34,7 @@ contracts/openapi.json ──► contracts/typescript/src/schema.ts            (
 
 Exchange objects are designed for clients; they never mirror database tables.
 
-A mutating operation declares its JSON request body with `body: z.strictObject({...})` and, when 16 KiB is not right, `maxBodyBytes`. The body is read with a bounded parser, validated before the handler runs, and handed over as `input.body`. A strict object refuses every field it does not list, so a client cannot inject one (such as `role`); the `validation_failed` issue names the field (`body.role`, message `Unrecognized field.`) and never echoes a value. Command identifiers that tell a replayed command from a new one belong to #70.
+A mutating operation declares its JSON request body with `body: z.strictObject({...})` and, when 16 KiB is not right, `maxBodyBytes`. The body is read with a bounded parser, validated before the handler runs, and handed over as `input.body`. A strict object refuses every field it does not list, so a client cannot inject one (such as `role`); the `validation_failed` issue names the field (`body.role`, message `Unrecognized field.`) and never echoes a value. A command that must be safe to retry is declared `idempotent: true` and accepts an optional `Idempotency-Key`; see [command idempotency](command-idempotency.md).
 
 ## Conventions
 
@@ -68,8 +68,11 @@ Clients branch on `code`, never on `message`, which is an English explanation fo
 | `internal_error` | 500 | Unexpected failure; details are in the server log under the same `requestId` |
 | `stopping` | 503 | The server is shutting down |
 | `database_busy` | 503 | A write could not get its turn in time; nothing was written. `Retry-After: 1` is set; see [persistence](persistence.md#concurrency-and-durability) |
+| `idempotency_key_in_use` | 409 | Another request with the same `Idempotency-Key` is still running; `Retry-After: 1` is set |
+| `idempotency_key_reused` | 422 | The `Idempotency-Key` was already used by another caller, operation, or input; nothing was done |
+| `idempotency_capacity_reached` | 503 | Too many recent keyed commands are recorded; `Retry-After: 60` is set, nothing was done |
 
-Module codes start with the module identifier, such as `example_item_not_found`. Each operation documents its specific error statuses in `errors`; the generator adds `400` to every operation that is versioned or takes parameters or a body, `413` and `415` to every operation with a body, and a `default` error response to all of them.
+Module codes start with the module identifier, such as `example_item_not_found`. Each operation documents its specific error statuses in `errors`; the generator adds `400` to every operation that is versioned or takes parameters or a body, `413` and `415` to every operation with a body, `409`, `422`, and `503` to every [command](command-idempotency.md), and a `default` error response to all of them.
 
 ### Request Correlation
 
@@ -90,11 +93,11 @@ The TypeScript `paginate` helper walks a collection page by page; stopping the i
 
 ### Cancellation
 
-A read that is no longer needed is cancelled by the client: pass an `AbortSignal` as `signal` to a TypeScript call, or cancel the Swift task. Cancellation stops the transport only; it never undoes a mutation that the server has already confirmed. Distinguishing a replayed command from a new one belongs to #70.
+A read that is no longer needed is cancelled by the client: pass an `AbortSignal` as `signal` to a TypeScript call, or cancel the Swift task. Cancellation stops the transport only; it never undoes a mutation that the server has already confirmed. To learn the outcome of a command whose answer was lost, retry it with the same `Idempotency-Key` ([command idempotency](command-idempotency.md)).
 
 ## Versioning and Compatibility
 
-The contract is at version 1.1.0 (account registration added to 1.0.0). The contract version is `info.version` in `contracts/openapi.json` (`apiVersion` in `apps/api/src/contract/conventions.ts`). Generated clients send its major part in a `Nihon-API-Version` header on every request.
+The contract is at version 1.2.0 (account registration added to 1.0.0 in 1.1.0, idempotency keys on commands in 1.2.0). The contract version is `info.version` in `contracts/openapi.json` (`apiVersion` in `apps/api/src/contract/conventions.ts`). Generated clients send its major part in a `Nihon-API-Version` header on every request.
 
 | Request | Server answer |
 | --- | --- |
@@ -169,6 +172,7 @@ Provider integration tests stay in the authentication issues.
 | Page size | 100 items per page, 50 by default |
 | Cursor | 512 characters |
 | Request identifier | 64 characters |
+| Idempotency key | 16 to 64 characters; see [command idempotency](command-idempotency.md#limits) |
 | Request bodies | 16 KiB unless the operation sets `maxBodyBytes` (see [API server limits](api-server.md#limits)) |
 
 These bounds are a starting point; tune them after measurement.

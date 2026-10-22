@@ -7,8 +7,9 @@ import { afterEach, beforeEach, describe, it } from 'node:test';
 
 import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
 
+import { dataDirEntries } from '../data-dir.ts';
 import { PrismaClient } from '../generated/prisma/client.ts';
-import { databaseFileName, openDatabase, snapshotsDirName, type Database, type DatabaseLimits } from './database.ts';
+import { openDatabase, type Database, type DatabaseLimits } from './database.ts';
 import { IncompatibleDatabaseError } from './migrations.ts';
 import { maxSnapshots, MigrationFailedError, migrationsTable } from './migrator.ts';
 import { DatabaseBusyError } from './write-gate.ts';
@@ -108,7 +109,7 @@ describe('installation database', () => {
     await Promise.all(opened.splice(0).map((database) => database.close()));
   }
 
-  const databasePath = () => join(dataDir, databaseFileName);
+  const databasePath = () => join(dataDir, dataDirEntries.database);
   const fingerprint = () => createHash('sha256').update(readFileSync(databasePath())).digest('hex');
 
   /** Opens any SQLite file read-only through Prisma, for assertions only. */
@@ -149,7 +150,7 @@ describe('installation database', () => {
       const [mode] = await database.reader.$queryRawUnsafe<Array<{ journal_mode: string }>>('PRAGMA journal_mode');
       assert.equal(mode?.journal_mode, 'wal');
       assert.deepEqual(await tables(database.reader), ['Child', 'Parent', migrationsTable]);
-      assert.deepEqual(readdirSync(dataDir).includes(snapshotsDirName), false);
+      assert.deepEqual(readdirSync(dataDir).includes(dataDirEntries.snapshots), false);
     });
 
     it('creates the database file readable and writable by the server user only', { skip: !checksPermissions }, async () => {
@@ -222,7 +223,7 @@ describe('installation database', () => {
     it('keeps only the most recent snapshots and removes interrupted ones', async () => {
       await open(release1);
       await closeAll();
-      const directory = join(dataDir, snapshotsDirName);
+      const directory = join(dataDir, dataDirEntries.snapshots);
       mkdirSync(directory);
       const older = ['nihon-20250101T000000000Z-a.db', 'nihon-20250201T000000000Z-a.db', 'nihon-20250301T000000000Z-a.db'];
       for (const name of [...older, 'nihon-20250401T000000000Z-a.db.partial']) {
@@ -251,7 +252,7 @@ describe('installation database', () => {
           /no such table: Missing/.test(error.message),
       );
       // The rolled-back database is its own backup; the snapshot taken for this run is removed.
-      assert.deepEqual(readdirSync(join(dataDir, snapshotsDirName)), []);
+      assert.deepEqual(readdirSync(join(dataDir, dataDirEntries.snapshots)), []);
 
       const { database, migration } = await open(release1);
       assert.deepEqual(migration.applied, []);
@@ -283,7 +284,7 @@ describe('installation database', () => {
         await assert.rejects(open([...release1, '20260201000000_create_child', '20260301000000_broken']), MigrationFailedError);
       }
       assert.deepEqual(
-        readdirSync(join(dataDir, snapshotsDirName)).map((name) => join(dataDir, snapshotsDirName, name)),
+        readdirSync(join(dataDir, dataDirEntries.snapshots)).map((name) => join(dataDir, dataDirEntries.snapshots, name)),
         [migration.snapshot],
       );
     });

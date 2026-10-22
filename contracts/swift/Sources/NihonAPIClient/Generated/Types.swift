@@ -12,7 +12,7 @@ public protocol APIProtocol: Sendable {
     func getHealth(_ input: Operations.GetHealth.Input) async throws -> Operations.GetHealth.Output
     /// Register a local account with a username and password
     ///
-    /// Works offline. Creates the profile and its credential together or not at all. No session is opened.
+    /// Works offline. Creates the profile and its credential together or not at all. No session is opened. With an `Idempotency-Key`, a retry after the profile was created returns the same profile instead of `accounts_username_taken`.
     ///
     /// - Remark: HTTP `POST /api/accounts/local-registrations`.
     /// - Remark: Generated from `#/paths//api/accounts/local-registrations/post(registerLocalAccount)`.
@@ -31,7 +31,7 @@ public protocol APIProtocol: Sendable {
     func startOAuthRegistration(_ input: Operations.StartOAuthRegistration.Input) async throws -> Operations.StartOAuthRegistration.Output
     /// Complete a provider registration with the returned code
     ///
-    /// Verifies the code and identity with the provider, then creates the profile and its provider link together or not at all. The flow is consumed by the first attempt that obtains an exchange slot and the database write turn, successful or not: a replayed or concurrent completion creates nothing, while a `503` refusal for lack of capacity leaves the flow intact. An email address is neither required nor read, and profiles are never merged by email.
+    /// Verifies the code and identity with the provider, then creates the profile and its provider link together or not at all. The flow is consumed by the first attempt that obtains an exchange slot and the database write turn, successful or not: a replayed or concurrent completion creates nothing, while a `503` refusal for lack of capacity leaves the flow intact. An email address is neither required nor read, and profiles are never merged by email. With an `Idempotency-Key`, a retry after the profile was created returns the same profile instead of `accounts_oauth_state_invalid`, without calling the provider again.
     ///
     /// - Remark: HTTP `POST /api/accounts/oauth-registrations/completion`.
     /// - Remark: Generated from `#/paths//api/accounts/oauth-registrations/completion/post(completeOAuthRegistration)`.
@@ -49,7 +49,7 @@ extension APIProtocol {
     }
     /// Register a local account with a username and password
     ///
-    /// Works offline. Creates the profile and its credential together or not at all. No session is opened.
+    /// Works offline. Creates the profile and its credential together or not at all. No session is opened. With an `Idempotency-Key`, a retry after the profile was created returns the same profile instead of `accounts_username_taken`.
     ///
     /// - Remark: HTTP `POST /api/accounts/local-registrations`.
     /// - Remark: Generated from `#/paths//api/accounts/local-registrations/post(registerLocalAccount)`.
@@ -86,7 +86,7 @@ extension APIProtocol {
     }
     /// Complete a provider registration with the returned code
     ///
-    /// Verifies the code and identity with the provider, then creates the profile and its provider link together or not at all. The flow is consumed by the first attempt that obtains an exchange slot and the database write turn, successful or not: a replayed or concurrent completion creates nothing, while a `503` refusal for lack of capacity leaves the flow intact. An email address is neither required nor read, and profiles are never merged by email.
+    /// Verifies the code and identity with the provider, then creates the profile and its provider link together or not at all. The flow is consumed by the first attempt that obtains an exchange slot and the database write turn, successful or not: a replayed or concurrent completion creates nothing, while a `503` refusal for lack of capacity leaves the flow intact. An email address is neither required nor read, and profiles are never merged by email. With an `Idempotency-Key`, a retry after the profile was created returns the same profile instead of `accounts_oauth_state_invalid`, without calling the provider again.
     ///
     /// - Remark: HTTP `POST /api/accounts/oauth-registrations/completion`.
     /// - Remark: Generated from `#/paths//api/accounts/oauth-registrations/completion/post(completeOAuthRegistration)`.

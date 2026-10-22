@@ -40,6 +40,31 @@ describe('buildOpenApiDocument', () => {
     assert.deepEqual(Object.keys(operation?.responses ?? {}).sort(), ['200', '400', 'default']);
   });
 
+  it('documents the idempotency key, the replay header, and the idempotency errors of a command', () => {
+    const create = defineOperation({
+      operationId: 'createThing',
+      method: 'post',
+      path: '/things',
+      summary: 'Create',
+      body: z.strictObject({ name: z.string() }),
+      idempotent: true,
+      responses: { 201: { description: 'Created', schema: z.object({ id: z.string() }) } },
+      errors: { 409: 'Taken (`thing_taken`).' },
+    });
+    const operation = buildOpenApiDocument({ title: 'Test', modules: [moduleWith('things', [create])] }).paths?.['/api/things/things']?.post;
+    const [header] = (operation?.parameters ?? []) as { in: string; name: string; required: boolean }[];
+    assert.deepEqual([header?.in, header?.name, header?.required], ['header', 'Idempotency-Key', false]);
+    assert.deepEqual(Object.keys(operation?.responses ?? {}).sort(), ['201', '400', '409', '413', '415', '422', '503', 'default']);
+    const responses = operation?.responses as Record<string, { description: string; headers?: Record<string, unknown> }>;
+    assert.ok(responses['201']?.headers?.['Idempotent-Replayed']);
+    assert.match(responses['409']?.description ?? '', /thing_taken.*idempotency_key_in_use/);
+    assert.match(responses['422']?.description ?? '', /idempotency_key_reused/);
+    assert.match(responses['503']?.description ?? '', /idempotency_capacity_reached/);
+
+    const plain = buildOpenApiDocument({ title: 'Test', modules: [moduleWith('review', [ping])] }).paths?.['/api/review/ping']?.get;
+    assert.equal(plain?.parameters, undefined);
+  });
+
   it('rejects duplicate operation identifiers', () => {
     assert.throws(
       () => buildOpenApiDocument({ title: 'Test', modules: [moduleWith('a', [ping]), moduleWith('b', [ping])] }),

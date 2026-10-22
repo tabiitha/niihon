@@ -66,6 +66,22 @@ describe('generated TypeScript client, account registration', () => {
     assert.equal(completion.response.status, 201);
   });
 
+  it('sends an idempotency key with a registration and types the refusal of a reused key', async () => {
+    const seen: Request[] = [];
+    const client = clientAnswering(
+      422,
+      { error: { code: 'idempotency_key_reused', message: 'This idempotency key was already used.', requestId: 'r2' } },
+      seen,
+    );
+    const { error, response } = await client.POST('/api/accounts/local-registrations', {
+      params: { header: { 'Idempotency-Key': '9b2f4c1e-7d3a-4e8b-a6f0-2c5d8e1b3a77' } },
+      body: { username: 'sakura', password: 'correct horse' },
+    });
+    assert.equal(seen[0]?.headers.get('idempotency-key'), '9b2f4c1e-7d3a-4e8b-a6f0-2c5d8e1b3a77');
+    assert.equal(response.status, 422);
+    assert.equal(error?.error.code, 'idempotency_key_reused');
+  });
+
   it('lists the providers of the installation', async () => {
     const client = clientAnswering(200, { items: [{ id: 'github' }, { id: 'google' }] }, []);
     const { data } = await client.GET('/api/accounts/oauth-providers');

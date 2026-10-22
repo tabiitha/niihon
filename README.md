@@ -72,7 +72,7 @@ Install Node.js 24.7 or newer and Bun 1.4.3, then run from the repository root:
 | `apps/macos/scripts/build-app.sh` | Build the macOS client to `apps/macos/build/Nihon.app` (macOS 26, Apple silicon, Xcode 26 or newer) |
 | `swift test --package-path apps/macos` | Test the macOS client's core |
 
-Configuration, modules, exit codes, and limits are described in the [API server architecture](docs/architecture/api-server.md); the database, migrations, and snapshots in [persistence](docs/architecture/persistence.md); the REST conventions and generated clients in the [REST contract](docs/architecture/api-contract.md); routes, languages, themes, and serving in the [Web client architecture](docs/architecture/web-client.md); the native app, its connection states, and its build in the [macOS client architecture](docs/architecture/macos-client.md).
+Configuration, modules, exit codes, and limits are described in the [API server architecture](docs/architecture/api-server.md); the database, migrations, and snapshots in [persistence](docs/architecture/persistence.md); the REST conventions and generated clients in the [REST contract](docs/architecture/api-contract.md); safe retries of commands in [command idempotency](docs/architecture/command-idempotency.md); routes, languages, themes, and serving in the [Web client architecture](docs/architecture/web-client.md); the native app, its connection states, and its build in the [macOS client architecture](docs/architecture/macos-client.md).
 
 ## Documentation
 

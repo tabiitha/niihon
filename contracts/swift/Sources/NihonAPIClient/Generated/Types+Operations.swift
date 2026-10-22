@@ -164,7 +164,7 @@ public enum Operations {
     }
     /// Register a local account with a username and password
     ///
-    /// Works offline. Creates the profile and its credential together or not at all. No session is opened.
+    /// Works offline. Creates the profile and its credential together or not at all. No session is opened. With an `Idempotency-Key`, a retry after the profile was created returns the same profile instead of `accounts_username_taken`.
     ///
     /// - Remark: HTTP `POST /api/accounts/local-registrations`.
     /// - Remark: Generated from `#/paths//api/accounts/local-registrations/post(registerLocalAccount)`.
@@ -173,12 +173,21 @@ public enum Operations {
         public struct Input: Sendable, Hashable {
             /// - Remark: Generated from `#/paths/api/accounts/local-registrations/POST/header`.
             public struct Headers: Sendable, Hashable {
+                /// Key chosen by the client for one command, such as a random UUID, sent unquoted: 16 to 64 characters `A-Z a-z 0-9 _ -`. Retrying with the same key and the same input returns the confirmed response without repeating the effect; a key is never reused for another command.
+                ///
+                /// - Remark: Generated from `#/paths/api/accounts/local-registrations/POST/header/Idempotency-Key`.
+                public var idempotencyKey: Swift.String?
                 public var accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.RegisterLocalAccount.AcceptableContentType>]
                 /// Creates a new `Headers`.
                 ///
                 /// - Parameters:
+                ///   - idempotencyKey: Key chosen by the client for one command, such as a random UUID, sent unquoted: 16 to 64 characters `A-Z a-z 0-9 _ -`. Retrying with the same key and the same input returns the confirmed response without repeating the effect; a key is never reused for another command.
                 ///   - accept:
-                public init(accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.RegisterLocalAccount.AcceptableContentType>] = .defaultValues()) {
+                public init(
+                    idempotencyKey: Swift.String? = nil,
+                    accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.RegisterLocalAccount.AcceptableContentType>] = .defaultValues()
+                ) {
+                    self.idempotencyKey = idempotencyKey
                     self.accept = accept
                 }
             }
@@ -204,6 +213,26 @@ public enum Operations {
         }
         @frozen public enum Output: Sendable, Hashable {
             public struct Created: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/api/accounts/local-registrations/POST/responses/201/headers`.
+                public struct Headers: Sendable, Hashable {
+                    /// - Remark: Generated from `#/paths/api/accounts/local-registrations/POST/responses/201/headers/Idempotent-Replayed`.
+                    @frozen public enum IdempotentReplayedPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                        case _true = "true"
+                    }
+                    /// `true` when this is the stored response of a command already committed under the same `Idempotency-Key`; the effect was not repeated.
+                    ///
+                    /// - Remark: Generated from `#/paths/api/accounts/local-registrations/POST/responses/201/headers/Idempotent-Replayed`.
+                    public var idempotentReplayed: Operations.RegisterLocalAccount.Output.Created.Headers.IdempotentReplayedPayload?
+                    /// Creates a new `Headers`.
+                    ///
+                    /// - Parameters:
+                    ///   - idempotentReplayed: `true` when this is the stored response of a command already committed under the same `Idempotency-Key`; the effect was not repeated.
+                    public init(idempotentReplayed: Operations.RegisterLocalAccount.Output.Created.Headers.IdempotentReplayedPayload? = nil) {
+                        self.idempotentReplayed = idempotentReplayed
+                    }
+                }
+                /// Received HTTP response headers
+                public var headers: Operations.RegisterLocalAccount.Output.Created.Headers
                 /// - Remark: Generated from `#/paths/api/accounts/local-registrations/POST/responses/201/content`.
                 @frozen public enum Body: Sendable, Hashable {
                     /// - Remark: Generated from `#/paths/api/accounts/local-registrations/POST/responses/201/content/application\/json`.
@@ -226,8 +255,13 @@ public enum Operations {
                 /// Creates a new `Created`.
                 ///
                 /// - Parameters:
+                ///   - headers: Received HTTP response headers
                 ///   - body: Received HTTP response body
-                public init(body: Operations.RegisterLocalAccount.Output.Created.Body) {
+                public init(
+                    headers: Operations.RegisterLocalAccount.Output.Created.Headers = .init(),
+                    body: Operations.RegisterLocalAccount.Output.Created.Body
+                ) {
+                    self.headers = headers
                     self.body = body
                 }
             }
@@ -333,7 +367,7 @@ public enum Operations {
                     self.body = body
                 }
             }
-            /// The normalized username is already used (`accounts_username_taken`).
+            /// The normalized username is already used (`accounts_username_taken`). A request with the same `Idempotency-Key` is still running; retry after `Retry-After` (`idempotency_key_in_use`).
             ///
             /// - Remark: Generated from `#/paths//api/accounts/local-registrations/post(registerLocalAccount)/responses/409`.
             ///
@@ -458,6 +492,57 @@ public enum Operations {
                     }
                 }
             }
+            public struct UnprocessableContent: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/api/accounts/local-registrations/POST/responses/422/content`.
+                @frozen public enum Body: Sendable, Hashable {
+                    /// - Remark: Generated from `#/paths/api/accounts/local-registrations/POST/responses/422/content/application\/json`.
+                    case json(Components.Schemas.ErrorResponse)
+                    /// The associated value of the enum case if `self` is `.json`.
+                    ///
+                    /// - Throws: An error if `self` is not `.json`.
+                    /// - SeeAlso: `.json`.
+                    public var json: Components.Schemas.ErrorResponse {
+                        get throws {
+                            switch self {
+                            case let .json(body):
+                                return body
+                            }
+                        }
+                    }
+                }
+                /// Received HTTP response body
+                public var body: Operations.RegisterLocalAccount.Output.UnprocessableContent.Body
+                /// Creates a new `UnprocessableContent`.
+                ///
+                /// - Parameters:
+                ///   - body: Received HTTP response body
+                public init(body: Operations.RegisterLocalAccount.Output.UnprocessableContent.Body) {
+                    self.body = body
+                }
+            }
+            /// The `Idempotency-Key` was already used by another caller, operation, or input (`idempotency_key_reused`); nothing was done.
+            ///
+            /// - Remark: Generated from `#/paths//api/accounts/local-registrations/post(registerLocalAccount)/responses/422`.
+            ///
+            /// HTTP response code: `422 unprocessableContent`.
+            case unprocessableContent(Operations.RegisterLocalAccount.Output.UnprocessableContent)
+            /// The associated value of the enum case if `self` is `.unprocessableContent`.
+            ///
+            /// - Throws: An error if `self` is not `.unprocessableContent`.
+            /// - SeeAlso: `.unprocessableContent`.
+            public var unprocessableContent: Operations.RegisterLocalAccount.Output.UnprocessableContent {
+                get throws {
+                    switch self {
+                    case let .unprocessableContent(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "unprocessableContent",
+                            response: self
+                        )
+                    }
+                }
+            }
             public struct ServiceUnavailable: Sendable, Hashable {
                 /// - Remark: Generated from `#/paths/api/accounts/local-registrations/POST/responses/503/content`.
                 @frozen public enum Body: Sendable, Hashable {
@@ -486,7 +571,7 @@ public enum Operations {
                     self.body = body
                 }
             }
-            /// Too many registrations are being processed; retry after `Retry-After` (`accounts_busy`).
+            /// Too many registrations are being processed; retry after `Retry-After` (`accounts_busy`). Too many recent keyed commands are recorded (`idempotency_capacity_reached`): nothing was done; space frees as records expire, and the command can be sent without a key.
             ///
             /// - Remark: Generated from `#/paths//api/accounts/local-registrations/post(registerLocalAccount)/responses/503`.
             ///
@@ -1273,7 +1358,7 @@ public enum Operations {
     }
     /// Complete a provider registration with the returned code
     ///
-    /// Verifies the code and identity with the provider, then creates the profile and its provider link together or not at all. The flow is consumed by the first attempt that obtains an exchange slot and the database write turn, successful or not: a replayed or concurrent completion creates nothing, while a `503` refusal for lack of capacity leaves the flow intact. An email address is neither required nor read, and profiles are never merged by email.
+    /// Verifies the code and identity with the provider, then creates the profile and its provider link together or not at all. The flow is consumed by the first attempt that obtains an exchange slot and the database write turn, successful or not: a replayed or concurrent completion creates nothing, while a `503` refusal for lack of capacity leaves the flow intact. An email address is neither required nor read, and profiles are never merged by email. With an `Idempotency-Key`, a retry after the profile was created returns the same profile instead of `accounts_oauth_state_invalid`, without calling the provider again.
     ///
     /// - Remark: HTTP `POST /api/accounts/oauth-registrations/completion`.
     /// - Remark: Generated from `#/paths//api/accounts/oauth-registrations/completion/post(completeOAuthRegistration)`.
@@ -1282,12 +1367,21 @@ public enum Operations {
         public struct Input: Sendable, Hashable {
             /// - Remark: Generated from `#/paths/api/accounts/oauth-registrations/completion/POST/header`.
             public struct Headers: Sendable, Hashable {
+                /// Key chosen by the client for one command, such as a random UUID, sent unquoted: 16 to 64 characters `A-Z a-z 0-9 _ -`. Retrying with the same key and the same input returns the confirmed response without repeating the effect; a key is never reused for another command.
+                ///
+                /// - Remark: Generated from `#/paths/api/accounts/oauth-registrations/completion/POST/header/Idempotency-Key`.
+                public var idempotencyKey: Swift.String?
                 public var accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.CompleteOAuthRegistration.AcceptableContentType>]
                 /// Creates a new `Headers`.
                 ///
                 /// - Parameters:
+                ///   - idempotencyKey: Key chosen by the client for one command, such as a random UUID, sent unquoted: 16 to 64 characters `A-Z a-z 0-9 _ -`. Retrying with the same key and the same input returns the confirmed response without repeating the effect; a key is never reused for another command.
                 ///   - accept:
-                public init(accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.CompleteOAuthRegistration.AcceptableContentType>] = .defaultValues()) {
+                public init(
+                    idempotencyKey: Swift.String? = nil,
+                    accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.CompleteOAuthRegistration.AcceptableContentType>] = .defaultValues()
+                ) {
+                    self.idempotencyKey = idempotencyKey
                     self.accept = accept
                 }
             }
@@ -1313,6 +1407,26 @@ public enum Operations {
         }
         @frozen public enum Output: Sendable, Hashable {
             public struct Created: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/api/accounts/oauth-registrations/completion/POST/responses/201/headers`.
+                public struct Headers: Sendable, Hashable {
+                    /// - Remark: Generated from `#/paths/api/accounts/oauth-registrations/completion/POST/responses/201/headers/Idempotent-Replayed`.
+                    @frozen public enum IdempotentReplayedPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                        case _true = "true"
+                    }
+                    /// `true` when this is the stored response of a command already committed under the same `Idempotency-Key`; the effect was not repeated.
+                    ///
+                    /// - Remark: Generated from `#/paths/api/accounts/oauth-registrations/completion/POST/responses/201/headers/Idempotent-Replayed`.
+                    public var idempotentReplayed: Operations.CompleteOAuthRegistration.Output.Created.Headers.IdempotentReplayedPayload?
+                    /// Creates a new `Headers`.
+                    ///
+                    /// - Parameters:
+                    ///   - idempotentReplayed: `true` when this is the stored response of a command already committed under the same `Idempotency-Key`; the effect was not repeated.
+                    public init(idempotentReplayed: Operations.CompleteOAuthRegistration.Output.Created.Headers.IdempotentReplayedPayload? = nil) {
+                        self.idempotentReplayed = idempotentReplayed
+                    }
+                }
+                /// Received HTTP response headers
+                public var headers: Operations.CompleteOAuthRegistration.Output.Created.Headers
                 /// - Remark: Generated from `#/paths/api/accounts/oauth-registrations/completion/POST/responses/201/content`.
                 @frozen public enum Body: Sendable, Hashable {
                     /// - Remark: Generated from `#/paths/api/accounts/oauth-registrations/completion/POST/responses/201/content/application\/json`.
@@ -1335,8 +1449,13 @@ public enum Operations {
                 /// Creates a new `Created`.
                 ///
                 /// - Parameters:
+                ///   - headers: Received HTTP response headers
                 ///   - body: Received HTTP response body
-                public init(body: Operations.CompleteOAuthRegistration.Output.Created.Body) {
+                public init(
+                    headers: Operations.CompleteOAuthRegistration.Output.Created.Headers = .init(),
+                    body: Operations.CompleteOAuthRegistration.Output.Created.Body
+                ) {
+                    self.headers = headers
                     self.body = body
                 }
             }
@@ -1442,7 +1561,7 @@ public enum Operations {
                     self.body = body
                 }
             }
-            /// The username was taken meanwhile (`accounts_username_taken`), or this provider identity already has a profile (`accounts_identity_already_registered`).
+            /// The username was taken meanwhile (`accounts_username_taken`), or this provider identity already has a profile (`accounts_identity_already_registered`). A request with the same `Idempotency-Key` is still running; retry after `Retry-After` (`idempotency_key_in_use`).
             ///
             /// - Remark: Generated from `#/paths//api/accounts/oauth-registrations/completion/post(completeOAuthRegistration)/responses/409`.
             ///
@@ -1595,7 +1714,7 @@ public enum Operations {
                     self.body = body
                 }
             }
-            /// The flow was started for a provider this installation no longer has configured (`accounts_oauth_provider_unavailable`); the flow is consumed.
+            /// The flow was started for a provider this installation no longer has configured (`accounts_oauth_provider_unavailable`); the flow is consumed. The `Idempotency-Key` was already used by another caller, operation, or input (`idempotency_key_reused`); nothing was done.
             ///
             /// - Remark: Generated from `#/paths//api/accounts/oauth-registrations/completion/post(completeOAuthRegistration)/responses/422`.
             ///
@@ -1697,7 +1816,7 @@ public enum Operations {
                     self.body = body
                 }
             }
-            /// Too many provider exchanges are running (`accounts_busy`, `Retry-After` set): the flow is untouched, retry the same completion. If instead the database stayed busy after the provider answered (`accounts_oauth_flow_consumed`, no `Retry-After`), nothing was created and the flow is used up: start a new registration.
+            /// Too many provider exchanges are running (`accounts_busy`, `Retry-After` set): the flow is untouched, retry the same completion. If instead the database stayed busy after the provider answered (`accounts_oauth_flow_consumed`, no `Retry-After`), nothing was created and the flow is used up: start a new registration. Too many recent keyed commands are recorded (`idempotency_capacity_reached`): nothing was done; space frees as records expire, and the command can be sent without a key.
             ///
             /// - Remark: Generated from `#/paths//api/accounts/oauth-registrations/completion/post(completeOAuthRegistration)/responses/503`.
             ///

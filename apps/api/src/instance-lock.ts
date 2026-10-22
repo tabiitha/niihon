@@ -2,7 +2,7 @@ import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
-export const lockFileName = 'nihon-instance.lock';
+import { dataDirEntries } from './data-dir.ts';
 
 const sqliteBusy = 5;
 
@@ -29,7 +29,7 @@ export interface InstanceLock {
  */
 export function acquireInstanceLock(dataDir: string): InstanceLock {
   mkdirSync(dataDir, { recursive: true });
-  const path = join(dataDir, lockFileName);
+  const path = join(dataDir, dataDirEntries.instanceLock);
   const database = new DatabaseSync(path, { timeout: 0 });
   try {
     database.exec('BEGIN EXCLUSIVE');

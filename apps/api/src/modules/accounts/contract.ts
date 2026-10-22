@@ -88,9 +88,11 @@ export const registerLocalAccount = defineOperation({
   method: 'post',
   path: '/local-registrations',
   summary: 'Register a local account with a username and password',
-  description: 'Works offline. Creates the profile and its credential together or not at all. No session is opened.',
+  description:
+    'Works offline. Creates the profile and its credential together or not at all. No session is opened. With an `Idempotency-Key`, a retry after the profile was created returns the same profile instead of `accounts_username_taken`.',
   body: localRegistrationSchema,
   maxBodyBytes: maxRegistrationBodyBytes,
+  idempotent: true,
   responses: { 201: { description: 'The profile was created.', schema: profileSchema } },
   errors: {
     409: 'The normalized username is already used (`accounts_username_taken`).',
@@ -130,9 +132,10 @@ export const completeOAuthRegistration = defineOperation({
   path: '/oauth-registrations/completion',
   summary: 'Complete a provider registration with the returned code',
   description:
-    'Verifies the code and identity with the provider, then creates the profile and its provider link together or not at all. The flow is consumed by the first attempt that obtains an exchange slot and the database write turn, successful or not: a replayed or concurrent completion creates nothing, while a `503` refusal for lack of capacity leaves the flow intact. An email address is neither required nor read, and profiles are never merged by email.',
+    'Verifies the code and identity with the provider, then creates the profile and its provider link together or not at all. The flow is consumed by the first attempt that obtains an exchange slot and the database write turn, successful or not: a replayed or concurrent completion creates nothing, while a `503` refusal for lack of capacity leaves the flow intact. An email address is neither required nor read, and profiles are never merged by email. With an `Idempotency-Key`, a retry after the profile was created returns the same profile instead of `accounts_oauth_state_invalid`, without calling the provider again.',
   body: oauthCompleteSchema,
   maxBodyBytes: maxRegistrationBodyBytes,
+  idempotent: true,
   responses: { 201: { description: 'The profile and its provider link were created.', schema: profileSchema } },
   errors: {
     400: 'The flow is unknown or already used (`accounts_oauth_state_invalid`), expired (`accounts_oauth_state_expired`), the provider refused the code (`accounts_oauth_code_rejected`), or the identity could not be verified (`accounts_oauth_identity_unverified`).',

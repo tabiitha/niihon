@@ -37,6 +37,11 @@ export interface OperationContract {
   readonly errors?: Readonly<Record<number, string>>;
   /** False only for operations a client calls before knowing whether it is compatible. */
   readonly versioned?: boolean;
+  /**
+   * A command that accepts an `Idempotency-Key`. It must declare exactly one success response and
+   * be registered with `context.commands.add`, which stores that response with the effect.
+   */
+  readonly idempotent?: boolean;
 }
 
 /** Keeps the literal types of a declaration so handlers are checked against it. */
@@ -120,6 +125,17 @@ export function parseInput<Schema extends z.ZodType>(schema: Schema, value: unkn
  * The handler is passed separately so that its result is checked against the fixed declaration.
  */
 export function addOperation<Operation extends OperationContract>(
+  router: Router,
+  operation: Operation,
+): { handle(handler: OperationHandler<Operation>): void } {
+  if (operation.idempotent === true) {
+    throw new Error(`Idempotent operation "${operation.operationId}" must be added with context.commands.add.`);
+  }
+  return routeOperation(router, operation);
+}
+
+/** `addOperation` without the idempotency check; only the command layer (src/commands) calls it directly. */
+export function routeOperation<Operation extends OperationContract>(
   router: Router,
   operation: Operation,
 ): { handle(handler: OperationHandler<Operation>): void } {

@@ -36,7 +36,7 @@ export function createAccountsModule(options: AccountsModuleOptions = {}): ApiMo
   return {
     id: 'accounts',
     operations: accountsOperations,
-    register(router: Router, { database, logger, oauth }) {
+    register(router: Router, { database, commands, logger, oauth }) {
       const now = options.now ?? (() => new Date());
       const limits = { ...defaultAccountsLimits, ...options.limits };
       const providers = new Map<string, OAuthProvider>();
@@ -65,9 +65,9 @@ export function createAccountsModule(options: AccountsModuleOptions = {}): ApiMo
         next();
       });
 
-      addOperation(router, registerLocalAccount).handle(async ({ body }) => ({
+      commands.add(router, registerLocalAccount).handle(async ({ body }, commit) => ({
         status: 201,
-        body: await service.registerLocal(body),
+        body: await service.registerLocal(body, commit),
       }));
       addOperation(router, listOAuthProviders).handle(() => ({
         status: 200,
@@ -77,9 +77,9 @@ export function createAccountsModule(options: AccountsModuleOptions = {}): ApiMo
         status: 201,
         body: await service.startOAuth(body),
       }));
-      addOperation(router, completeOAuthRegistration).handle(async ({ body }) => ({
+      commands.add(router, completeOAuthRegistration).handle(async ({ body }, commit) => ({
         status: 201,
-        body: await service.completeOAuth(body),
+        body: await service.completeOAuth(body, commit),
       }));
     },
   };
