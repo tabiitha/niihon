@@ -32,6 +32,7 @@ Only what is needed exists. `packaging/macos` is created by the issue that first
 | `src/data-dir.ts` | Names of the files and directories the server keeps in the data directory | None |
 | `src/instance-lock.ts` | Exclusive ownership of the data directory | File system |
 | `src/database/` | Migrations, snapshots, and the reader and writer Prisma clients ([persistence](persistence.md)) | SQLite, file system |
+| `src/sessions/` | Sign-in sessions: resolves each request's session token, opens and revokes sessions ([sessions](sessions.md)) | SQLite |
 | `src/commands/` | Idempotent commands: replay of a committed command under the client's key, and the installation's command key ([command idempotency](command-idempotency.md)) | SQLite, file system |
 | `src/server.ts` | Claims the directory, migrates and opens the database, listens, stops gracefully | Network, file system |
 | `src/main.ts` | Process entry: configuration errors, signals, exit codes | Process |
@@ -52,7 +53,7 @@ export interface ApiModule {
 
 To add a module, create its folder and add one entry to `src/modules/registry.ts`. Each route is declared as an operation and added with `addOperation`, as described in the [REST contract](api-contract.md#single-source); then run `bun run contract:generate`. Modules interact only through what another module exports. The registry holds the [accounts](accounts.md) module.
 
-`context.database` gives the module the installation database: `database.reader` for reads and `database.write(...)` for write transactions. `context.commands.add(router, operation)` adds a command that a client can retry safely with an `Idempotency-Key`; see [command idempotency](command-idempotency.md#writing-a-command). A module keeps its Prisma models in `apps/api/prisma/schema/<id>.prisma` and adds its migrations with `bun run db:migration`; see [persistence](persistence.md).
+`context.database` gives the module the installation database: `database.reader` for reads and `database.write(...)` for write transactions. `context.commands.add(router, operation)` adds a command that a client can retry safely with an `Idempotency-Key`; see [command idempotency](command-idempotency.md#writing-a-command). `context.sessions` opens and revokes sign-in sessions, and `currentSession(request)` gives the session a request was authenticated with; an operation declaring `session: 'required'` is refused without one, and `session: 'optional'` declares in the contract that it reads the session when one is sent ([sessions](sessions.md)). A module keeps its Prisma models in `apps/api/prisma/schema/<id>.prisma` and adds its migrations with `bun run db:migration`; see [persistence](persistence.md).
 
 `NIHON_MODULES` selects the enabled modules. When it is unset, every registered module is enabled; when it is set, only the listed identifiers are (an empty value enables none). An identifier that no module carries stops startup with exit code 2. A disabled module's router is never mounted, so every path under `/api/<id>/` answers 404, exactly as if the module did not exist.
 
@@ -113,6 +114,7 @@ Before listening, the server opens `nihon-instance.lock` in the data directory w
 | Request bodies | Not parsed globally: unread bodies are never buffered. An operation that declares a `body` gets a JSON parser limited to 16 KiB unless it sets `maxBodyBytes` (accounts: 8 KiB); a larger body is `413 payload_too_large`, another media type `415 unsupported_media_type` |
 | Request duration | Node defaults: 300 s per request, 60 s for headers |
 | Shutdown | 10 s grace for in-flight requests |
+| Sessions | 30-day lifetime, 20 per profile, 10,000 unexpired (the oldest dropped beyond either); see [sessions](sessions.md#limits) |
 | Idempotent commands | 24 h replay, 20,000 unexpired records, 4 KiB per stored response; see [command idempotency](command-idempotency.md#limits) |
 
 These bounds are a starting point; tune them after measurement.

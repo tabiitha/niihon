@@ -10,6 +10,7 @@ model Profile {
 
   localCredential    LocalCredential?
   externalIdentities ExternalIdentity[]
+  sessions           Session[]
 }
 
 /// Argon2id hash of a profile's local password, in PHC string format. Absent for profiles created
@@ -51,5 +52,25 @@ model OAuthFlow {
   createdAt    DateTime @default(now())
   expiresAt    DateTime
 
+  @@index([expiresAt])
+}
+
+/// A provider sign-in flow between its start and its single use (issue #269). `stateHash` is the
+/// SHA-256 of the `state` value; `bindingHash` the SHA-256 of the secret only the initiating client
+/// holds (an HttpOnly cookie on the Web, the response body for a native client). The row is
+/// deleted when the flow is used, superseded by a newer attempt of the same browser, or expired.
+model OAuthSignInFlow {
+  id           String   @id
+  stateHash    String   @unique
+  bindingHash  String
+  provider     String
+  codeVerifier String
+  nonce        String
+  redirectUri  String
+  client       String
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime
+
+  @@index([bindingHash])
   @@index([expiresAt])
 }

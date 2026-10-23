@@ -18,6 +18,7 @@ import type { Database } from './database/database.ts';
 import { DatabaseBusyError, DatabaseClosedError } from './database/write-gate.ts';
 import type { Logger } from './log.ts';
 import type { ApiModule } from './modules/api-module.ts';
+import { createSessions, type Sessions } from './sessions/sessions.ts';
 import { createWebHandler } from './web.ts';
 
 export const serviceName = 'nihon-api';
@@ -32,6 +33,8 @@ export interface AppOptions {
   readonly database: Database;
   /** Idempotent commands over `database`; by default keyed with a random secret that lasts as long as the process. */
   readonly commands?: Commands;
+  /** Sign-in sessions over `database`; created with the default limits when omitted. */
+  readonly sessions?: Sessions;
   readonly logger: Logger;
   /** Provider credentials for the modules that offer provider sign-up; none by default. */
   readonly oauth?: OAuthSettings;
@@ -50,6 +53,7 @@ export function createApp({
   modules,
   database,
   commands = createCommands({ database }),
+  sessions = createSessions({ database }),
   logger,
   oauth = noOAuthSettings,
   isStopping = () => false,
@@ -61,6 +65,7 @@ export function createApp({
   app.use(assignRequestId);
   app.use(refuseWhileStopping(isStopping));
   app.use(refuseIncompatibleClients(unversionedPaths(modules)));
+  app.use('/api', sessions.authenticate);
 
   const core = express.Router();
   addOperation(core, getHealth).handle(() => ({
@@ -71,7 +76,7 @@ export function createApp({
 
   for (const module of modules) {
     const router = express.Router();
-    module.register(router, { database, commands, logger, oauth });
+    module.register(router, { database, commands, sessions, logger, oauth });
     app.use(`/api/${module.id}`, router);
   }
 

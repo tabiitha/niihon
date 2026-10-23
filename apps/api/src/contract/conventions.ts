@@ -4,7 +4,7 @@ import { z } from 'zod';
  * Version of the REST contract published in contracts/openapi.json. Clients send the major part
  * in the `Nihon-API-Version` header; a different major is refused. See docs/architecture/api-contract.md.
  */
-export const apiVersion = '1.2.0';
+export const apiVersion = '1.3.0';
 export const apiMajorVersion = 1;
 
 export const apiVersionHeader = 'Nihon-API-Version';
@@ -28,6 +28,7 @@ export const errorCodes = {
   idempotencyKeyInUse: 'idempotency_key_in_use',
   idempotencyKeyReused: 'idempotency_key_reused',
   idempotencyCapacityReached: 'idempotency_capacity_reached',
+  authenticationRequired: 'authentication_required',
 } as const;
 
 export const errorResponseSchema = z

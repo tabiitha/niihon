@@ -1,13 +1,24 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 
-import { errorCodes } from '../../contract/conventions.ts';
 import { ApiError } from '../../contract/operation.ts';
 import type { Commit } from '../../commands/idempotency.ts';
 import type { Database, TransactionClient } from '../../database/database.ts';
 import { DatabaseBusyError, DatabaseClosedError } from '../../database/write-gate.ts';
 import type { Logger } from '../../log.ts';
 import { accountsErrorCodes } from './contract.ts';
-import { LimiterFullError, type Limiter } from './limiter.ts';
+import {
+  bounded,
+  busy,
+  flowConsumed,
+  providerFailure,
+  providerUnavailable,
+  redirectUriInvalid,
+  stateExpired,
+  stateInvalid,
+  usernameTaken,
+  validationFailed,
+} from './errors.ts';
+import type { Limiter } from './limiter.ts';
 import { checkPassword } from './password.ts';
 import { ProviderError, type OAuthProvider } from './providers/provider.ts';
 import { isAcceptedRedirectUri } from './redirect.ts';
@@ -83,17 +94,6 @@ export function createAccountsService(options: AccountsServiceOptions) {
   const usernameIsTaken = async (key: string): Promise<boolean> =>
     (await database.reader.profile.findUnique({ where: { usernameKey: key }, select: { id: true } })) !== null;
 
-  const bounded = async <T>(limiter: Limiter, work: () => Promise<T>): Promise<T> => {
-    try {
-      return await limiter.run(work);
-    } catch (error) {
-      if (error instanceof LimiterFullError) {
-        throw busy('Too many requests are being processed.');
-      }
-      throw error;
-    }
-  };
-
   return {
     providerIds(): string[] {
       return [...providers.keys()].sort();
@@ -119,10 +119,10 @@ export function createAccountsService(options: AccountsServiceOptions) {
     async startOAuth(input: { provider: string; username: string; redirectUri: string }) {
       const provider = providers.get(input.provider);
       if (provider === undefined) {
-        throw new ApiError(422, accountsErrorCodes.providerUnavailable, 'This provider is not available on this installation.');
+        throw providerUnavailable();
       }
       if (!isAcceptedRedirectUri(input.redirectUri, redirectUris)) {
-        throw new ApiError(400, accountsErrorCodes.redirectUriInvalid, 'The return address is not accepted.');
+        throw redirectUriInvalid();
       }
       const username = readUsername(input.username);
       if (await usernameIsTaken(username.key)) {
@@ -178,14 +178,14 @@ export function createAccountsService(options: AccountsServiceOptions) {
           return deleted.count === 1 ? found : null;
         });
         if (flow === null) {
-          throw new ApiError(400, accountsErrorCodes.stateInvalid, 'The flow is unknown or was already used.');
+          throw stateInvalid();
         }
         if (flow.expiresAt.getTime() <= now().getTime()) {
-          throw new ApiError(400, accountsErrorCodes.stateExpired, 'The flow has expired; start again.');
+          throw stateExpired();
         }
         const provider = providers.get(flow.provider);
         if (provider === undefined) {
-          throw new ApiError(422, accountsErrorCodes.providerUnavailable, 'This provider is not available on this installation.');
+          throw providerUnavailable();
         }
         try {
           const verified = await provider.verifyCode({
@@ -211,7 +211,7 @@ export function createAccountsService(options: AccountsServiceOptions) {
       } catch (error) {
         if (error instanceof DatabaseBusyError || error instanceof DatabaseClosedError) {
           // Nothing was created, but the flow and the provider's single-use code are spent.
-          throw new ApiError(503, accountsErrorCodes.flowConsumed, 'Nothing was created, but this flow was used up; start a new registration.');
+          throw flowConsumed();
         }
         throw error;
       }
@@ -282,27 +282,4 @@ async function writeProfile(commit: Commit, username: NormalizedUsername, creden
 
 function hashState(state: string): string {
   return createHash('sha256').update(state).digest('hex');
-}
-
-function validationFailed(path: string, message: string): ApiError {
-  return new ApiError(400, errorCodes.validationFailed, 'The request is invalid.', [{ path, message }]);
-}
-
-function usernameTaken(): ApiError {
-  return new ApiError(409, accountsErrorCodes.usernameTaken, 'This username is already used.');
-}
-
-function busy(message: string): ApiError {
-  return new ApiError(503, accountsErrorCodes.busy, message, undefined, { 'Retry-After': '1' });
-}
-
-function providerFailure(error: ProviderError): ApiError {
-  switch (error.kind) {
-    case 'code_rejected':
-      return new ApiError(400, accountsErrorCodes.codeRejected, 'The provider refused the authorization code.');
-    case 'identity_unverified':
-      return new ApiError(400, accountsErrorCodes.identityUnverified, 'The provider identity could not be verified.');
-    case 'unavailable':
-      return new ApiError(502, accountsErrorCodes.providerFailed, 'The provider could not be used; try again later.');
-  }
 }

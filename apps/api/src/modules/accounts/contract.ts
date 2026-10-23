@@ -14,12 +14,12 @@ export const maxStateLength = 128;
 /** Registration bodies are small: a username, a password, or one provider return. */
 export const maxRegistrationBodyBytes = 8 * 1024;
 
-const usernameField = z.string().min(1).max(maxRawUsernameLength).meta({
+export const usernameField = z.string().min(1).max(maxRawUsernameLength).meta({
   description: `Account name, ${minUsernameLength} to ${maxUsernameLength} characters after Unicode NFKC normalization: letters of any script, digits, \`_\`, \`-\`, \`.\`, starting with a letter or digit. Two names that normalize to the same lowercase form are the same name.`,
   examples: ['sakura_42'],
 });
 
-const providerField = z
+export const providerField = z
   .string()
   .regex(/^[a-z][a-z0-9_]{0,31}$/)
   .meta({ description: 'Provider identifier as listed by `listOAuthProviders`, such as `google` or `github`.', examples: ['google'] });
@@ -55,14 +55,19 @@ export const oauthProviderListSchema = z
   })
   .meta({ id: 'OAuthProviderList', description: 'Providers available for registration.' });
 
+export const redirectUriField = z.string().min(1).max(maxRedirectUriLength).meta({
+  description:
+    'Where the browser returns after the provider: an `http://127.0.0.1`, `http://localhost`, or `http://[::1]` address, or an address the installation lists in `NIHON_OAUTH_REDIRECT_URIS`. Must also be registered with the provider.',
+});
+
+export const stateField = z.string().regex(/^[A-Za-z0-9_-]+$/).max(maxStateLength).meta({ description: '`state` of the flow, as returned by the provider.' });
+export const codeField = z.string().min(1).max(maxCodeLength).meta({ description: 'Authorization code the provider returned to `redirectUri`.' });
+
 export const oauthStartSchema = z
   .strictObject({
     provider: providerField,
     username: usernameField,
-    redirectUri: z.string().min(1).max(maxRedirectUriLength).meta({
-      description:
-        'Where the browser returns after the provider: an `http://127.0.0.1`, `http://localhost`, or `http://[::1]` address, or an address the installation lists in `NIHON_OAUTH_REDIRECT_URIS`. Must also be registered with the provider.',
-    }),
+    redirectUri: redirectUriField,
   })
   .meta({ id: 'OAuthRegistrationStart', description: 'Starts a provider registration for a chosen username.' });
 
@@ -78,8 +83,8 @@ export const oauthStartedSchema = z
 
 export const oauthCompleteSchema = z
   .strictObject({
-    state: z.string().regex(/^[A-Za-z0-9_-]+$/).max(maxStateLength).meta({ description: '`state` of the flow, as returned by the provider.' }),
-    code: z.string().min(1).max(maxCodeLength).meta({ description: 'Authorization code the provider returned to `redirectUri`.' }),
+    state: stateField,
+    code: codeField,
   })
   .meta({ id: 'OAuthRegistrationCompletion', description: 'The provider answer for a started registration. A flow can be completed once.' });
 
@@ -146,7 +151,7 @@ export const completeOAuthRegistration = defineOperation({
   },
 });
 
-export const accountsOperations = [registerLocalAccount, listOAuthProviders, startOAuthRegistration, completeOAuthRegistration];
+export const registrationOperations = [registerLocalAccount, listOAuthProviders, startOAuthRegistration, completeOAuthRegistration];
 
 /** Stable error codes of the accounts module. */
 export const accountsErrorCodes = {
@@ -161,4 +166,7 @@ export const accountsErrorCodes = {
   providerFailed: 'accounts_oauth_provider_failed',
   identityAlreadyRegistered: 'accounts_identity_already_registered',
   flowConsumed: 'accounts_oauth_flow_consumed',
+  credentialsInvalid: 'accounts_credentials_invalid',
+  clientMismatch: 'accounts_oauth_client_mismatch',
+  identityNotRegistered: 'accounts_identity_not_registered',
 } as const;

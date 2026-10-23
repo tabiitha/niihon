@@ -14,6 +14,7 @@ import {
 } from '../src/contract/conventions.ts';
 import { defaultMaxBodyBytes, type OperationContract } from '../src/contract/operation.ts';
 import type { ApiModule } from '../src/modules/api-module.ts';
+import { sessionCookieName } from '../src/sessions/token.ts';
 
 export interface OpenApiDocumentOptions {
   readonly title: string;
@@ -27,12 +28,21 @@ Generated clients send \`${apiVersionHeader}: ${apiMajorVersion}\`. The server r
 /** Builds the OpenAPI 3.1 document of the foundation operations and the given modules. */
 export function buildOpenApiDocument({ title, modules }: OpenApiDocumentOptions): ReturnType<OpenApiGeneratorV31['generateDocument']> {
   const registry = new OpenAPIRegistry();
-  const groups = [
-    { prefix: '/api', tag: 'server', operations: coreOperations },
-    ...modules.map((module) => ({ prefix: `/api/${module.id}`, tag: module.id, operations: module.operations })),
-  ];
+  if (groups(modules).some(({ operations }) => operations.some((operation) => operation.session !== undefined))) {
+    registry.registerComponent('securitySchemes', sessionCookieScheme, {
+      type: 'apiKey',
+      in: 'cookie',
+      name: sessionCookieName,
+      description: 'HttpOnly session cookie set by the server for a `web` client at sign-in.',
+    });
+    registry.registerComponent('securitySchemes', sessionTokenScheme, {
+      type: 'http',
+      scheme: 'bearer',
+      description: 'Opaque session token returned to a `native` client at sign-in, sent as `Authorization: Bearer <token>`.',
+    });
+  }
   const operationIds = new Set<string>();
-  for (const { prefix, tag, operations } of groups) {
+  for (const { prefix, tag, operations } of groups(modules)) {
     for (const operation of operations) {
       if (operationIds.has(operation.operationId)) {
         throw new Error(`Operation identifier "${operation.operationId}" is declared more than once.`);
@@ -48,6 +58,12 @@ export function buildOpenApiDocument({ title, modules }: OpenApiDocumentOptions)
         summary: operation.summary,
         ...(operation.description === undefined ? {} : { description: operation.description }),
         tags: [tag],
+        ...(operation.session === undefined
+          ? {}
+          : {
+              // An empty requirement makes the session optional: the client sends it when it has one.
+              security: [{ [sessionCookieScheme]: [] }, { [sessionTokenScheme]: [] }, ...(operation.session === 'optional' ? [{}] : [])],
+            }),
         request: {
           ...(operation.params === undefined ? {} : { params: operation.params }),
           ...(operation.query === undefined ? {} : { query: operation.query }),
@@ -65,8 +81,18 @@ export function buildOpenApiDocument({ title, modules }: OpenApiDocumentOptions)
     openapi: '3.1.0',
     info: { title, version: apiVersion, description },
     servers: [{ url: 'http://127.0.0.1:4000', description: 'Default local installation' }],
-    tags: groups.map(({ tag }) => ({ name: tag })),
+    tags: groups(modules).map(({ tag }) => ({ name: tag })),
   });
+}
+
+const sessionCookieScheme = 'sessionCookie';
+const sessionTokenScheme = 'sessionToken';
+
+function groups(modules: readonly ApiModule[]) {
+  return [
+    { prefix: '/api', tag: 'server', operations: coreOperations },
+    ...modules.map((module) => ({ prefix: `/api/${module.id}`, tag: module.id, operations: module.operations })),
+  ];
 }
 
 function responsesOf(operation: OperationContract): Record<string, ResponseConfig> {
@@ -84,10 +110,14 @@ function responsesOf(operation: OperationContract): Record<string, ResponseConfi
             },
           }
         : {}),
-      content: { 'application/json': { schema: response.schema } },
+      ...(response.schema === undefined ? {} : { content: { 'application/json': { schema: response.schema } } }),
     };
   }
   const errors: Record<string, string> = { ...operation.errors };
+  if (operation.session === 'required') {
+    const meaning = 'No valid session: never signed in, signed out, or expired (`authentication_required`); sign in again.';
+    errors[401] = errors[401] === undefined ? meaning : `${meaning} ${errors[401]}`;
+  }
   if (operation.idempotent === true) {
     const idempotencyErrors: Record<number, string> = {
       409: `A request with the same \`${idempotencyKeyHeader}\` is still running; retry after \`Retry-After\` (\`idempotency_key_in_use\`).`,

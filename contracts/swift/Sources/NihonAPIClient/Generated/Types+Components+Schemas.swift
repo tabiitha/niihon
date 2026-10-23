@@ -419,5 +419,358 @@ extension Components {
                 ])
             }
         }
+        /// A new session. A `web` client receives its token as an HttpOnly cookie instead.
+        ///
+        /// - Remark: Generated from `#/components/schemas/SignedIn`.
+        public struct SignedIn: Codable, Hashable, Sendable {
+            /// - Remark: Generated from `#/components/schemas/SignedIn/session`.
+            public var session: Components.Schemas.Session
+            /// Present for a `native` client only: the opaque session token, shown once. Send it as `Authorization: Bearer <token>`; keep it in secure storage, never in a URL or a log.
+            ///
+            /// - Remark: Generated from `#/components/schemas/SignedIn/token`.
+            public var token: Swift.String?
+            /// Creates a new `SignedIn`.
+            ///
+            /// - Parameters:
+            ///   - session:
+            ///   - token: Present for a `native` client only: the opaque session token, shown once. Send it as `Authorization: Bearer <token>`; keep it in secure storage, never in a URL or a log.
+            public init(
+                session: Components.Schemas.Session,
+                token: Swift.String? = nil
+            ) {
+                self.session = session
+                self.token = token
+            }
+            public enum CodingKeys: String, CodingKey {
+                case session
+                case token
+            }
+        }
+        /// A signed-in Nihon session. It never carries the token or any provider token.
+        ///
+        /// - Remark: Generated from `#/components/schemas/Session`.
+        public struct Session: Codable, Hashable, Sendable {
+            /// Opaque identifier of 1 to 64 characters `A-Z a-z 0-9 _ -`.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Session/id`.
+            public var id: Swift.String
+            /// - Remark: Generated from `#/components/schemas/Session/profile`.
+            public var profile: Components.Schemas.SessionProfile
+            /// Client kind the session was opened for: `web` or `native`.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Session/client`.
+            public var client: Swift.String
+            /// `local` for a password, otherwise the provider identifier.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Session/signedInWith`.
+            public var signedInWith: Swift.String
+            /// UTC timestamp, `YYYY-MM-DDTHH:mm:ss.sssZ`.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Session/createdAt`.
+            public var createdAt: Foundation.Date
+            /// The session stops authorizing anything at this instant; using it does not extend it.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Session/expiresAt`.
+            public var expiresAt: Foundation.Date
+            /// Creates a new `Session`.
+            ///
+            /// - Parameters:
+            ///   - id: Opaque identifier of 1 to 64 characters `A-Z a-z 0-9 _ -`.
+            ///   - profile:
+            ///   - client: Client kind the session was opened for: `web` or `native`.
+            ///   - signedInWith: `local` for a password, otherwise the provider identifier.
+            ///   - createdAt: UTC timestamp, `YYYY-MM-DDTHH:mm:ss.sssZ`.
+            ///   - expiresAt: The session stops authorizing anything at this instant; using it does not extend it.
+            public init(
+                id: Swift.String,
+                profile: Components.Schemas.SessionProfile,
+                client: Swift.String,
+                signedInWith: Swift.String,
+                createdAt: Foundation.Date,
+                expiresAt: Foundation.Date
+            ) {
+                self.id = id
+                self.profile = profile
+                self.client = client
+                self.signedInWith = signedInWith
+                self.createdAt = createdAt
+                self.expiresAt = expiresAt
+            }
+            public enum CodingKeys: String, CodingKey {
+                case id
+                case profile
+                case client
+                case signedInWith
+                case createdAt
+                case expiresAt
+            }
+        }
+        /// The profile the session acts for.
+        ///
+        /// - Remark: Generated from `#/components/schemas/SessionProfile`.
+        public struct SessionProfile: Codable, Hashable, Sendable {
+            /// Opaque identifier of 1 to 64 characters `A-Z a-z 0-9 _ -`.
+            ///
+            /// - Remark: Generated from `#/components/schemas/SessionProfile/id`.
+            public var id: Swift.String
+            /// Display form of the username.
+            ///
+            /// - Remark: Generated from `#/components/schemas/SessionProfile/username`.
+            public var username: Swift.String
+            /// Permission role of the profile, such as `user`.
+            ///
+            /// - Remark: Generated from `#/components/schemas/SessionProfile/role`.
+            public var role: Swift.String
+            /// Creates a new `SessionProfile`.
+            ///
+            /// - Parameters:
+            ///   - id: Opaque identifier of 1 to 64 characters `A-Z a-z 0-9 _ -`.
+            ///   - username: Display form of the username.
+            ///   - role: Permission role of the profile, such as `user`.
+            public init(
+                id: Swift.String,
+                username: Swift.String,
+                role: Swift.String
+            ) {
+                self.id = id
+                self.username = username
+                self.role = role
+            }
+            public enum CodingKeys: String, CodingKey {
+                case id
+                case username
+                case role
+            }
+        }
+        /// Credentials of an existing local profile.
+        ///
+        /// - Remark: Generated from `#/components/schemas/LocalSignIn`.
+        public struct LocalSignIn: Codable, Hashable, Sendable {
+            /// Account name, 3 to 32 characters after Unicode NFKC normalization: letters of any script, digits, `_`, `-`, `.`, starting with a letter or digit. Two names that normalize to the same lowercase form are the same name.
+            ///
+            /// - Remark: Generated from `#/components/schemas/LocalSignIn/username`.
+            public var username: Swift.String
+            /// Local password of the profile.
+            ///
+            /// - Remark: Generated from `#/components/schemas/LocalSignIn/password`.
+            public var password: Swift.String
+            /// How this client keeps its session. `web`: the server sets an HttpOnly `nihon_session` cookie and the response carries no token. `native`: the response carries `token`, which the client keeps in secure storage and sends as `Authorization: Bearer <token>`.
+            ///
+            /// - Remark: Generated from `#/components/schemas/LocalSignIn/client`.
+            @frozen public enum ClientPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                case web = "web"
+                case native = "native"
+            }
+            /// How this client keeps its session. `web`: the server sets an HttpOnly `nihon_session` cookie and the response carries no token. `native`: the response carries `token`, which the client keeps in secure storage and sends as `Authorization: Bearer <token>`.
+            ///
+            /// - Remark: Generated from `#/components/schemas/LocalSignIn/client`.
+            public var client: Components.Schemas.LocalSignIn.ClientPayload
+            /// Creates a new `LocalSignIn`.
+            ///
+            /// - Parameters:
+            ///   - username: Account name, 3 to 32 characters after Unicode NFKC normalization: letters of any script, digits, `_`, `-`, `.`, starting with a letter or digit. Two names that normalize to the same lowercase form are the same name.
+            ///   - password: Local password of the profile.
+            ///   - client: How this client keeps its session. `web`: the server sets an HttpOnly `nihon_session` cookie and the response carries no token. `native`: the response carries `token`, which the client keeps in secure storage and sends as `Authorization: Bearer <token>`.
+            public init(
+                username: Swift.String,
+                password: Swift.String,
+                client: Components.Schemas.LocalSignIn.ClientPayload
+            ) {
+                self.username = username
+                self.password = password
+                self.client = client
+            }
+            public enum CodingKeys: String, CodingKey {
+                case username
+                case password
+                case client
+            }
+            public init(from decoder: any Swift.Decoder) throws {
+                let container = try decoder.container(keyedBy: CodingKeys.self)
+                self.username = try container.decode(
+                    Swift.String.self,
+                    forKey: .username
+                )
+                self.password = try container.decode(
+                    Swift.String.self,
+                    forKey: .password
+                )
+                self.client = try container.decode(
+                    Components.Schemas.LocalSignIn.ClientPayload.self,
+                    forKey: .client
+                )
+                try decoder.ensureNoAdditionalProperties(knownKeys: [
+                    "username",
+                    "password",
+                    "client"
+                ])
+            }
+        }
+        /// A provider sign-in waiting for the browser to return.
+        ///
+        /// - Remark: Generated from `#/components/schemas/OAuthSignInStarted`.
+        public struct OAuthSignInStarted: Codable, Hashable, Sendable {
+            /// Address to open in the browser to authenticate with the provider.
+            ///
+            /// - Remark: Generated from `#/components/schemas/OAuthSignInStarted/authorizationUrl`.
+            public var authorizationUrl: Swift.String
+            /// Value the provider returns to `redirectUri`. The client compares it with the returned one, then sends it to `completeOAuthSignIn`.
+            ///
+            /// - Remark: Generated from `#/components/schemas/OAuthSignInStarted/state`.
+            public var state: Swift.String
+            /// The flow can be completed until this instant.
+            ///
+            /// - Remark: Generated from `#/components/schemas/OAuthSignInStarted/expiresAt`.
+            public var expiresAt: Foundation.Date
+            /// Present for a `native` client only: send it back to `completeOAuthSignIn`. A `web` client holds it as an HttpOnly cookie instead. Only the client that started the flow can complete it.
+            ///
+            /// - Remark: Generated from `#/components/schemas/OAuthSignInStarted/clientBinding`.
+            public var clientBinding: Swift.String?
+            /// Creates a new `OAuthSignInStarted`.
+            ///
+            /// - Parameters:
+            ///   - authorizationUrl: Address to open in the browser to authenticate with the provider.
+            ///   - state: Value the provider returns to `redirectUri`. The client compares it with the returned one, then sends it to `completeOAuthSignIn`.
+            ///   - expiresAt: The flow can be completed until this instant.
+            ///   - clientBinding: Present for a `native` client only: send it back to `completeOAuthSignIn`. A `web` client holds it as an HttpOnly cookie instead. Only the client that started the flow can complete it.
+            public init(
+                authorizationUrl: Swift.String,
+                state: Swift.String,
+                expiresAt: Foundation.Date,
+                clientBinding: Swift.String? = nil
+            ) {
+                self.authorizationUrl = authorizationUrl
+                self.state = state
+                self.expiresAt = expiresAt
+                self.clientBinding = clientBinding
+            }
+            public enum CodingKeys: String, CodingKey {
+                case authorizationUrl
+                case state
+                case expiresAt
+                case clientBinding
+            }
+        }
+        /// Starts signing in with a provider identity already linked to a profile.
+        ///
+        /// - Remark: Generated from `#/components/schemas/OAuthSignInStart`.
+        public struct OAuthSignInStart: Codable, Hashable, Sendable {
+            /// Provider identifier as listed by `listOAuthProviders`, such as `google` or `github`.
+            ///
+            /// - Remark: Generated from `#/components/schemas/OAuthSignInStart/provider`.
+            public var provider: Swift.String
+            /// Where the browser returns after the provider: an `http://127.0.0.1`, `http://localhost`, or `http://[::1]` address, or an address the installation lists in `NIHON_OAUTH_REDIRECT_URIS`. Must also be registered with the provider.
+            ///
+            /// - Remark: Generated from `#/components/schemas/OAuthSignInStart/redirectUri`.
+            public var redirectUri: Swift.String
+            /// How this client keeps its session. `web`: the server sets an HttpOnly `nihon_session` cookie and the response carries no token. `native`: the response carries `token`, which the client keeps in secure storage and sends as `Authorization: Bearer <token>`.
+            ///
+            /// - Remark: Generated from `#/components/schemas/OAuthSignInStart/client`.
+            @frozen public enum ClientPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                case web = "web"
+                case native = "native"
+            }
+            /// How this client keeps its session. `web`: the server sets an HttpOnly `nihon_session` cookie and the response carries no token. `native`: the response carries `token`, which the client keeps in secure storage and sends as `Authorization: Bearer <token>`.
+            ///
+            /// - Remark: Generated from `#/components/schemas/OAuthSignInStart/client`.
+            public var client: Components.Schemas.OAuthSignInStart.ClientPayload
+            /// Creates a new `OAuthSignInStart`.
+            ///
+            /// - Parameters:
+            ///   - provider: Provider identifier as listed by `listOAuthProviders`, such as `google` or `github`.
+            ///   - redirectUri: Where the browser returns after the provider: an `http://127.0.0.1`, `http://localhost`, or `http://[::1]` address, or an address the installation lists in `NIHON_OAUTH_REDIRECT_URIS`. Must also be registered with the provider.
+            ///   - client: How this client keeps its session. `web`: the server sets an HttpOnly `nihon_session` cookie and the response carries no token. `native`: the response carries `token`, which the client keeps in secure storage and sends as `Authorization: Bearer <token>`.
+            public init(
+                provider: Swift.String,
+                redirectUri: Swift.String,
+                client: Components.Schemas.OAuthSignInStart.ClientPayload
+            ) {
+                self.provider = provider
+                self.redirectUri = redirectUri
+                self.client = client
+            }
+            public enum CodingKeys: String, CodingKey {
+                case provider
+                case redirectUri
+                case client
+            }
+            public init(from decoder: any Swift.Decoder) throws {
+                let container = try decoder.container(keyedBy: CodingKeys.self)
+                self.provider = try container.decode(
+                    Swift.String.self,
+                    forKey: .provider
+                )
+                self.redirectUri = try container.decode(
+                    Swift.String.self,
+                    forKey: .redirectUri
+                )
+                self.client = try container.decode(
+                    Components.Schemas.OAuthSignInStart.ClientPayload.self,
+                    forKey: .client
+                )
+                try decoder.ensureNoAdditionalProperties(knownKeys: [
+                    "provider",
+                    "redirectUri",
+                    "client"
+                ])
+            }
+        }
+        /// The provider answer for a started sign-in. A flow can be completed once.
+        ///
+        /// - Remark: Generated from `#/components/schemas/OAuthSignInCompletion`.
+        public struct OAuthSignInCompletion: Codable, Hashable, Sendable {
+            /// `state` of the flow, as returned by the provider.
+            ///
+            /// - Remark: Generated from `#/components/schemas/OAuthSignInCompletion/state`.
+            public var state: Swift.String
+            /// Authorization code the provider returned to `redirectUri`.
+            ///
+            /// - Remark: Generated from `#/components/schemas/OAuthSignInCompletion/code`.
+            public var code: Swift.String
+            /// `clientBinding` of the start response; required for a `native` flow, omitted on the Web.
+            ///
+            /// - Remark: Generated from `#/components/schemas/OAuthSignInCompletion/clientBinding`.
+            public var clientBinding: Swift.String?
+            /// Creates a new `OAuthSignInCompletion`.
+            ///
+            /// - Parameters:
+            ///   - state: `state` of the flow, as returned by the provider.
+            ///   - code: Authorization code the provider returned to `redirectUri`.
+            ///   - clientBinding: `clientBinding` of the start response; required for a `native` flow, omitted on the Web.
+            public init(
+                state: Swift.String,
+                code: Swift.String,
+                clientBinding: Swift.String? = nil
+            ) {
+                self.state = state
+                self.code = code
+                self.clientBinding = clientBinding
+            }
+            public enum CodingKeys: String, CodingKey {
+                case state
+                case code
+                case clientBinding
+            }
+            public init(from decoder: any Swift.Decoder) throws {
+                let container = try decoder.container(keyedBy: CodingKeys.self)
+                self.state = try container.decode(
+                    Swift.String.self,
+                    forKey: .state
+                )
+                self.code = try container.decode(
+                    Swift.String.self,
+                    forKey: .code
+                )
+                self.clientBinding = try container.decodeIfPresent(
+                    Swift.String.self,
+                    forKey: .clientBinding
+                )
+                try decoder.ensureNoAdditionalProperties(knownKeys: [
+                    "state",
+                    "code",
+                    "clientBinding"
+                ])
+            }
+        }
     }
 }
