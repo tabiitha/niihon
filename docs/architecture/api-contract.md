@@ -73,9 +73,9 @@ Clients branch on `code`, never on `message`, which is an English explanation fo
 | `idempotency_capacity_reached` | 503 | Too many recent keyed commands are recorded; `Retry-After: 60` is set, nothing was done |
 | `authentication_required` | 401 | The operation needs a signed-in session and the request has none valid (never signed in, signed out, or expired); `WWW-Authenticate: Bearer` is set. See [sessions](sessions.md) |
 
-Module codes start with the module identifier, such as `example_item_not_found`. Each operation documents its specific error statuses in `errors`; the generator adds `400` to every operation that is versioned or takes parameters or a body, `413` and `415` to every operation with a body, `409`, `422`, and `503` to every [command](command-idempotency.md), `401` to every operation declared `authenticated: true`, and a `default` error response to all of them.
+Module codes start with the module identifier, such as `example_item_not_found`. Each operation documents its specific error statuses in `errors`; the generator adds `400` to every operation that is versioned or takes parameters or a body, `413` and `415` to every operation with a body, `409`, `422`, and `503` to every [command](command-idempotency.md), `401` to every operation declaring `session: 'required'`, and a `default` error response to all of them.
 
-An operation declared `authenticated: true` requires a [session](sessions.md); the contract lists the `sessionCookie` (`nihon_session` cookie, Web) and `sessionToken` (`Authorization: Bearer`, native clients) security schemes on it. A success response declared without a `schema`, such as the `204` of `signOut`, has no body.
+An operation declaring `session: 'required'` requires a [session](sessions.md); the contract lists the `sessionCookie` (`nihon_session` cookie, Web) and `sessionToken` (`Authorization: Bearer`, native clients) security schemes on it. An operation declaring `session: 'optional'` lists them with an empty alternative: it acts on the session when the client sends one, such as `signOut`, and works without. A success response declared without a `schema`, such as the `204` of `signOut`, has no body.
 
 ### Request Correlation
 
