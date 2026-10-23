@@ -15,7 +15,7 @@ export interface ModuleContext {
   readonly commands: Commands;
   /**
    * Opens and revokes sign-in sessions. The session a request was authenticated with is
-   * `currentSession(request)`; operations declared `authenticated` refuse requests without one.
+   * `currentSession(request)`; operations declaring `session: 'required'` refuse requests without one.
    */
   readonly sessions: Sessions;
   /** The server log; never pass it credentials or request bodies. */

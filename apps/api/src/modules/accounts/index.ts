@@ -128,7 +128,7 @@ export function createAccountsModule(options: AccountsModuleOptions = {}): ApiMo
       });
       addOperation(router, getCurrentSession).handle((_input, request) => ({
         status: 200,
-        // Declared `authenticated`: the route only runs with a session.
+        // Declared `session: 'required'`: the route only runs with a session.
         body: toSessionView(currentSession(request) as AuthenticatedSession),
       }));
       addOperation(router, signOut).handle(async (_input, request) => {

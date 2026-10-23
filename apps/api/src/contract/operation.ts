@@ -45,10 +45,12 @@ export interface OperationContract {
    */
   readonly idempotent?: boolean;
   /**
-   * Requires a signed-in session (src/sessions). Without a valid one the request is refused with
-   * `401 authentication_required` before its input is read.
+   * How the operation uses the request's signed-in session (src/sessions), published in the
+   * contract so clients know to send their token. `required`: without a valid session the request
+   * is refused with `401 authentication_required` before its input is read. `optional`: the
+   * operation acts on the session when one is presented, such as signing out, and works without.
    */
-  readonly authenticated?: boolean;
+  readonly session?: 'required' | 'optional';
 }
 
 /** Keeps the literal types of a declaration so handlers are checked against it. */
@@ -149,7 +151,7 @@ export function routeOperation<Operation extends OperationContract>(
   return {
     handle(handler) {
       const parsers = [
-        ...(operation.authenticated === true ? [requireSession] : []),
+        ...(operation.session === 'required' ? [requireSession] : []),
         ...(operation.body === undefined ? [] : [jsonBody(operation.maxBodyBytes ?? defaultMaxBodyBytes)]),
       ];
       router[operation.method](toExpressPath(operation.path), ...parsers, async (request, response) => {

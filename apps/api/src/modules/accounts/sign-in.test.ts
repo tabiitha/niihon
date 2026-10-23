@@ -139,7 +139,7 @@ describe('local sign-in and sessions', () => {
     assert.equal(await sessions(), 0);
   });
 
-  it('refuses requests without a valid session on authenticated operations, and ignores a stale one elsewhere', async () => {
+  it('refuses requests without a valid session on operations that require one, and ignores a stale one elsewhere', async () => {
     for (const init of [{}, bearer('x'.repeat(43)), bearer('not-a-token'), { headers: { authorization: 'Basic abc' } }, cookie('y'.repeat(43))]) {
       const response = await app.get('/sessions/current', init);
       assert.equal(response.status, 401);
@@ -225,7 +225,7 @@ describe('local sign-in and sessions', () => {
 });
 
 describe('session limits and restart', () => {
-  it('keeps the newest sessions of a profile and refuses sign-ins beyond the installation bound', async () => {
+  it('keeps the newest sessions of a profile, then of the installation, and never refuses a sign-in for lack of room', async () => {
     const app = await startAccountsApp({ sessionLimits: { maxPerProfile: 3, maxSessions: 4 } });
     try {
       await app.post('/local-registrations', { username: 'Sakura', password });
@@ -234,16 +234,82 @@ describe('session limits and restart', () => {
       for (let index = 0; index < 4; index += 1) {
         tokens.push((await app.post('/sessions', { username: 'Sakura', password, client: 'native' })).body.token);
       }
-      assert.equal((await app.get('/sessions/current', bearer(tokens[0]))).status, 401, 'the oldest session was dropped');
+      assert.equal((await app.get('/sessions/current', bearer(tokens[0]))).status, 401, 'the oldest session of the profile was dropped');
       for (const token of tokens.slice(1)) {
         assert.equal((await app.get('/sessions/current', bearer(token))).status, 200);
       }
-      assert.equal((await app.post('/sessions', { username: 'Momiji', password, client: 'native' })).status, 201);
-      const refused = await app.post('/sessions', { username: 'Momiji', password, client: 'native' });
-      assert.equal(refused.status, 503);
-      assert.equal(refused.body.error.code, 'accounts_busy');
-      assert.equal(refused.headers.get('retry-after'), '1');
+      const momiji = (await app.post('/sessions', { username: 'Momiji', password, client: 'native' })).body.token;
+      // The installation is full: a flood of sign-ins can sign people out, never lock them out.
+      const another = await app.post('/sessions', { username: 'Momiji', password, client: 'native' });
+      assert.equal(another.status, 201);
+      assert.equal((await app.get('/sessions/current', bearer(tokens[1]))).status, 401, 'the oldest session of the installation was dropped');
+      for (const token of [tokens[2], tokens[3], momiji, another.body.token]) {
+        assert.equal((await app.get('/sessions/current', bearer(token))).status, 200);
+      }
       assert.equal(await app.database.reader.session.count(), 4);
+    } finally {
+      await app.stop();
+    }
+  });
+
+  it('refuses a sign-in whose password changed while it was being verified', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let entered!: () => void;
+    const verifying = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const app = await startAccountsApp({
+      module: {
+        verifyPassword: async (_password, hash) => {
+          if (hash.startsWith('$argon2id$v=19$m=65536')) {
+            entered();
+            await gate;
+          }
+          return true;
+        },
+      },
+    });
+    try {
+      await app.post('/local-registrations', { username: 'Sakura', password });
+      const pending = app.post('/sessions', { username: 'Sakura', password, client: 'native' });
+      await verifying;
+      await app.database.write((transaction) => transaction.localCredential.updateMany({ data: { passwordHash: '$argon2id$changed' } }));
+      release();
+      const response = await pending;
+      assert.equal(response.status, 401);
+      assert.equal(response.body.error.code, 'accounts_credentials_invalid');
+      assert.equal(await app.database.reader.session.count(), 0);
+    } finally {
+      release();
+      await app.stop();
+    }
+  });
+
+  it('computes the comparison hash at start and retries it after a failure', async () => {
+    let calls = 0;
+    const app = await startAccountsApp({
+      module: {
+        hashPassword: async () => {
+          calls += 1;
+          if (calls === 1) {
+            throw new Error('hashing unavailable');
+          }
+          return '$argon2id$comparison';
+        },
+        verifyPassword: async () => false,
+      },
+    });
+    try {
+      assert.equal(calls, 1, 'computed when the module starts');
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        const response = await app.post('/sessions', { username: 'nobody', password, client: 'native' });
+        assert.equal(response.status, 401);
+        assert.equal(response.body.error.code, 'accounts_credentials_invalid');
+      }
+      assert.equal(calls, 2, 'recomputed once after the failure, then reused');
     } finally {
       await app.stop();
     }
@@ -463,6 +529,64 @@ describe('provider sign-in', () => {
     }
     googleVouches(second.body.authorizationUrl, 'google-sub-1');
     assert.equal((await complete({ state: second.body.state, code: 'c' }, cookie(secondBinding, 'nihon_oauth_binding'))).status, 201);
+  });
+
+  it('refuses a new flow beyond the pending bound, until a superseded or expired one leaves', async () => {
+    for (let index = 0; index < 4; index += 1) {
+      assert.equal((await start('google', 'native')).status, 201);
+    }
+    const web = await start('google', 'web');
+    assert.equal(web.status, 201);
+    const refused = await start('google', 'native');
+    assert.equal(refused.status, 503);
+    assert.equal(refused.body.error.code, 'accounts_busy');
+    assert.equal(refused.headers.get('retry-after'), '1');
+    // The same browser starting again replaces its own flow, so it is not refused.
+    const binding = setCookie(web, 'nihon_oauth_binding')?.value ?? '';
+    assert.equal((await start('google', 'web', cookie(binding, 'nihon_oauth_binding'))).status, 201);
+    clock = new Date(clock.getTime() + 10 * 60 * 1000 + 1);
+    assert.equal((await start('google', 'native')).status, 201, 'expired flows leave when a new one starts');
+    assert.equal(await app.database.reader.oAuthSignInFlow.count(), 1);
+  });
+
+  it('opens no session and reports the flow as used up when the database stays busy after the provider answered', async () => {
+    const busy = await startAccountsApp({
+      oauth,
+      now: () => clock,
+      databaseLimits: { maxWriteWaitMs: 100 },
+      module: { googleEndpoints: fake.endpoints.google, githubEndpoints: fake.endpoints.github, now: () => clock },
+    });
+    let release!: () => void;
+    const hold = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    try {
+      await busy.database.write((transaction) =>
+        transaction.profile.create({
+          data: { id: randomUUID(), username: 'Hanami', usernameKey: 'hanami', externalIdentities: { create: { id: randomUUID(), provider: 'google', issuer: googleIssuer, subject: 'google-sub-1' } } },
+        }),
+      );
+      const { authorizationUrl, state, clientBinding } = (await busy.post('/oauth-sign-ins', { provider: 'google', redirectUri, client: 'native' })).body;
+      googleVouches(authorizationUrl, 'google-sub-1');
+      const answer = fake.googleToken;
+      let blocker: Promise<unknown> | undefined;
+      // Once the flow is consumed and the provider is being asked, another write holds the database.
+      fake.googleToken = async (form) => {
+        blocker = busy.database.write(() => hold);
+        return { ...(await answer(form)), delayMs: 20 };
+      };
+      const response = await busy.post('/oauth-sign-ins/completion', { state, code: 'c', clientBinding });
+      assert.equal(response.status, 503);
+      assert.equal(response.body.error.code, 'accounts_oauth_flow_consumed');
+      assert.equal(response.headers.get('retry-after'), null);
+      release();
+      await blocker;
+      assert.equal(await busy.database.reader.session.count(), 0);
+      assert.equal((await busy.post('/oauth-sign-ins/completion', { state, code: 'c', clientBinding })).body.error.code, 'accounts_oauth_state_invalid');
+    } finally {
+      release();
+      await busy.stop();
+    }
   });
 
   it('refuses an expired flow', async () => {

@@ -28,8 +28,7 @@ Generated clients send \`${apiVersionHeader}: ${apiMajorVersion}\`. The server r
 /** Builds the OpenAPI 3.1 document of the foundation operations and the given modules. */
 export function buildOpenApiDocument({ title, modules }: OpenApiDocumentOptions): ReturnType<OpenApiGeneratorV31['generateDocument']> {
   const registry = new OpenAPIRegistry();
-  const authenticatedOperations = groups(modules).some(({ operations }) => operations.some((operation) => operation.authenticated === true));
-  if (authenticatedOperations) {
+  if (groups(modules).some(({ operations }) => operations.some((operation) => operation.session !== undefined))) {
     registry.registerComponent('securitySchemes', sessionCookieScheme, {
       type: 'apiKey',
       in: 'cookie',
@@ -59,7 +58,12 @@ export function buildOpenApiDocument({ title, modules }: OpenApiDocumentOptions)
         summary: operation.summary,
         ...(operation.description === undefined ? {} : { description: operation.description }),
         tags: [tag],
-        ...(operation.authenticated === true ? { security: [{ [sessionCookieScheme]: [] }, { [sessionTokenScheme]: [] }] } : {}),
+        ...(operation.session === undefined
+          ? {}
+          : {
+              // An empty requirement makes the session optional: the client sends it when it has one.
+              security: [{ [sessionCookieScheme]: [] }, { [sessionTokenScheme]: [] }, ...(operation.session === 'optional' ? [{}] : [])],
+            }),
         request: {
           ...(operation.params === undefined ? {} : { params: operation.params }),
           ...(operation.query === undefined ? {} : { query: operation.query }),
@@ -110,7 +114,7 @@ function responsesOf(operation: OperationContract): Record<string, ResponseConfi
     };
   }
   const errors: Record<string, string> = { ...operation.errors };
-  if (operation.authenticated === true) {
+  if (operation.session === 'required') {
     const meaning = 'No valid session: never signed in, signed out, or expired (`authentication_required`); sign in again.';
     errors[401] = errors[401] === undefined ? meaning : `${meaning} ${errors[401]}`;
   }

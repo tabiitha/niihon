@@ -4,7 +4,7 @@ import { ApiError } from '../../contract/operation.ts';
 import type { Database, TransactionClient } from '../../database/database.ts';
 import { DatabaseBusyError, DatabaseClosedError } from '../../database/write-gate.ts';
 import type { Logger } from '../../log.ts';
-import { SessionCapacityError, sessionClients, type OpenedSession, type SessionClient, type Sessions } from '../../sessions/sessions.ts';
+import { sessionClients, type OpenedSession, type SessionClient, type Sessions } from '../../sessions/sessions.ts';
 import { hashSecret, newSecret } from '../../sessions/token.ts';
 import { accountsErrorCodes } from './contract.ts';
 import {
@@ -67,11 +67,21 @@ export function createSignInService(options: SignInServiceOptions) {
   const { database, logger, sessions, providers, redirectUris, hashLimiter, exchangeLimiter, limits, now } = options;
 
   // An unknown username is checked against this hash, so it costs as long as a wrong password and
-  // the answer time does not reveal which usernames exist. Computed once, on first need.
+  // the answer time does not reveal which usernames exist. It is computed when the module starts,
+  // so even the first such sign-in takes the usual time; a failed computation is retried.
   let unknownAccountHash: Promise<string> | undefined;
+  const comparisonHash = (): Promise<string> => {
+    unknownAccountHash ??= options.hashPassword(randomBytes(16).toString('base64url')).catch((error: unknown) => {
+      unknownAccountHash = undefined;
+      throw error;
+    });
+    return unknownAccountHash;
+  };
+  comparisonHash().catch(() => {
+    // Retried by the first sign-in that needs it.
+  });
   const verifyUnknown = async (password: string): Promise<false> => {
-    unknownAccountHash ??= options.hashPassword(randomBytes(16).toString('base64url'));
-    await options.verifyPassword(password, await unknownAccountHash);
+    await options.verifyPassword(password, await comparisonHash());
     return false;
   };
 
@@ -111,9 +121,6 @@ export function createSignInService(options: SignInServiceOptions) {
       } catch (error) {
         if (error instanceof Refusal) {
           throw credentialsInvalid();
-        }
-        if (error instanceof SessionCapacityError) {
-          throw busy('Too many sessions are open.');
         }
         throw error;
       }
@@ -246,7 +253,7 @@ export function createSignInService(options: SignInServiceOptions) {
           logger('warn', 'account.sign_in_failed', { method: identity.provider, reason: 'identity_not_registered' });
           throw new ApiError(401, accountsErrorCodes.identityNotRegistered, 'No profile is linked to this provider identity; register first.');
         }
-        if (error instanceof DatabaseBusyError || error instanceof DatabaseClosedError || error instanceof SessionCapacityError) {
+        if (error instanceof DatabaseBusyError || error instanceof DatabaseClosedError) {
           // No session was opened, but the flow and the provider's single-use code are spent.
           throw flowConsumed();
         }

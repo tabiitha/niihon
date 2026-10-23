@@ -38,7 +38,7 @@ public protocol APIProtocol: Sendable {
     func completeOAuthRegistration(_ input: Operations.CompleteOAuthRegistration.Input) async throws -> Operations.CompleteOAuthRegistration.Output
     /// Sign in with a username and password
     ///
-    /// Works offline. Opens a new session that expires 30 days later. An unknown username and a wrong password are refused alike. A session the request already presents (cookie or bearer token) is revoked in the same transaction, so switching profiles on one client leaves no session behind.
+    /// Works offline. Opens a new session that expires 30 days later. An unknown username and a wrong password are refused alike. A session the request already presents (cookie or bearer token) is revoked in the same transaction, so switching profiles on one client leaves no session behind. When the installation already holds its maximum of sessions, the oldest one is dropped.
     ///
     /// - Remark: HTTP `POST /api/accounts/sessions`.
     /// - Remark: Generated from `#/paths//api/accounts/sessions/post(signIn)`.
@@ -52,7 +52,7 @@ public protocol APIProtocol: Sendable {
     func startOAuthSignIn(_ input: Operations.StartOAuthSignIn.Input) async throws -> Operations.StartOAuthSignIn.Output
     /// Complete a provider sign-in with the returned code
     ///
-    /// Checks that the flow belongs to this client, consumes it, verifies the code and identity with the provider, then opens a session for the profile linked to that identity. The provider's tokens are discarded: they never authorize Nihon operations. An email address is neither required nor read. A session the request already presents (cookie or bearer token) is revoked in the same transaction, so switching profiles on one client leaves no session behind.
+    /// Checks that the flow belongs to this client, consumes it, verifies the code and identity with the provider, then opens a session for the profile linked to that identity. The provider's tokens are discarded: they never authorize Nihon operations. An email address is neither required nor read. A session the request already presents (cookie or bearer token) is revoked in the same transaction, so switching profiles on one client leaves no session behind. When the installation already holds its maximum of sessions, the oldest one is dropped.
     ///
     /// - Remark: HTTP `POST /api/accounts/oauth-sign-ins/completion`.
     /// - Remark: Generated from `#/paths//api/accounts/oauth-sign-ins/completion/post(completeOAuthSignIn)`.
@@ -64,7 +64,7 @@ public protocol APIProtocol: Sendable {
     func getCurrentSession(_ input: Operations.GetCurrentSession.Input) async throws -> Operations.GetCurrentSession.Output
     /// Sign out: revoke the session this request presents
     ///
-    /// The session is deleted at once: its token no longer authorizes any operation, on any client. The Web cookie is cleared. Always answers `204`, also when the session had already expired or been revoked, so a retry is safe. It does not disconnect any provider account.
+    /// Send the session to sign out (the cookie on the Web, `Authorization: Bearer <token>` for a native client); without one nothing is revoked. The session is deleted at once: its token no longer authorizes any operation, on any client. The Web cookie is cleared. Always answers `204`, also when the session had already expired or been revoked, so a retry is safe. It does not disconnect any provider account.
     ///
     /// - Remark: HTTP `DELETE /api/accounts/sessions/current`.
     /// - Remark: Generated from `#/paths//api/accounts/sessions/current/delete(signOut)`.
@@ -134,7 +134,7 @@ extension APIProtocol {
     }
     /// Sign in with a username and password
     ///
-    /// Works offline. Opens a new session that expires 30 days later. An unknown username and a wrong password are refused alike. A session the request already presents (cookie or bearer token) is revoked in the same transaction, so switching profiles on one client leaves no session behind.
+    /// Works offline. Opens a new session that expires 30 days later. An unknown username and a wrong password are refused alike. A session the request already presents (cookie or bearer token) is revoked in the same transaction, so switching profiles on one client leaves no session behind. When the installation already holds its maximum of sessions, the oldest one is dropped.
     ///
     /// - Remark: HTTP `POST /api/accounts/sessions`.
     /// - Remark: Generated from `#/paths//api/accounts/sessions/post(signIn)`.
@@ -164,7 +164,7 @@ extension APIProtocol {
     }
     /// Complete a provider sign-in with the returned code
     ///
-    /// Checks that the flow belongs to this client, consumes it, verifies the code and identity with the provider, then opens a session for the profile linked to that identity. The provider's tokens are discarded: they never authorize Nihon operations. An email address is neither required nor read. A session the request already presents (cookie or bearer token) is revoked in the same transaction, so switching profiles on one client leaves no session behind.
+    /// Checks that the flow belongs to this client, consumes it, verifies the code and identity with the provider, then opens a session for the profile linked to that identity. The provider's tokens are discarded: they never authorize Nihon operations. An email address is neither required nor read. A session the request already presents (cookie or bearer token) is revoked in the same transaction, so switching profiles on one client leaves no session behind. When the installation already holds its maximum of sessions, the oldest one is dropped.
     ///
     /// - Remark: HTTP `POST /api/accounts/oauth-sign-ins/completion`.
     /// - Remark: Generated from `#/paths//api/accounts/oauth-sign-ins/completion/post(completeOAuthSignIn)`.
@@ -186,7 +186,7 @@ extension APIProtocol {
     }
     /// Sign out: revoke the session this request presents
     ///
-    /// The session is deleted at once: its token no longer authorizes any operation, on any client. The Web cookie is cleared. Always answers `204`, also when the session had already expired or been revoked, so a retry is safe. It does not disconnect any provider account.
+    /// Send the session to sign out (the cookie on the Web, `Authorization: Bearer <token>` for a native client); without one nothing is revoked. The session is deleted at once: its token no longer authorizes any operation, on any client. The Web cookie is cleared. Always answers `204`, also when the session had already expired or been revoked, so a retry is safe. It does not disconnect any provider account.
     ///
     /// - Remark: HTTP `DELETE /api/accounts/sessions/current`.
     /// - Remark: Generated from `#/paths//api/accounts/sessions/current/delete(signOut)`.

@@ -14,7 +14,10 @@ export interface SessionLimits {
   readonly lifetimeMs: number;
   /** Sessions one profile keeps; signing in once more drops its oldest. */
   readonly maxPerProfile: number;
-  /** Unexpired sessions of the installation; a further sign-in is refused. */
+  /**
+   * Unexpired sessions of the installation; signing in once more drops the oldest of all, so a
+   * flood of sign-ins can sign people out but never lock anyone out of signing in again.
+   */
   readonly maxSessions: number;
   /** Expired sessions deleted at most by one sign-in. */
   readonly purgeBatch: number;
@@ -43,22 +46,18 @@ export interface OpenedSession {
   readonly session: AuthenticatedSession;
 }
 
-/** Too many sessions are open on the installation; nothing was created. */
-export class SessionCapacityError extends Error {
-  override name = 'SessionCapacityError';
-}
-
 export interface Sessions {
   /**
    * Resolves the token a request presents to its session before any route runs. A missing,
    * malformed, unknown, expired, or revoked token leaves the request anonymous: only operations
-   * declared `authenticated` refuse it, so signing in again always works.
+   * declaring `session: 'required'` refuse it, so signing in again always works.
    */
   readonly authenticate: RequestHandler;
   /**
    * Opens a session inside the caller's write transaction, so it exists only if that transaction
-   * commits. `replaces` names a session of the same client to revoke at the same time. Throws
-   * `SessionCapacityError`.
+   * commits. `replaces` names a session of the same client to revoke at the same time. The
+   * oldest sessions of the profile, then of the installation, are dropped to stay within the
+   * limits; opening a session is never refused for lack of room.
    */
   open(
     transaction: TransactionClient,
@@ -117,17 +116,24 @@ export function createSessions(options: {
       if (replaces !== undefined) {
         await transaction.session.deleteMany({ where: { id: replaces } });
       }
-      const kept = await transaction.session.findMany({
+      const beyondProfile = await transaction.session.findMany({
         where: { profileId, expiresAt: { gt: created } },
         orderBy: { createdAt: 'desc' },
         select: { id: true },
         skip: limits.maxPerProfile - 1,
       });
-      if (kept.length > 0) {
-        await transaction.session.deleteMany({ where: { id: { in: kept.map(({ id }) => id) } } });
+      if (beyondProfile.length > 0) {
+        await transaction.session.deleteMany({ where: { id: { in: beyondProfile.map(({ id }) => id) } } });
       }
-      if ((await transaction.session.count({ where: { expiresAt: { gt: created } } })) >= limits.maxSessions) {
-        throw new SessionCapacityError('Too many sessions are open.');
+      const open = await transaction.session.count({ where: { expiresAt: { gt: created } } });
+      if (open >= limits.maxSessions) {
+        const oldest = await transaction.session.findMany({
+          where: { expiresAt: { gt: created } },
+          orderBy: { createdAt: 'asc' },
+          select: { id: true },
+          take: open - limits.maxSessions + 1,
+        });
+        await transaction.session.deleteMany({ where: { id: { in: oldest.map(({ id }) => id) } } });
       }
       const token = newSecret();
       const session = await transaction.session.create({
