@@ -139,7 +139,13 @@ export async function createVersionedTables(database: Database): Promise<void> {
 const noteBody = (row: NoteRow) => ({ id: row.id, title: row.title, version: formatVersion(Number(row.version)) });
 const tagBody = (row: TagRow) => ({ id: row.id, label: row.label, version: formatVersion(Number(row.version)) });
 
-export function createVersionedModule(): ApiModule {
+/** Points where a test can hold a fixture write. Every hook is optional. */
+export interface VersionedHooks {
+  /** Inside the rename transaction, before the version comparison. */
+  insideRename?: () => Promise<void> | void;
+}
+
+export function createVersionedModule(hooks: VersionedHooks = {}): ApiModule {
   return {
     id: 'fixture',
     operations: [createNote, getNote, renameNote, deleteNote, createTag, getTag, relabelTag],
@@ -166,6 +172,7 @@ export function createVersionedModule(): ApiModule {
             throw noteNotFound();
           }
           await transaction.$executeRaw`INSERT INTO "FixtureNoteLog" ("noteId", "title") VALUES (${params.noteId}, ${body.title})`;
+          await hooks.insideRename?.();
           // The compare and the write are one statement: no other write can slip in between.
           requireWritten(
             await transaction.$executeRaw`UPDATE "FixtureNote" SET "title" = ${body.title}, "version" = "version" + 1 WHERE "id" = ${params.noteId} AND "version" = ${expectedVersion}`,
@@ -244,7 +251,7 @@ export interface VersionedApp {
 }
 
 /** The fixture module over a real database, the real command layer, and the real HTTP adapter. */
-export async function startVersionedApp(options: { dataDir?: string } = {}): Promise<VersionedApp> {
+export async function startVersionedApp(options: { dataDir?: string; hooks?: VersionedHooks } = {}): Promise<VersionedApp> {
   const dataDir = options.dataDir ?? join(mkdtempSync(join(tmpdir(), 'nihon-versions-')), 'data');
   const { database } = await openDatabase({ dataDir });
   await createVersionedTables(database);
@@ -252,7 +259,7 @@ export async function startVersionedApp(options: { dataDir?: string } = {}): Pro
   const server: Server = createServer(
     createApp({
       version: '1.2.3',
-      modules: [createVersionedModule()],
+      modules: [createVersionedModule(options.hooks)],
       database,
       commands: createCommands({ database, key: loadCommandKey(dataDir) }),
       logger: createJsonLogger((line) => logs.push(line)),

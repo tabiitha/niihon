@@ -21,7 +21,7 @@ A conflict is a normal outcome of concurrent use, not a failure of the server. T
 
 ### Retrying and Idempotency Keys
 
-A versioned change is a [command](command-idempotency.md) and accepts an `Idempotency-Key`. The two guarantees compose:
+A versioned change should be declared as a [command](command-idempotency.md) (`idempotent: true`, added with `commands.add`), so that it accepts an `Idempotency-Key`; the server does not require it. The two guarantees compose:
 
 | Case | Answer |
 | --- | --- |
@@ -32,7 +32,7 @@ A versioned change is a [command](command-idempotency.md) and accepts an `Idempo
 
 ### Cancelled Requests
 
-A client that stops waiting does not undo a write the server has confirmed: the write belongs to the server once it started. A client that abandons a request therefore treats the outcome as unknown, reads the resource again, and compares versions, or retries with the same `Idempotency-Key`. Reads that a newer request replaced are cancelled (`AbortSignal` in TypeScript, task cancellation in Swift) and their results are discarded rather than applied over a newer state.
+A client that stops waiting does not undo a write: the server does not tie a running write to the connection, so it commits or rolls back on its own (a test aborts a request while its write runs and finds the write committed). A client that abandons a request therefore treats the outcome as unknown, reads the resource again, and compares versions, or retries with the same `Idempotency-Key`. The clients are expected to cancel reads that a newer request replaced (`AbortSignal` in TypeScript, task cancellation in Swift) and to discard their results rather than apply them over a newer state; the server does not enforce this, and the Web and macOS clients ([#365](https://github.com/tabiitha/niihon/issues/365), [#366](https://github.com/tabiitha/niihon/issues/366)) implement it.
 
 ## Writing a Versioned Operation
 
@@ -83,7 +83,7 @@ Raw SQL works the same: `requireWritten(await transaction.$executeRaw\`UPDATE ..
 
 | Resource | Bound |
 | --- | --- |
-| Version token | `v` and 1 to 10 digits, at most 11 characters; the largest version a client can name is 2,147,483,646, so that the next write still fits a 32-bit `Int`. An aggregate that reached it can no longer be changed through this protocol |
+| Version token | `v` and 1 to 10 digits, at most 11 characters; the largest version a client can name is 2,147,483,646, so that the next write still fits a 32-bit `Int`. An aggregate whose version reached 2,147,483,647 (after one last write at 2,147,483,646) can no longer be changed through this protocol: a client cannot name that version |
 | `If-Match` header | One version, at most 13 characters including the quotes |
 | Conflict response | The standard error body only, a few hundred bytes, whatever the size of the resource |
 
@@ -98,7 +98,7 @@ Measured with `bun run --cwd apps/api bench:versions` through the real HTTP adap
 | Write on a stale version, refused | 0.45–0.52 ms | 0.56–0.70 ms |
 | 8 concurrent writes on one version, until all answered | 2.96–3.22 ms | 4.24–4.39 ms |
 
-Database size 4.9 MiB including the write-ahead log; benchmark process peak RSS 359 MiB, most of it Prisma's query compiler and the fixture server. The issue's budgets are p95 ≤100 ms for reads and ≤200 ms for mutations. These figures time the guard on fixture tables; a domain measures its own queries with its own data. On macOS, SQLite's `fsync` does not force the drive cache to flush, so mutation timings understate the cost of durable writes on Linux.
+Database size 4.9 MiB including the write-ahead log; benchmark process peak RSS 359 MiB, not broken down further. The issue's budgets are p95 ≤100 ms for reads and ≤200 ms for mutations. These figures time the guard on fixture tables; a domain measures its own queries with its own data. On macOS, SQLite's `fsync` does not force the drive cache to flush, so mutation timings understate the cost of durable writes on Linux.
 
 ## Source Structure
 

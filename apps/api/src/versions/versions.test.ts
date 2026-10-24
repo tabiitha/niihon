@@ -82,14 +82,14 @@ describe('conditional writes', () => {
   });
 });
 
-describe('the comparison and the write', () => {
+describe('a conflict inside a write transaction', () => {
   let app: VersionedApp;
   before(async () => {
     app = await startVersionedApp();
   });
   after(() => app.stop());
 
-  it('are one statement, so a write that lost the race undoes everything it did', async () => {
+  it('roll back together: a write that lost the comparison undoes everything the transaction did', async () => {
     const note = await app.newNote('raced');
     const before = await app.count('FixtureNoteLog');
 
@@ -311,6 +311,35 @@ describe('versions and idempotency keys', () => {
 
     const fresh = await app.send('PUT', `/notes/${note.id}`, { title: 'mine' }, { ifMatch: '"v2"', key: retryKey });
     assert.deepEqual([fresh.status, fresh.body.version], [200, 'v3']);
+  });
+});
+
+describe('an abandoned request', () => {
+  it('does not undo the write that was running when the client left', async () => {
+    const app = await startVersionedApp({ hooks: { insideRename: () => new Promise((resolve) => setTimeout(resolve, 200)) } });
+    try {
+      const note = await app.newNote('abandoned');
+      const controller = new AbortController();
+      const request = fetch(`http://127.0.0.1:${app.port}/api/fixture/notes/${note.id}`, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json', 'if-match': `"${note.version}"` },
+        body: JSON.stringify({ title: 'still written' }),
+        signal: controller.signal,
+      });
+      setTimeout(() => controller.abort(), 50);
+      await assert.rejects(request, { name: 'AbortError' });
+
+      // The client is gone; the write finishes on its own.
+      const deadline = Date.now() + 5_000;
+      let stored = (await app.send('GET', `/notes/${note.id}`)).body;
+      while (stored.version === note.version && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        stored = (await app.send('GET', `/notes/${note.id}`)).body;
+      }
+      assert.deepEqual(stored, { id: note.id, title: 'still written', version: 'v2' });
+    } finally {
+      await app.stop();
+    }
   });
 });
 
