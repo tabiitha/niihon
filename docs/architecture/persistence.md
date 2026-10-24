@@ -70,6 +70,8 @@ await database.write(async (transaction) => {                         // write
 
 Writes queue in arrival order in the server (`write-gate.ts`) rather than retrying on SQLite locks, so a write waits at most the configured delay. Keep transactions short: do the computation before `write`, and never wait for the network or the user inside one. `synchronous=FULL` makes every committed write durable before `write` resolves, which favors keeping answers over write throughput. Integrity rules belong in the schema (primary keys, unique indexes, foreign keys, `NOT NULL`); SQLite enforces them on every write, and a violation rolls the whole transaction back.
 
+Work that must follow a confirmed write, such as [announcing the change](changes.md), is registered inside the transaction with `database.afterCommit(transaction, callback)`. The callback runs once the transaction has committed, before the next write starts, so callbacks run in commit order; it never runs when the transaction rolls back, whatever the cause. It must not throw, since the write is already confirmed.
+
 On shutdown, the server stops accepting requests, then refuses new writes, lets the running write finish, and closes both connections before releasing the data directory.
 
 ### Bounded Resources
