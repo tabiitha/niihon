@@ -40,7 +40,7 @@ function recording(answer: (request: Request) => Response | Promise<Response>) {
 }
 
 const profile = { id: 'p1', username: 'sakura', role: 'user', registeredWith: 'github', createdAt: '2026-10-24T10:00:00.000Z' };
-const flow = { state: 'state-1', provider: 'github', idempotencyKey: 'key-0123456789abcdef' };
+const flow = { state: 'state-1', provider: 'github', idempotencyKey: 'key-0123456789abcdef', username: 'sakura' };
 
 describe('registration requests', () => {
   it('send the credentials and an idempotency key, and nothing else', async () => {
@@ -83,7 +83,7 @@ describe('provider return', () => {
 });
 
 describe('pending provider registration', () => {
-  it('keeps only the flow reference, the provider, and the retry key', async () => {
+  it('keeps only the flow reference, the provider, the retry key, and the public username', async () => {
     const storage = new MemoryStorage();
     const store = createPendingStore(storage);
     const { client } = recording(() =>
@@ -93,7 +93,8 @@ describe('pending provider registration', () => {
     assert.deepEqual(result, { kind: 'redirect', address: 'https://github.com/login/oauth/authorize?state=state-1' });
     assert.equal(storage.entries.size, 1);
     const stored = JSON.parse([...storage.entries.values()][0] as string) as Record<string, string>;
-    assert.deepEqual(Object.keys(stored).sort(), ['idempotencyKey', 'provider', 'state']);
+    assert.deepEqual(Object.keys(stored).sort(), ['idempotencyKey', 'provider', 'state', 'username']);
+    assert.equal(stored['username'], 'sakura');
     assert.equal(stored['state'], 'state-1');
   });
 
@@ -190,6 +191,27 @@ describe('finishing a provider registration after the server answered with 5xx c
       assert.deepEqual(store.read(), retry === 'new' ? undefined : flow);
     });
   }
+
+  it('leaves the username for the next form when the registration ends without a profile', async () => {
+    const { client } = recording(() => Response.json(body('accounts_oauth_provider_failed'), { status: 502 }));
+    const store = createPendingStore(new MemoryStorage());
+    store.save(flow);
+    await finishProviderRegistration(client, store, { kind: 'code', state: 'state-1', code: 'c' }, signal());
+    assert.equal(store.read(), undefined);
+    assert.equal(store.rememberedUsername(), 'sakura');
+    store.forgetUsername();
+    assert.equal(store.rememberedUsername(), undefined);
+  });
+
+  it('leaves the username after a refusal at the provider, but not while the same completion can be repeated', async () => {
+    const { client } = recording(() => Response.json(body('accounts_busy'), { status: 503 }));
+    const store = createPendingStore(new MemoryStorage());
+    store.save(flow);
+    await finishProviderRegistration(client, store, { kind: 'code', state: 'state-1', code: 'c' }, signal());
+    assert.equal(store.rememberedUsername(), undefined, 'the flow itself still holds it');
+    assert.deepEqual(await finishProviderRegistration(client, store, { kind: 'denied', state: 'state-1' }, signal()), { kind: 'denied' });
+    assert.equal(store.rememberedUsername(), 'sakura');
+  });
 
   it('repeats a completion without a key when the server has no room to record one', async () => {
     const { client, requests } = recording(() => Response.json(body('idempotency_capacity_reached'), { status: 503 }));

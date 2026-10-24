@@ -194,7 +194,7 @@ describe('provider registration from the form', () => {
     assert.equal(requests.length, 0);
   });
 
-  it('opens the provider page and remembers only the flow, never the typed password', async () => {
+  it('opens the provider page and remembers only the flow and the public username, never the typed password', async () => {
     const { form, requests, opened, storage, fill } = setup(() =>
       Response.json({ authorizationUrl: 'https://github.com/login/oauth/authorize?state=s1', state: 's1', expiresAt: '2026-10-24T10:10:00.000Z' }, { status: 201 }),
     );
@@ -202,7 +202,8 @@ describe('provider registration from the form', () => {
     await form.continueWith('github');
     assert.deepEqual(opened, ['https://github.com/login/oauth/authorize?state=s1']);
     assert.deepEqual(await requests[0]?.json(), { provider: 'github', username: 'octocat', redirectUri: `${origin}/register` });
-    assert.doesNotMatch([...storage.entries.values()].join(), /passphrase|octocat/);
+    assert.doesNotMatch([...storage.entries.values()].join(), /passphrase/);
+    assert.equal(createPendingStore(storage).read()?.username, 'octocat', 'the public username is kept for the return');
     assert.deepEqual(form.getState().busy, { provider: 'github' }, 'busy until the page is left');
   });
 
@@ -214,6 +215,22 @@ describe('provider registration from the form', () => {
     assert.equal(form.getState().busy, undefined);
     assert.equal(form.getState().username, 'octocat');
     assert.deepEqual(opened, []);
+  });
+});
+
+describe('form after a failed provider registration', () => {
+  it('shows the username of the failed attempt once, with empty passwords', () => {
+    const storage = new MemoryStorage();
+    const store = createPendingStore(storage);
+    store.rememberUsername('octocat');
+    const make = () =>
+      createRegistrationForm({ client: createApiClient(origin, async () => Response.json({})), store, origin, openProvider: () => undefined });
+    const form = make();
+    assert.equal(form.getState().username, 'octocat');
+    assert.equal(form.getState().password, '');
+    assert.equal(form.getState().confirmation, '');
+    form.connect();
+    assert.equal(make().getState().username, '', 'forgotten once the form is shown');
   });
 });
 

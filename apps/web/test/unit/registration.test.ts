@@ -155,7 +155,7 @@ describe('provider registration against the real backend and a fake provider', (
     const { storage, store, started } = await start('github', 'octo_cat');
     assert.equal(started.kind, 'redirect');
     const pending = store.read() as PendingFlow;
-    assert.deepEqual(Object.keys(pending).sort(), ['idempotencyKey', 'provider', 'state']);
+    assert.deepEqual(Object.keys(pending).sort(), ['idempotencyKey', 'provider', 'state', 'username']);
     assert.doesNotMatch([...storage.entries.values()].join(), /password|code/i);
 
     const finished = await finishProviderRegistration(client, store, { kind: 'code', state: pending.state, code: 'github:1001' }, signal());

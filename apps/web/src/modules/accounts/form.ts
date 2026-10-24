@@ -42,7 +42,7 @@ export interface FormDependencies {
  */
 export function createRegistrationForm(dependencies: FormDependencies) {
   const { client, store, origin, openProvider, newKey = newIdempotencyKey } = dependencies;
-  let state: FormState = { username: '', password: '', confirmation: '', busy: undefined, problem: undefined, profile: undefined };
+  let state: FormState = { username: store.rememberedUsername() ?? '', password: '', confirmation: '', busy: undefined, problem: undefined, profile: undefined };
   const listeners = new Set<() => void>();
   let sending = false;
   let pending: AbortController | undefined;
@@ -88,6 +88,8 @@ export function createRegistrationForm(dependencies: FormDependencies) {
 
     /** Starts listening to answers; the returned function leaves the form and cancels what is pending. */
     connect() {
+      // The username left by a failed provider registration was shown once; it is not kept any longer.
+      store.forgetUsername();
       return () => {
         pending?.abort();
         sending = false;

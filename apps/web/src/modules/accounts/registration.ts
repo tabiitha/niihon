@@ -56,21 +56,27 @@ export function webAddress(address: string): string | undefined {
   }
 }
 
-/** What survives the trip to the provider's page: the single-use flow reference and the retry key, no secret. */
+/**
+ * What survives the trip to the provider's page: the single-use flow reference, the retry key, and the chosen
+ * username (public, so that the form can be filled in again after a failure). No secret.
+ */
 export interface PendingFlow {
   readonly state: string;
   readonly provider: string;
   readonly idempotencyKey: string;
+  readonly username: string;
 }
 
 type PendingStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
 const pendingKey = 'nihon.registration.pending';
+const usernameKey = 'nihon.registration.username';
 
 /**
  * Keeps the pending provider registration in the tab's session storage, so that the screen can compare the
  * `state` the provider returns with the one the server issued. It never holds a password, an authorization
- * code, or a token; the entry is removed as soon as the registration ends. A browser without storage
+ * code, or a token; the entry is removed as soon as the registration ends. When it ends without a profile,
+ * the username alone is left for the next form to show, then forgotten. A browser without storage
  * cannot continue a provider registration, which `save` reports.
  */
 export function createPendingStore(storage: PendingStorage | undefined) {
@@ -102,6 +108,28 @@ export function createPendingStore(storage: PendingStorage | undefined) {
         // Nothing more can be done about a storage that refuses access.
       }
     },
+    /** Leaves the username of a registration that ended without a profile, for the next form. */
+    rememberUsername(username: string): void {
+      try {
+        storage?.setItem(usernameKey, username);
+      } catch {
+        // The form simply starts empty.
+      }
+    },
+    rememberedUsername(): string | undefined {
+      try {
+        return storage?.getItem(usernameKey) ?? undefined;
+      } catch {
+        return undefined;
+      }
+    },
+    forgetUsername(): void {
+      try {
+        storage?.removeItem(usernameKey);
+      } catch {
+        // Nothing more can be done about a storage that refuses access.
+      }
+    },
   };
 }
 
@@ -116,7 +144,9 @@ function isPendingFlow(value: unknown): value is PendingFlow {
     'provider' in value &&
     typeof value.provider === 'string' &&
     'idempotencyKey' in value &&
-    typeof value.idempotencyKey === 'string'
+    typeof value.idempotencyKey === 'string' &&
+    'username' in value &&
+    typeof value.username === 'string'
   );
 }
 
@@ -151,7 +181,12 @@ export async function startProviderRegistration(
   if (address === undefined) {
     return { kind: 'failed', failure: { kind: 'error' } };
   }
-  const saved = store.save({ state: outcome.data.state, provider: input.provider, idempotencyKey: newIdempotencyKey() });
+  const saved = store.save({
+    state: outcome.data.state,
+    provider: input.provider,
+    idempotencyKey: newIdempotencyKey(),
+    username: input.username,
+  });
   return saved ? { kind: 'redirect', address } : { kind: 'storage' };
 }
 
@@ -197,6 +232,7 @@ export async function finishProviderRegistration(
     return { kind: 'mismatch' };
   }
   if (answer.kind === 'denied') {
+    store.rememberUsername(pending.username);
     store.clear();
     return { kind: 'denied' };
   }
@@ -216,7 +252,8 @@ export async function finishProviderRegistration(
   }
   const retry = describeFailure(outcome.failure).retry ?? 'new';
   if (retry === 'new') {
-    // The flow is used up or refused: only a new registration can go on.
+    // The flow is used up or refused: only a new registration can go on, with the same username.
+    store.rememberUsername(pending.username);
     store.clear();
   }
   return { kind: 'failed', failure: outcome.failure, retry };
