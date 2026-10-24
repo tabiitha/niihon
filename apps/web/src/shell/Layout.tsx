@@ -26,7 +26,7 @@ const primaryNavigation: readonly NavigationEntry[] = [
 // The administration entry is shown to everyone until accounts and roles exist (#7, #77): no
 // administration feature exists yet, and the server alone will decide who may use one.
 const accountNavigation: readonly NavigationEntry[] = [
-  { route: 'profile', label: 'navProfile', icon: ProfileIcon },
+  { route: 'profile', label: 'navProfile', icon: ProfileIcon, includes: ['register'] },
   { route: 'admin', label: 'navAdmin', icon: AdminIcon },
 ];
 

@@ -8,5 +8,6 @@
   "mode": "Mode",
   "modeSystem": "System",
   "modeLight": "Light",
-  "modeDark": "Dark"
+  "modeDark": "Dark",
+  "createAccount": "Create an account"
 }

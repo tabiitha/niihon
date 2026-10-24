@@ -323,3 +323,137 @@ main {
     animation: none !important;
   }
 }
+
+/* Account screens: one card, as in the registration mockups. Colors come from the theme roles only. */
+
+.page.auth-card {
+  max-width: 31rem;
+  margin: clamp(0.5rem, 4vh, 3rem) auto 0;
+  padding: var(--space-6) clamp(1.25rem, 5vw, 2.5rem) var(--space-8);
+  border: 1px solid var(--color-border);
+  border-radius: 1.5rem;
+  background: color-mix(in srgb, var(--color-background) 88%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+.auth-card h1 {
+  font-size: clamp(1.625rem, 1.3rem + 1.2vw, 2rem);
+}
+
+.auth-card h1 + .muted {
+  color: var(--color-accent-text);
+  font-weight: 500;
+}
+
+.auth-field {
+  display: grid;
+  gap: var(--space-1);
+  margin-top: var(--space-4);
+}
+
+.auth-field label {
+  font-weight: 600;
+}
+
+.auth-field input {
+  width: 100%;
+  min-height: 3rem;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-text-muted);
+  border-radius: 0.875rem;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+}
+
+.auth-field input[aria-invalid='true'] {
+  border-width: 2px;
+}
+
+.field-hint {
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+.password-control {
+  position: relative;
+}
+
+.password-control input {
+  padding-inline-end: 3.25rem;
+}
+
+.icon-button {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  border: 0;
+  border-radius: 0.875rem;
+  background: none;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.form-problem {
+  display: grid;
+  gap: var(--space-1);
+  margin: var(--space-4) 0 0;
+  padding: var(--space-3) var(--space-4);
+  border: 2px solid var(--color-text);
+  border-radius: 0.875rem;
+  color: var(--color-text);
+  font-weight: 500;
+}
+
+.form-problem:focus {
+  outline: none;
+}
+
+.button-block {
+  justify-content: space-between;
+  width: 100%;
+  margin-top: var(--space-6);
+}
+
+.button-primary:disabled {
+  cursor: progress;
+  filter: saturate(0.6);
+}
+
+.providers {
+  margin-top: var(--space-8);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--color-border);
+}
+
+.provider-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.button-provider {
+  flex: 1 1 10rem;
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-text-muted);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.button-provider:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+}
+
+.button-provider:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}

@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react';
 
 import { I18nProvider } from './i18n/I18n.tsx';
+import { RegisterPage } from './modules/accounts/RegisterPage.tsx';
 import { AdminPage } from './modules/admin/AdminPage.tsx';
 import { HomePage } from './modules/home/HomePage.tsx';
 import { KanjiPage } from './modules/kanji/KanjiPage.tsx';
@@ -22,6 +23,7 @@ const pages: Readonly<Record<RouteId, ComponentType>> = {
   library: LibraryPage,
   reader: ReaderPage,
   profile: ProfilePage,
+  register: RegisterPage,
   admin: AdminPage,
 };
 

@@ -1,0 +1,216 @@
+import type { NihonClient, components } from '@nihon/api-client';
+
+import { request, type Failure, type Outcome } from '../../api/outcome.ts';
+import { routes } from '../../router/routes.ts';
+import { mayHaveCreatedProfile } from './errors.ts';
+
+export type Profile = components['schemas']['Profile'];
+
+/**
+ * The operations of the registration screen. They carry what the user typed to the server and return its
+ * answer; every rule (username, password, uniqueness, roles, providers) is decided by the server. A new
+ * command gets a new idempotency key; a retry after an answer was lost reuses it, so that a profile that was
+ * created is returned instead of reported as taken.
+ */
+export function newIdempotencyKey(): string {
+  return crypto.randomUUID();
+}
+
+export function registerLocal(
+  client: NihonClient,
+  credentials: { readonly username: string; readonly password: string },
+  idempotencyKey: string,
+  signal: AbortSignal,
+): Promise<Outcome<Profile>> {
+  return request(
+    () =>
+      client.POST('/api/accounts/local-registrations', {
+        body: credentials,
+        params: { header: { 'Idempotency-Key': idempotencyKey } },
+        signal,
+      }),
+    signal,
+  );
+}
+
+/** The providers this installation offers; empty when it has none or is offline. */
+export async function loadProviders(client: NihonClient, signal: AbortSignal): Promise<Outcome<readonly string[]>> {
+  const outcome = await request(() => client.GET('/api/accounts/oauth-providers', { signal }), signal);
+  return outcome.ok ? { ok: true, data: outcome.data.items.map((item) => item.id) } : outcome;
+}
+
+/** Where the browser returns after the provider: this screen, on the origin that serves it. */
+export function returnAddress(origin: string): string {
+  return `${origin}${routes.register}`;
+}
+
+/** The provider page to open, or `undefined` when the address is not a web address. */
+export function webAddress(address: string): string | undefined {
+  try {
+    const url = new URL(address);
+    return url.protocol === 'https:' || url.protocol === 'http:' ? url.href : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** What survives the trip to the provider's page: the single-use flow reference and the retry key, no secret. */
+export interface PendingFlow {
+  readonly state: string;
+  readonly provider: string;
+  readonly idempotencyKey: string;
+}
+
+type PendingStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
+
+const pendingKey = 'nihon.registration.pending';
+
+/**
+ * Keeps the pending provider registration in the tab's session storage, so that the screen can compare the
+ * `state` the provider returns with the one the server issued. It never holds a password, an authorization
+ * code, or a token; the entry is removed as soon as the registration ends. A browser without storage
+ * cannot continue a provider registration, which `save` reports.
+ */
+export function createPendingStore(storage: PendingStorage | undefined) {
+  return {
+    save(flow: PendingFlow): boolean {
+      if (storage === undefined) {
+        return false;
+      }
+      try {
+        storage.setItem(pendingKey, JSON.stringify(flow));
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    read(): PendingFlow | undefined {
+      try {
+        const raw = storage?.getItem(pendingKey);
+        const value: unknown = raw === null || raw === undefined ? undefined : JSON.parse(raw);
+        return isPendingFlow(value) ? value : undefined;
+      } catch {
+        return undefined;
+      }
+    },
+    clear(): void {
+      try {
+        storage?.removeItem(pendingKey);
+      } catch {
+        // Nothing more can be done about a storage that refuses access.
+      }
+    },
+  };
+}
+
+export type PendingStore = ReturnType<typeof createPendingStore>;
+
+function isPendingFlow(value: unknown): value is PendingFlow {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'state' in value &&
+    typeof value.state === 'string' &&
+    'provider' in value &&
+    typeof value.provider === 'string' &&
+    'idempotencyKey' in value &&
+    typeof value.idempotencyKey === 'string'
+  );
+}
+
+export type StartResult =
+  | { readonly kind: 'redirect'; readonly address: string }
+  | { readonly kind: 'storage' }
+  | { readonly kind: 'failed'; readonly failure: Failure };
+
+/**
+ * Starts a provider registration for the chosen username and remembers the flow for the return. The caller
+ * opens `address` in the browser.
+ */
+export async function startProviderRegistration(
+  client: NihonClient,
+  store: PendingStore,
+  input: { readonly provider: string; readonly username: string; readonly origin: string },
+  signal: AbortSignal,
+): Promise<StartResult> {
+  const outcome = await request(
+    () =>
+      client.POST('/api/accounts/oauth-registrations', {
+        body: { provider: input.provider, username: input.username, redirectUri: returnAddress(input.origin) },
+        signal,
+      }),
+    signal,
+  );
+  if (!outcome.ok) {
+    return { kind: 'failed', failure: outcome.failure };
+  }
+  const address = webAddress(outcome.data.authorizationUrl);
+  if (address === undefined) {
+    return { kind: 'failed', failure: { kind: 'error' } };
+  }
+  const saved = store.save({ state: outcome.data.state, provider: input.provider, idempotencyKey: newIdempotencyKey() });
+  return saved ? { kind: 'redirect', address } : { kind: 'storage' };
+}
+
+/** The provider's answer, as it arrives in the address of the screen. */
+export type ProviderReturn =
+  | { readonly kind: 'code'; readonly state: string; readonly code: string }
+  | { readonly kind: 'denied'; readonly state: string | undefined };
+
+/** Reads the provider's answer from the address, or `undefined` when the address is an ordinary visit. */
+export function parseProviderReturn(search: string): ProviderReturn | undefined {
+  const parameters = new URLSearchParams(search);
+  const state = parameters.get('state') ?? undefined;
+  if (parameters.has('error')) {
+    return { kind: 'denied', state };
+  }
+  const code = parameters.get('code');
+  return state === undefined || state === '' || code === null || code === '' ? undefined : { kind: 'code', state, code };
+}
+
+export type FinishResult =
+  | { readonly kind: 'registered'; readonly profile: Profile }
+  | { readonly kind: 'denied' }
+  /** No pending registration, or another `state` than the one issued: nothing was sent to the server. */
+  | { readonly kind: 'mismatch' }
+  | { readonly kind: 'failed'; readonly failure: Failure; readonly retryable: boolean };
+
+/**
+ * Completes a provider registration from the provider's answer. The returned `state` must be the one the
+ * server issued for this browser tab; otherwise nothing is sent. The pending entry is removed when the
+ * registration ends, and kept only while a lost answer leaves open whether the profile was created, so
+ * that retrying with the same key returns that profile and never creates a second one.
+ */
+export async function finishProviderRegistration(
+  client: NihonClient,
+  store: PendingStore,
+  answer: ProviderReturn,
+  signal: AbortSignal,
+): Promise<FinishResult> {
+  const pending = store.read();
+  if (pending === undefined || answer.state === undefined || pending.state !== answer.state) {
+    return { kind: 'mismatch' };
+  }
+  if (answer.kind === 'denied') {
+    store.clear();
+    return { kind: 'denied' };
+  }
+  const outcome = await request(
+    () =>
+      client.POST('/api/accounts/oauth-registrations/completion', {
+        body: { state: answer.state, code: answer.code },
+        params: { header: { 'Idempotency-Key': pending.idempotencyKey } },
+        signal,
+      }),
+    signal,
+  );
+  if (outcome.ok) {
+    store.clear();
+    return { kind: 'registered', profile: outcome.data };
+  }
+  const retryable = mayHaveCreatedProfile(outcome.failure);
+  if (!retryable) {
+    store.clear();
+  }
+  return { kind: 'failed', failure: outcome.failure, retryable };
+}

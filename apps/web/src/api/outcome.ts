@@ -9,7 +9,14 @@ import type { ErrorResponse } from '@nihon/api-client';
 export type Failure =
   | { readonly kind: 'unavailable' }
   | { readonly kind: 'incompatible'; readonly serverApiVersion?: string }
-  | { readonly kind: 'error'; readonly status?: number; readonly code?: string; readonly requestId?: string };
+  | {
+      readonly kind: 'error';
+      readonly status?: number;
+      readonly code?: string;
+      readonly requestId?: string;
+      /** Paths of the invalid inputs of a `validation_failed` answer, such as `body.password`. */
+      readonly fields?: readonly string[];
+    };
 
 export type Outcome<Data> = { readonly ok: true; readonly data: Data } | { readonly ok: false; readonly failure: Failure };
 
@@ -57,6 +64,7 @@ export function classifyErrorResponse(status: number, body: unknown): Failure {
     kind: 'error',
     status,
     ...(error === undefined ? {} : { code: error.code, requestId: error.requestId }),
+    ...(error?.issues === undefined ? {} : { fields: error.issues.map((issue) => issue.path) }),
   };
 }
 
