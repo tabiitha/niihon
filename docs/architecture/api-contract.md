@@ -34,7 +34,7 @@ contracts/openapi.json ──► contracts/typescript/src/schema.ts            (
 
 Exchange objects are designed for clients; they never mirror database tables.
 
-A mutating operation declares its JSON request body with `body: z.strictObject({...})` and, when 16 KiB is not right, `maxBodyBytes`. The body is read with a bounded parser, validated before the handler runs, and handed over as `input.body`. A strict object refuses every field it does not list, so a client cannot inject one (such as `role`); the `validation_failed` issue names the field (`body.role`, message `Unrecognized field.`) and never echoes a value. A command that must be safe to retry is declared `idempotent: true` and accepts an optional `Idempotency-Key`; see [command idempotency](command-idempotency.md).
+A mutating operation declares its JSON request body with `body: z.strictObject({...})` and, when 16 KiB is not right, `maxBodyBytes`. The body is read with a bounded parser, validated before the handler runs, and handed over as `input.body`. A strict object refuses every field it does not list, so a client cannot inject one (such as `role`); the `validation_failed` issue names the field (`body.role`, message `Unrecognized field.`) and never echoes a value. A command that must be safe to retry is declared `idempotent: true` and accepts an optional `Idempotency-Key`; see [command idempotency](command-idempotency.md). An operation that changes an existing aggregate declares `expectsVersion: true`: the client sends the `version` it read in `If-Match`, and an outdated one is refused without writing anything; see [concurrent modifications](concurrency.md).
 
 ## Conventions
 
@@ -71,9 +71,11 @@ Clients branch on `code`, never on `message`, which is an English explanation fo
 | `idempotency_key_in_use` | 409 | Another request with the same `Idempotency-Key` is still running; `Retry-After: 1` is set |
 | `idempotency_key_reused` | 422 | The `Idempotency-Key` was already used by another caller, operation, or input; nothing was done |
 | `idempotency_capacity_reached` | 503 | Too many recent keyed commands are recorded; `Retry-After: 60` is set, nothing was done |
+| `version_conflict` | 412 | The `If-Match` version is no longer the resource's current one; nothing was written. The client reads the resource again; see [concurrent modifications](concurrency.md) |
+| `precondition_required` | 428 | The operation changes a versioned resource and the request has no `If-Match`; nothing was done |
 | `authentication_required` | 401 | The operation needs a signed-in session and the request has none valid (never signed in, signed out, or expired); `WWW-Authenticate: Bearer` is set. See [sessions](sessions.md) |
 
-Module codes start with the module identifier, such as `example_item_not_found`. Each operation documents its specific error statuses in `errors`; the generator adds `400` to every operation that is versioned or takes parameters or a body, `413` and `415` to every operation with a body, `409`, `422`, and `503` to every [command](command-idempotency.md), `401` to every operation declaring `session: 'required'`, and a `default` error response to all of them.
+Module codes start with the module identifier, such as `example_item_not_found`. Each operation documents its specific error statuses in `errors`; the generator adds `400` to every operation that is versioned or takes parameters or a body, `413` and `415` to every operation with a body, `409`, `422`, and `503` to every [command](command-idempotency.md), `412` and `428` to every operation declaring `expectsVersion`, `401` to every operation declaring `session: 'required'`, and a `default` error response to all of them.
 
 An operation declaring `session: 'required'` requires a [session](sessions.md); the contract lists the `sessionCookie` (`nihon_session` cookie, Web) and `sessionToken` (`Authorization: Bearer`, native clients) security schemes on it. An operation declaring `session: 'optional'` lists them with an empty alternative: it acts on the session when the client sends one, such as `signOut`, and works without. A success response declared without a `schema`, such as the `204` of `signOut`, has no body.
 
@@ -179,6 +181,7 @@ Provider integration tests stay in the authentication issues.
 | Page size | 100 items per page, 50 by default |
 | Cursor | 512 characters |
 | Request identifier | 64 characters |
+| Version token | 11 characters (`v` and up to 10 digits); see [concurrent modifications](concurrency.md#limits) |
 | Idempotency key | 16 to 64 characters; see [command idempotency](command-idempotency.md#limits) |
 | Request bodies | 16 KiB unless the operation sets `maxBodyBytes` (see [API server limits](api-server.md#limits)) |
 

@@ -2,6 +2,7 @@ import express, { type Request, type RequestHandler, type Response, type Router 
 import { z } from 'zod';
 
 import { currentSession } from '../sessions/sessions.ts';
+import { ifMatchHeader, parseIfMatch } from '../versions/token.ts';
 import { errorCodes } from './conventions.ts';
 
 /** Body limit of an operation that does not set `maxBodyBytes`. */
@@ -58,6 +59,13 @@ export interface OperationContract {
    * operation acts on the session when one is presented, such as signing out, and works without.
    */
   readonly session?: 'required' | 'optional';
+  /**
+   * The operation changes one aggregate only if it is still at the version the client holds, sent
+   * in `If-Match` (see docs/architecture/concurrency.md). A request without it is refused with
+   * `428 precondition_required`, a malformed one with `400 validation_failed`, and the handler
+   * receives the version as `input.expectedVersion`. Not for `get` operations or event streams.
+   */
+  readonly expectsVersion?: boolean;
 }
 
 /** Keeps the literal types of a declaration so handlers are checked against it. */
@@ -72,6 +80,8 @@ export interface OperationInput<Operation extends OperationContract> {
   readonly query: Parsed<Operation extends { query: infer Schema } ? Schema : undefined>;
   readonly body: Parsed<Operation extends { body: infer Schema } ? Schema : undefined>;
   readonly headers: Parsed<Operation extends { headers: infer Schema } ? Schema : undefined>;
+  /** The stored version the client expects, from `If-Match`; present when the operation declares `expectsVersion`. */
+  readonly expectedVersion: Operation extends { expectsVersion: true } ? number : undefined;
 }
 
 export type OperationResult<Operation extends OperationContract> = {
@@ -167,7 +177,7 @@ export function addEventStream<Operation extends OperationContract>(
   router: Router,
   operation: Operation,
 ): { handle(handler: (input: OperationInput<Operation>, request: Request, response: Response) => void | Promise<void>): void } {
-  if (!isEventStream(operation) || operation.body !== undefined || operation.idempotent === true) {
+  if (!isEventStream(operation) || operation.body !== undefined || operation.idempotent === true || operation.expectsVersion === true) {
     throw new Error(`Operation "${operation.operationId}" is not a bodiless event stream.`);
   }
   return {
@@ -184,6 +194,9 @@ export function routeOperation<Operation extends OperationContract>(
   router: Router,
   operation: Operation,
 ): { handle(handler: OperationHandler<Operation>): void } {
+  if (operation.expectsVersion === true && operation.method === 'get') {
+    throw new Error(`Operation "${operation.operationId}" reads: it cannot expect a version.`);
+  }
   return {
     handle(handler) {
       router[operation.method](toExpressPath(operation.path), ...parsersOf(operation), async (request, response) => {
@@ -218,7 +231,28 @@ function parseOperationInput<Operation extends OperationContract>(operation: Ope
             Object.fromEntries(Object.keys(operation.headers.shape).map((name) => [name, request.get(name)])),
             'header',
           ),
+    // Last, so that a request invalid in another way is told so before its missing precondition.
+    expectedVersion: operation.expectsVersion === true ? parseExpectedVersion(request) : undefined,
   } as OperationInput<Operation>;
+}
+
+/** The version in `If-Match`: absent is `428`, anything but one quoted version token is `400`. */
+function parseExpectedVersion(request: Request): number {
+  const header = request.get(ifMatchHeader);
+  if (header === undefined) {
+    throw new ApiError(
+      428,
+      errorCodes.preconditionRequired,
+      `Send the version you hold in the ${ifMatchHeader} header, such as "v3", so that nobody else's change is overwritten.`,
+    );
+  }
+  const version = parseIfMatch(header);
+  if (version === undefined) {
+    throw new ApiError(400, errorCodes.validationFailed, 'The request is invalid.', [
+      { path: `header.${ifMatchHeader}`, message: 'Must be exactly one version between double quotes, such as "v3".' },
+    ]);
+  }
+  return version;
 }
 
 /** Refuses a request without a valid session before anything else of it is read. */

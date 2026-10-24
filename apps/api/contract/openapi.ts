@@ -15,6 +15,7 @@ import {
 import { defaultMaxBodyBytes, type OperationContract } from '../src/contract/operation.ts';
 import type { ApiModule } from '../src/modules/api-module.ts';
 import { sessionCookieName } from '../src/sessions/token.ts';
+import { ifMatchHeader, ifMatchSchema } from '../src/versions/token.ts';
 
 export interface OpenApiDocumentOptions {
   readonly title: string;
@@ -68,9 +69,10 @@ export function buildOpenApiDocument({ title, modules }: OpenApiDocumentOptions)
         request: {
           ...(operation.params === undefined ? {} : { params: operation.params }),
           ...(operation.query === undefined ? {} : { query: operation.query }),
-          ...(operation.idempotent === true || operation.headers !== undefined
+          ...(operation.idempotent === true || operation.headers !== undefined || operation.expectsVersion === true
             ? {
                 headers: z.object({
+                  ...(operation.expectsVersion === true ? { [ifMatchHeader]: ifMatchSchema } : {}),
                   ...(operation.idempotent === true ? { [idempotencyKeyHeader]: idempotencyKeySchema.optional() } : {}),
                   ...operation.headers?.shape,
                 }),
@@ -153,6 +155,10 @@ function responsesOf(operation: OperationContract): Record<string, ResponseConfi
     const meaning = 'No valid session: never signed in, signed out, or expired (`authentication_required`); sign in again.';
     errors[401] = errors[401] === undefined ? meaning : `${meaning} ${errors[401]}`;
   }
+  if (operation.expectsVersion === true) {
+    errors[412] = `The resource is no longer at the version in \`${ifMatchHeader}\` (\`version_conflict\`): nothing was written; read it again and retry from its current state.`;
+    errors[428] = `No \`${ifMatchHeader}\` header (\`precondition_required\`); nothing was done.`;
+  }
   if (operation.idempotent === true) {
     const idempotencyErrors: Record<number, string> = {
       409: `A request with the same \`${idempotencyKeyHeader}\` is still running; retry after \`Retry-After\` (\`idempotency_key_in_use\`).`,
@@ -168,7 +174,11 @@ function responsesOf(operation: OperationContract): Record<string, ResponseConfi
     errors[415] ??= 'Body that is not `application/json` (`unsupported_media_type`).';
   }
   const commonBadRequest = [
-    ...(operation.params !== undefined || operation.query !== undefined || operation.headers !== undefined || operation.body !== undefined
+    ...(operation.params !== undefined ||
+    operation.query !== undefined ||
+    operation.headers !== undefined ||
+    operation.body !== undefined ||
+    operation.expectsVersion === true
       ? ['invalid input (`validation_failed`)']
       : []),
     ...(operation.versioned === false ? [] : ['incompatible client (`unsupported_api_version`)']),

@@ -65,6 +65,35 @@ describe('buildOpenApiDocument', () => {
     assert.equal(plain?.parameters, undefined);
   });
 
+  it('documents the required If-Match precondition and its errors on an operation that expects a version', () => {
+    const rename = defineOperation({
+      operationId: 'renameThing',
+      method: 'put',
+      path: '/things/{thingId}',
+      summary: 'Rename',
+      params: z.object({ thingId: z.string() }),
+      body: z.strictObject({ name: z.string() }),
+      idempotent: true,
+      expectsVersion: true,
+      responses: { 200: { description: 'Renamed', schema: z.object({ version: z.string() }) } },
+      errors: { 404: 'Unknown (`thing_not_found`).' },
+    });
+    const operation = buildOpenApiDocument({ title: 'Test', modules: [moduleWith('things', [rename])] }).paths?.['/api/things/things/{thingId}']?.put;
+    const headers = ((operation?.parameters ?? []) as { in: string; name: string; required: boolean }[]).filter(({ in: place }) => place === 'header');
+    assert.deepEqual(headers.map(({ name, required }) => [name, required]).sort(), [['Idempotency-Key', false], ['If-Match', true]]);
+    assert.deepEqual(
+      Object.keys(operation?.responses ?? {}).sort(),
+      ['200', '400', '404', '409', '412', '413', '415', '422', '428', '503', 'default'],
+    );
+    const responses = operation?.responses as Record<string, { description: string }>;
+    assert.match(responses['412']?.description ?? '', /version_conflict.*nothing was written/);
+    assert.match(responses['428']?.description ?? '', /precondition_required/);
+    assert.match(responses['400']?.description ?? '', /validation_failed/);
+
+    const plain = buildOpenApiDocument({ title: 'Test', modules: [moduleWith('review', [ping])] }).paths?.['/api/review/ping']?.get;
+    assert.equal(plain?.responses?.['412'], undefined);
+  });
+
   it('documents an event stream, its request headers, and publishes its event payloads', () => {
     const payload = z.object({ topic: z.string() }).meta({ id: 'ThingChanged' });
     const follow = defineOperation({
