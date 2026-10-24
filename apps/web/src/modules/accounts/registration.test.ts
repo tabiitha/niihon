@@ -157,13 +157,49 @@ describe('finishing a provider registration', () => {
       throw new TypeError('fetch failed');
     });
     const first = await finishProviderRegistration(lost.client, store, { kind: 'code', state: 'state-1', code: 'c' }, signal());
-    assert.deepEqual(first, { kind: 'failed', failure: { kind: 'unavailable' }, retryable: true });
+    assert.deepEqual(first, { kind: 'failed', failure: { kind: 'unavailable' }, retry: 'same' });
     assert.deepEqual(store.read(), flow);
 
     const refused = recording(() => Response.json({ error: { code: 'accounts_oauth_code_rejected', message: 'x', requestId: 'r' } }, { status: 400 }));
     const second = await finishProviderRegistration(refused.client, store, { kind: 'code', state: 'state-1', code: 'c' }, signal());
-    assert.equal(second.kind === 'failed' && second.retryable, false);
+    assert.equal(second.kind === 'failed' && second.retry, 'new');
     assert.equal(store.read(), undefined);
+  });
+});
+
+describe('finishing a provider registration after the server answered with 5xx codes', () => {
+  const signal = () => new AbortController().signal;
+  const body = (code: string) => ({ error: { code, message: 'x', requestId: 'r' } });
+
+  for (const [status, code, retry] of [
+    [502, 'accounts_oauth_provider_failed', 'new'],
+    [503, 'accounts_oauth_flow_consumed', 'new'],
+    [503, 'accounts_busy', 'same'],
+    [503, 'idempotency_capacity_reached', 'withoutKey'],
+    [409, 'idempotency_key_in_use', 'same'],
+    [500, 'internal_error', 'same'],
+  ] as const) {
+    it(`${code} (${String(status)}) is a server answer: ${retry === 'new' ? 'the registration starts again' : 'the same completion can be repeated'}`, async () => {
+      const { client } = recording(() => Response.json(body(code), { status }));
+      const store = createPendingStore(new MemoryStorage());
+      store.save(flow);
+      const result = await finishProviderRegistration(client, store, { kind: 'code', state: 'state-1', code: 'c' }, signal());
+      assert.ok(result.kind === 'failed');
+      assert.equal(result.failure.kind, 'error', 'not a stopped service');
+      assert.equal(result.retry, retry);
+      assert.deepEqual(store.read(), retry === 'new' ? undefined : flow);
+    });
+  }
+
+  it('repeats a completion without a key when the server has no room to record one', async () => {
+    const { client, requests } = recording(() => Response.json(body('idempotency_capacity_reached'), { status: 503 }));
+    const store = createPendingStore(new MemoryStorage());
+    store.save(flow);
+    const answer = { kind: 'code', state: 'state-1', code: 'c' } as const;
+    await finishProviderRegistration(client, store, answer, signal());
+    await finishProviderRegistration(client, store, answer, signal(), { withoutKey: true });
+    assert.equal(requests[0]?.headers.get('Idempotency-Key'), flow.idempotencyKey);
+    assert.equal(requests[1]?.headers.has('Idempotency-Key'), false);
   });
 });
 

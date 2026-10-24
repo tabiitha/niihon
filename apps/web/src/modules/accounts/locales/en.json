@@ -49,5 +49,6 @@
   "callbackProgress": "Confirming your registration with the provider…",
   "callbackFailedTitle": "Registration not completed",
   "startAgain": "Start again",
-  "tryAgain": "Try again"
+  "tryAgain": "Try again",
+  "errorInProgress": "A previous attempt is still being processed. Try again in a moment."
 }

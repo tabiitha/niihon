@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useId, useRef, useState, useSyncExternalStore, type Ref } from 'react';
 
 import { apiClient } from '../../api/client.ts';
 import { RequestCancelledError } from '../../api/outcome.ts';
@@ -8,16 +8,13 @@ import { Link, useRouter } from '../../router/Router.tsx';
 import { routes } from '../../router/routes.ts';
 import { ArrowIcon, EyeIcon, EyeOffIcon } from '../../shell/icons.tsx';
 import { Page } from '../../shell/Page.tsx';
-import { describeFailure, mayHaveCreatedProfile, type FormField, type Problem } from './errors.ts';
+import type { FormField, Problem } from './errors.ts';
+import { createRegistrationForm, viewOfFinish, type ReturnView } from './form.ts';
 import {
   createPendingStore,
   finishProviderRegistration,
   loadProviders,
-  newIdempotencyKey,
   parseProviderReturn,
-  registerLocal,
-  startProviderRegistration,
-  type Profile,
   type ProviderReturn,
 } from './registration.ts';
 import { accountsTexts } from './texts.ts';
@@ -42,33 +39,29 @@ export function RegisterPage() {
   return answer === undefined ? <RegistrationForm /> : <ProviderReturn answer={answer} />;
 }
 
-function useProblemText() {
+function ProblemMessage({ problem, id, notice }: { readonly problem: Problem; readonly id?: string; readonly notice: Ref<HTMLParagraphElement> }) {
   const t = useTexts(accountsTexts);
-  return (problem: Problem) => t(problem.message);
-}
-
-function RequestReference({ problem }: { readonly problem: Problem }) {
-  const t = useTexts(accountsTexts);
-  return problem.requestId === undefined ? null : <span className="status-detail">{t('errorReference', { requestId: problem.requestId })}</span>;
+  return (
+    <p id={id} ref={notice} tabIndex={-1} className="form-problem" role="alert">
+      <span>{t(problem.message)}</span>
+      {problem.requestId !== undefined && <span className="status-detail">{t('errorReference', { requestId: problem.requestId })}</span>}
+    </p>
+  );
 }
 
 function RegistrationForm() {
   const t = useTexts(accountsTexts);
-  const problemText = useProblemText();
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmation, setConfirmation] = useState('');
-  const [reveal, setReveal] = useState({ password: false, confirmation: false });
-  const [busy, setBusy] = useState<'local' | { readonly provider: string } | undefined>(undefined);
-  const [problem, setProblem] = useState<Problem | undefined>(undefined);
-  const [profile, setProfile] = useState<Profile | undefined>(undefined);
+  const [form] = useState(() =>
+    createRegistrationForm({
+      client: apiClient,
+      store: pendingStore(),
+      origin: window.location.origin,
+      openProvider: (address) => window.location.assign(address),
+    }),
+  );
+  const { username, password, confirmation, busy, problem, profile } = useSyncExternalStore(form.subscribe, form.getState);
   const [providers] = useResource('oauth-providers', (signal) => loadProviders(apiClient, signal));
-
-  // A synchronous guard: a second submit can arrive before the busy state has been rendered.
-  const sending = useRef(false);
-  const pending = useRef<AbortController | undefined>(undefined);
-  // The key of the command being retried; any edit makes the next attempt a new command.
-  const idempotencyKey = useRef<string | undefined>(undefined);
+  const [reveal, setReveal] = useState({ password: false, confirmation: false });
   const inputs = {
     username: useRef<HTMLInputElement>(null),
     password: useRef<HTMLInputElement>(null),
@@ -78,11 +71,25 @@ function RegistrationForm() {
   const ids = { username: useId(), password: useId(), confirmation: useId(), problem: useId(), providers: useId() };
 
   // Leaving the page cancels what is pending; the late answer is ignored.
-  useEffect(() => () => pending.current?.abort(), []);
+  useEffect(() => form.connect(), [form]);
 
+  // A page restored from the back-forward cache keeps its busy state but lost its requests.
+  useEffect(() => {
+    const restored = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        form.restored();
+      }
+    };
+    window.addEventListener('pageshow', restored);
+    return () => window.removeEventListener('pageshow', restored);
+  }, [form]);
+
+  // After a failure, focus goes to the field that caused it, or else to the message itself.
   useEffect(() => {
     if (problem?.field !== undefined) {
       inputs[problem.field].current?.focus();
+    } else if (problem !== undefined) {
+      notice.current?.focus();
     }
     // The refs are stable; focus follows each new problem.
   }, [problem]);
@@ -92,107 +99,6 @@ function RegistrationForm() {
       notice.current?.focus();
     }
   }, [profile]);
-
-  const edit = (setter: (value: string) => void) => (value: string) => {
-    idempotencyKey.current = undefined;
-    setter(value);
-  };
-
-  const begin = () => {
-    sending.current = true;
-    setProblem(undefined);
-    pending.current?.abort();
-    pending.current = new AbortController();
-    return pending.current;
-  };
-
-  const end = (controller: AbortController) => {
-    if (!controller.signal.aborted) {
-      sending.current = false;
-      setBusy(undefined);
-    }
-  };
-
-  const failWith = (value: Problem) => setProblem(value);
-
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    if (sending.current) {
-      return;
-    }
-    if (username.trim() === '') {
-      return failWith({ message: 'usernameRequired', field: 'username' });
-    }
-    if (password === '') {
-      return failWith({ message: 'passwordRequired', field: 'password' });
-    }
-    if (password !== confirmation) {
-      return failWith({ message: 'passwordsDiffer', field: 'confirmation' });
-    }
-    const controller = begin();
-    setBusy('local');
-    const key = (idempotencyKey.current ??= newIdempotencyKey());
-    try {
-      const outcome = await registerLocal(apiClient, { username, password }, key, controller.signal);
-      if (controller.signal.aborted) {
-        return;
-      }
-      if (outcome.ok) {
-        // Nothing of the secret stays in the page once the server has answered.
-        setPassword('');
-        setConfirmation('');
-        idempotencyKey.current = undefined;
-        setProfile(outcome.data);
-        return;
-      }
-      failWith(describeFailure(outcome.failure));
-      if (!mayHaveCreatedProfile(outcome.failure)) {
-        // A definite refusal: the username stays, the secrets are typed again.
-        idempotencyKey.current = undefined;
-        setPassword('');
-        setConfirmation('');
-      }
-    } catch (error) {
-      if (!(error instanceof RequestCancelledError)) {
-        failWith({ message: 'errorGeneric' });
-      }
-    } finally {
-      end(controller);
-    }
-  }
-
-  async function continueWith(provider: string) {
-    if (sending.current) {
-      return;
-    }
-    if (username.trim() === '') {
-      return failWith({ message: 'usernameNeededForProvider', field: 'username' });
-    }
-    const controller = begin();
-    setBusy({ provider });
-    try {
-      const result = await startProviderRegistration(
-        apiClient,
-        pendingStore(),
-        { provider, username, origin: window.location.origin },
-        controller.signal,
-      );
-      if (controller.signal.aborted) {
-        return;
-      }
-      if (result.kind === 'redirect') {
-        // The page is left for the provider; it stays busy until then.
-        window.location.assign(result.address);
-        return;
-      }
-      failWith(result.kind === 'storage' ? { message: 'errorStorage' } : describeFailure(result.failure));
-    } catch (error) {
-      if (!(error instanceof RequestCancelledError)) {
-        failWith({ message: 'errorGeneric' });
-      }
-    }
-    end(controller);
-  }
 
   if (profile !== undefined) {
     return (
@@ -217,13 +123,15 @@ function RegistrationForm() {
   return (
     <Page title={t('title')} className="auth-card">
       <p className="muted">{t('subtitle')}</p>
-      <form noValidate onSubmit={(event) => void submit(event)} aria-busy={busy === 'local'}>
-        {problem !== undefined && (
-          <p id={ids.problem} className="form-problem" role="alert">
-            <span>{problemText(problem)}</span>
-            <RequestReference problem={problem} />
-          </p>
-        )}
+      <form
+        noValidate
+        onSubmit={(event) => {
+          event.preventDefault();
+          void form.submit();
+        }}
+        aria-busy={busy === 'local'}
+      >
+        {problem !== undefined && <ProblemMessage problem={problem} id={ids.problem} notice={notice} />}
         <div className="auth-field">
           <label htmlFor={ids.username}>{t('usernameLabel')}</label>
           <input
@@ -238,7 +146,7 @@ function RegistrationForm() {
             value={username}
             aria-invalid={problem?.field === 'username' ? true : undefined}
             aria-describedby={describedBy('username', `${ids.username}-hint`)}
-            onChange={(event) => edit(setUsername)(event.target.value)}
+            onChange={(event) => form.setField('username', event.target.value)}
           />
           <span id={`${ids.username}-hint`} className="field-hint">
             {t('usernameHint')}
@@ -246,10 +154,10 @@ function RegistrationForm() {
         </div>
         {(
           [
-            ['password', ids.password, password, setPassword, 'passwordLabel', 'showPassword', 'hidePassword', 'new-password'],
-            ['confirmation', ids.confirmation, confirmation, setConfirmation, 'confirmationLabel', 'showConfirmation', 'hideConfirmation', 'new-password'],
+            ['password', ids.password, password, 'passwordLabel', 'showPassword', 'hidePassword'],
+            ['confirmation', ids.confirmation, confirmation, 'confirmationLabel', 'showConfirmation', 'hideConfirmation'],
           ] as const
-        ).map(([field, id, value, setter, label, show, hide, autoComplete]) => (
+        ).map(([field, id, value, label, show, hide]) => (
           <div className="auth-field" key={field}>
             <label htmlFor={id}>{t(label)}</label>
             <div className="password-control">
@@ -258,14 +166,14 @@ function RegistrationForm() {
                 id={id}
                 name={field}
                 type={reveal[field] ? 'text' : 'password'}
-                autoComplete={autoComplete}
+                autoComplete="new-password"
                 autoCapitalize="none"
                 spellCheck={false}
                 required
                 value={value}
                 aria-invalid={problem?.field === field ? true : undefined}
                 aria-describedby={describedBy(field, field === 'password' ? `${id}-hint` : undefined)}
-                onChange={(event) => edit(setter)(event.target.value)}
+                onChange={(event) => form.setField(field, event.target.value)}
               />
               <button
                 type="button"
@@ -302,7 +210,7 @@ function RegistrationForm() {
                   type="button"
                   className="button-provider"
                   disabled={busy !== undefined}
-                  onClick={() => void continueWith(provider)}
+                  onClick={() => void form.continueWith(provider)}
                 >
                   {starting ? t('startingProvider', { provider: name }) : t('continueWithProvider', { provider: name })}
                 </button>
@@ -318,43 +226,24 @@ function RegistrationForm() {
 /** The screen the provider returns to: completes the registration, or says why it could not be completed. */
 function ProviderReturn({ answer }: { readonly answer: ProviderReturn }) {
   const t = useTexts(accountsTexts);
-  const problemText = useProblemText();
-  const [attempt, setAttempt] = useState(0);
-  const [result, setResult] = useState<
-    | { readonly kind: 'working' }
-    | { readonly kind: 'registered'; readonly profile: Profile }
-    | { readonly kind: 'problem'; readonly problem: Problem; readonly retryable: boolean }
-  >({ kind: 'working' });
+  const [attempt, setAttempt] = useState<{ readonly count: number; readonly withoutKey: boolean }>({ count: 0, withoutKey: false });
+  const [view, setView] = useState<ReturnView | undefined>(undefined);
   const notice = useRef<HTMLParagraphElement>(null);
 
   useEffect(() => {
     // The code and the state leave the address bar and the history at once.
     window.history.replaceState(null, '', routes.register);
     const controller = new AbortController();
-    setResult({ kind: 'working' });
-    finishProviderRegistration(apiClient, pendingStore(), answer, controller.signal).then(
+    setView(undefined);
+    finishProviderRegistration(apiClient, pendingStore(), answer, controller.signal, { withoutKey: attempt.withoutKey }).then(
       (finished) => {
-        if (controller.signal.aborted) {
-          return;
+        if (!controller.signal.aborted) {
+          setView(viewOfFinish(finished));
         }
-        setResult(
-          finished.kind === 'registered'
-            ? { kind: 'registered', profile: finished.profile }
-            : {
-                kind: 'problem',
-                problem:
-                  finished.kind === 'denied'
-                    ? { message: 'errorProviderDenied' }
-                    : finished.kind === 'mismatch'
-                      ? { message: 'errorFlowInvalid' }
-                      : describeFailure(finished.failure),
-                retryable: finished.kind === 'failed' && finished.retryable,
-              },
-        );
       },
       (error: unknown) => {
         if (!controller.signal.aborted && !(error instanceof RequestCancelledError)) {
-          setResult({ kind: 'problem', problem: { message: 'errorGeneric' }, retryable: false });
+          setView({ kind: 'problem', problem: { message: 'errorGeneric' }, retry: undefined });
         }
       },
     );
@@ -363,16 +252,16 @@ function ProviderReturn({ answer }: { readonly answer: ProviderReturn }) {
   }, [attempt]);
 
   useEffect(() => {
-    if (result.kind !== 'working') {
+    if (view !== undefined) {
       notice.current?.focus();
     }
-  }, [result.kind]);
+  }, [view]);
 
-  if (result.kind === 'registered') {
+  if (view?.kind === 'registered') {
     return (
       <Page title={t('successTitle')} className="auth-card">
         <p ref={notice} tabIndex={-1} role="status">
-          {t('successBody', { username: result.profile.username })}
+          {t('successBody', { username: view.profile.username })}
         </p>
         <div className="actions">
           <Link to={routes.home} className="button-primary">
@@ -383,20 +272,22 @@ function ProviderReturn({ answer }: { readonly answer: ProviderReturn }) {
       </Page>
     );
   }
-  if (result.kind === 'problem') {
+  if (view?.kind === 'problem') {
+    const { retry } = view;
     return (
       <Page title={t('callbackFailedTitle')} className="auth-card">
-        <p ref={notice} tabIndex={-1} className="form-problem" role="alert">
-          <span>{problemText(result.problem)}</span>
-          <RequestReference problem={result.problem} />
-        </p>
+        <ProblemMessage problem={view.problem} notice={notice} />
         <div className="actions">
-          {result.retryable && (
-            <button type="button" className="button-primary" onClick={() => setAttempt((value) => value + 1)}>
+          {retry !== undefined && (
+            <button
+              type="button"
+              className="button-primary"
+              onClick={() => setAttempt((current) => ({ count: current.count + 1, withoutKey: retry === 'withoutKey' }))}
+            >
               {t('tryAgain')}
             </button>
           )}
-          <Link to={routes.register} className={result.retryable ? 'button-secondary' : 'button-primary'}>
+          <Link to={routes.register} className={retry === undefined ? 'button-primary' : 'button-secondary'}>
             {t('startAgain')}
           </Link>
         </div>

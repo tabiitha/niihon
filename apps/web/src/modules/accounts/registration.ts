@@ -2,7 +2,7 @@ import type { NihonClient, components } from '@nihon/api-client';
 
 import { request, type Failure, type Outcome } from '../../api/outcome.ts';
 import { routes } from '../../router/routes.ts';
-import { mayHaveCreatedProfile } from './errors.ts';
+import { describeFailure, explainedCodes, type Retry } from './errors.ts';
 
 export type Profile = components['schemas']['Profile'];
 
@@ -19,23 +19,25 @@ export function newIdempotencyKey(): string {
 export function registerLocal(
   client: NihonClient,
   credentials: { readonly username: string; readonly password: string },
-  idempotencyKey: string,
+  idempotencyKey: string | undefined,
   signal: AbortSignal,
 ): Promise<Outcome<Profile>> {
   return request(
     () =>
       client.POST('/api/accounts/local-registrations', {
         body: credentials,
-        params: { header: { 'Idempotency-Key': idempotencyKey } },
+        // Without a key when the server has no room to record one (`idempotency_capacity_reached`).
+        params: { header: idempotencyKey === undefined ? {} : { 'Idempotency-Key': idempotencyKey } },
         signal,
       }),
     signal,
+    explainedCodes,
   );
 }
 
 /** The providers this installation offers; empty when it has none or is offline. */
 export async function loadProviders(client: NihonClient, signal: AbortSignal): Promise<Outcome<readonly string[]>> {
-  const outcome = await request(() => client.GET('/api/accounts/oauth-providers', { signal }), signal);
+  const outcome = await request(() => client.GET('/api/accounts/oauth-providers', { signal }), signal, explainedCodes);
   return outcome.ok ? { ok: true, data: outcome.data.items.map((item) => item.id) } : outcome;
 }
 
@@ -140,6 +142,7 @@ export async function startProviderRegistration(
         signal,
       }),
     signal,
+    explainedCodes,
   );
   if (!outcome.ok) {
     return { kind: 'failed', failure: outcome.failure };
@@ -173,19 +176,21 @@ export type FinishResult =
   | { readonly kind: 'denied' }
   /** No pending registration, or another `state` than the one issued: nothing was sent to the server. */
   | { readonly kind: 'mismatch' }
-  | { readonly kind: 'failed'; readonly failure: Failure; readonly retryable: boolean };
+  | { readonly kind: 'failed'; readonly failure: Failure; readonly retry: Retry };
 
 /**
  * Completes a provider registration from the provider's answer. The returned `state` must be the one the
  * server issued for this browser tab; otherwise nothing is sent. The pending entry is removed when the
- * registration ends, and kept only while a lost answer leaves open whether the profile was created, so
- * that retrying with the same key returns that profile and never creates a second one.
+ * registration ends, and kept while the same completion can be repeated (a lost answer, a busy server, a
+ * registration still running): retrying with the same key returns the profile if one was created and never
+ * creates a second one. `withoutKey` repeats it without a key, as the server asks when it cannot record one.
  */
 export async function finishProviderRegistration(
   client: NihonClient,
   store: PendingStore,
   answer: ProviderReturn,
   signal: AbortSignal,
+  options: { readonly withoutKey?: boolean } = {},
 ): Promise<FinishResult> {
   const pending = store.read();
   if (pending === undefined || answer.state === undefined || pending.state !== answer.state) {
@@ -199,18 +204,20 @@ export async function finishProviderRegistration(
     () =>
       client.POST('/api/accounts/oauth-registrations/completion', {
         body: { state: answer.state, code: answer.code },
-        params: { header: { 'Idempotency-Key': pending.idempotencyKey } },
+        params: { header: options.withoutKey === true ? {} : { 'Idempotency-Key': pending.idempotencyKey } },
         signal,
       }),
     signal,
+    explainedCodes,
   );
   if (outcome.ok) {
     store.clear();
     return { kind: 'registered', profile: outcome.data };
   }
-  const retryable = mayHaveCreatedProfile(outcome.failure);
-  if (!retryable) {
+  const retry = describeFailure(outcome.failure).retry ?? 'new';
+  if (retry === 'new') {
+    // The flow is used up or refused: only a new registration can go on.
     store.clear();
   }
-  return { kind: 'failed', failure: outcome.failure, retryable };
+  return { kind: 'failed', failure: outcome.failure, retry };
 }

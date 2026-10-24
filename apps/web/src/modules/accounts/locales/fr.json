@@ -49,5 +49,6 @@
   "callbackProgress": "Confirmation de l’inscription auprès du fournisseur…",
   "callbackFailedTitle": "Inscription non terminée",
   "startAgain": "Recommencer",
-  "tryAgain": "Réessayer"
+  "tryAgain": "Réessayer",
+  "errorInProgress": "Une tentative précédente est encore en cours de traitement. Réessayez dans un instant."
 }

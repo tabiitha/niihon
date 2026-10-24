@@ -49,5 +49,6 @@
   "callbackProgress": "プロバイダーで登録を確認しています…",
   "callbackFailedTitle": "登録は完了していません",
   "startAgain": "最初からやり直す",
-  "tryAgain": "もう一度試す"
+  "tryAgain": "もう一度試す",
+  "errorInProgress": "前回の試行がまだ処理中です。しばらくしてからもう一度お試しください。"
 }

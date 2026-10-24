@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
 
+import { createRegistrationForm } from '../../src/modules/accounts/form.ts';
 import { describeFailure } from '../../src/modules/accounts/errors.ts';
 import {
   createPendingStore,
@@ -100,6 +101,16 @@ describe('local registration against the real backend', () => {
     assert.equal(describeFailure(another.failure).message, 'errorUsernameTaken');
   });
 
+  it('explains a body too large with the real answer of the server', async () => {
+    const outcome = await registerLocal(client, { username: 'big_body', password: 'x'.repeat(9000) }, newIdempotencyKey(), signal());
+    assert.ok(!outcome.ok);
+    assert.deepEqual(
+      { status: outcome.failure.kind === 'error' ? outcome.failure.status : undefined, code: outcome.failure.kind === 'error' ? outcome.failure.code : undefined },
+      { status: 413, code: 'payload_too_large' },
+    );
+    assert.deepEqual({ message: describeFailure(outcome.failure).message, retry: describeFailure(outcome.failure).retry }, { message: 'errorRequestInvalid', retry: 'new' });
+  });
+
   it('ignores a request that was cancelled when the form was left', async () => {
     const controller = new AbortController();
     const pending = registerLocal(client, { username: 'left_the_form', password }, newIdempotencyKey(), controller.signal);
@@ -177,7 +188,7 @@ describe('provider registration against the real backend and a fake provider', (
     const refused = await finishProviderRegistration(client, second.store, { kind: 'code', state: secondPending.state, code: 'github:2002' }, signal());
     assert.ok(refused.kind === 'failed');
     assert.equal(describeFailure(refused.failure).message, 'errorIdentityRegistered');
-    assert.equal(refused.retryable, false);
+    assert.equal(refused.retry, 'new');
     assert.equal(second.store.read(), undefined);
     // The username of the refused attempt was not used up.
     assert.equal((await registerLocal(client, { username: 'second_name', password }, newIdempotencyKey(), signal())).ok, true);
@@ -202,7 +213,7 @@ describe('provider registration against the real backend and a fake provider', (
     });
     const answer = { kind: 'code', state: pending.state, code: 'github:3003' } as const;
     const first = await finishProviderRegistration(flaky, store, answer, signal());
-    assert.ok(first.kind === 'failed' && first.retryable);
+    assert.ok(first.kind === 'failed' && first.retry === 'same');
     const retry = await finishProviderRegistration(flaky, store, answer, signal());
     assert.ok(retry.kind === 'registered');
     assert.equal(retry.profile.username, 'lost_flow');
@@ -233,5 +244,58 @@ describe('provider registration against the real backend and a fake provider', (
     const foreign = await start('github', 'someone', 'http://nihon.example.com');
     assert.ok(foreign.started.kind === 'failed');
     assert.equal(describeFailure(foreign.started.failure).message, 'errorRedirectUri');
+  });
+});
+
+describe('registration form against the real backend', () => {
+  let server: AccountsServer;
+  before(async () => {
+    server = await startAccountsServer();
+  });
+  after(() => server.stop());
+
+  const formFor = (baseUrl: string) => {
+    const form = createRegistrationForm({
+      client: createApiClient(baseUrl),
+      store: createPendingStore(new MemoryStorage()),
+      origin: 'http://127.0.0.1:4000',
+      openProvider: () => undefined,
+    });
+    form.connect();
+    return form;
+  };
+  const fill = (form: ReturnType<typeof formFor>, username: string, secret = password) => {
+    form.setField('username', username);
+    form.setField('password', secret);
+    form.setField('confirmation', secret);
+  };
+
+  it('registers, then meets the duplicate and the refused password with the typed username kept', async () => {
+    const created = formFor(server.baseUrl);
+    fill(created, 'Form_User');
+    await created.submit();
+    assert.equal(created.getState().profile?.username, 'Form_User');
+    assert.equal(created.getState().password, '');
+
+    const duplicate = formFor(server.baseUrl);
+    fill(duplicate, 'form_user');
+    await duplicate.submit();
+    assert.deepEqual({ message: duplicate.getState().problem?.message, username: duplicate.getState().username }, { message: 'errorUsernameTaken', username: 'form_user' });
+
+    const weak = formFor(server.baseUrl);
+    fill(weak, 'form_weak', 'weak');
+    await weak.submit();
+    assert.deepEqual({ message: weak.getState().problem?.message, field: weak.getState().problem?.field, username: weak.getState().username }, { message: 'errorPasswordInvalid', field: 'password', username: 'form_weak' });
+  });
+
+  it('keeps what was typed when the service cannot be reached', async () => {
+    const stopping = await startAccountsServer();
+    const form = formFor(stopping.baseUrl);
+    await stopping.stop();
+    fill(form, 'form_offline');
+    await form.submit();
+    assert.equal(form.getState().problem?.message, 'errorUnavailable');
+    assert.deepEqual({ u: form.getState().username, p: form.getState().password }, { u: 'form_offline', p: password });
+    assert.equal(form.getState().busy, undefined);
   });
 });

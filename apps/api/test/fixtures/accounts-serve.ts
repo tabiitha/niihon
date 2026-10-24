@@ -1,3 +1,5 @@
+import { resolve } from 'node:path';
+
 import { startAccountsApp } from './accounts-app.ts';
 import { githubClient, googleClient, googleIssuer, startFakeProviders } from './fake-providers.ts';
 
@@ -40,7 +42,8 @@ fake.authorize = (provider, query) => {
   return { status: 302, body: '', headers: { location: returnAddress.href } };
 };
 
-const webDir = process.env['NIHON_WEB_DIR'];
+const configuredWebDir = process.env['NIHON_WEB_DIR'];
+const webDir = configuredWebDir === undefined ? undefined : resolve(configuredWebDir);
 const app = await startAccountsApp({
   oauth: { providers: { google: googleClient, github: githubClient }, redirectUris: [] },
   module: { googleEndpoints: fake.endpoints.google, githubEndpoints: fake.endpoints.github },
