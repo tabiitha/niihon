@@ -50,7 +50,8 @@ export interface Database {
   /**
    * Runs `callback` once the running write `transaction` has committed, before the next write
    * starts, so callbacks run in commit order; it never runs when the transaction rolls back.
-   * `callback` must not throw: the write is already confirmed when it runs.
+   * The write is already confirmed when it runs: a callback that throws is reported as a process
+   * warning and the write still resolves, with the other callbacks run.
    */
   afterCommit(transaction: TransactionClient, callback: () => void): void;
   /** Refuses new writes, lets the running one finish, then closes both connections. */
@@ -130,7 +131,12 @@ export async function openDatabase(options: DatabaseOptions): Promise<OpenedData
           }
         }
         for (const callback of callbacks) {
-          callback();
+          try {
+            callback();
+          } catch (error) {
+            // The write is confirmed: a failing callback must neither undo that answer nor skip the others.
+            process.emitWarning(`An after-commit callback failed: ${error instanceof Error ? error.message : String(error)}`);
+          }
         }
         return result;
       });

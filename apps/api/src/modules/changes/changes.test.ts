@@ -188,6 +188,16 @@ describe('change notifications over server-sent events', () => {
     assert.equal(await stream.next(), undefined);
   });
 
+  it('ends the stream of a session that is gone, even when no change told it', async () => {
+    await start({ changesModule: { limits: { heartbeatMs: 20 } } });
+    const sakura = await signIn('Sakura');
+    const stream = await subscribe(bearer(sakura));
+    await stream.next();
+    // As if the sign-out had committed between resolving the session and subscribing.
+    await app.database.write((transaction) => transaction.session.deleteMany({}));
+    assert.equal(await stream.next(), undefined);
+  });
+
   it('refuses subscribers beyond capacity until one leaves', async () => {
     await start({ changeLimits: { maxSubscribers: 1 } });
     const first = await subscribe();

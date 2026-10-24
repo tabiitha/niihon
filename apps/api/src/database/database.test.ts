@@ -470,6 +470,29 @@ describe('installation database', () => {
       assert.deepEqual(await database.reader.$queryRaw`SELECT COUNT(*) AS "count" FROM "Parent"`, [{ count: 0n }]);
     });
 
+    it('keep a committed write confirmed and run the others when one callback throws', async () => {
+      const { database } = await open(release2);
+      const seen: string[] = [];
+      const warnings: string[] = [];
+      const onWarning = (warning: Error) => warnings.push(warning.message);
+      process.on('warning', onWarning);
+      try {
+        await database.write(async (transaction) => {
+          await transaction.$executeRaw`INSERT INTO "Parent" ("name", "label") VALUES ('kept', 'KEPT')`;
+          database.afterCommit(transaction, () => {
+            throw new Error('subscriber failed');
+          });
+          database.afterCommit(transaction, () => seen.push('next'));
+        });
+        await new Promise((resolve) => setImmediate(resolve));
+      } finally {
+        process.off('warning', onWarning);
+      }
+      assert.deepEqual(seen, ['next']);
+      assert.ok(warnings.some((message) => message.includes('subscriber failed')));
+      assert.deepEqual(await database.reader.$queryRaw`SELECT COUNT(*) AS "count" FROM "Parent"`, [{ count: 1n }]);
+    });
+
     it('refuse a transaction that is no longer running', async () => {
       const { database } = await open(release2);
       const finished = await database.write(async (transaction) => transaction);

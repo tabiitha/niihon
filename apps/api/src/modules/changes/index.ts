@@ -21,8 +21,12 @@ export function createChangesModule(options: ChangesModuleOptions = {}): ApiModu
   return {
     id: 'changes',
     operations: changesOperations,
-    register(router: Router, { changes, logger }) {
+    register(router: Router, { changes, database, logger }) {
       addEventStream(router, streamChanges).handle(({ query, headers }, request, response) => {
+        if (request.destroyed || response.closed) {
+          // The client left while its session was being resolved: hold no subscription for it.
+          return;
+        }
         const session = currentSession(request);
         const writer = createEventWriter(response, limits, logger);
         const subscription = changes.subscribe({
@@ -37,14 +41,31 @@ export function createChangesModule(options: ChangesModuleOptions = {}): ApiModu
             'Retry-After': '5',
           });
         }
-        writer.open(subscription.start, {
-          onHeartbeat: () => {
-            if (session !== undefined && session.expiresAt.getTime() <= now().getTime()) {
-              writer.end();
-            }
-          },
-          onClose: () => subscription.close(),
-        });
+        /**
+         * Ends the stream once its session is gone. Ending sessions also end their streams through
+         * the feed; this check covers a session that ended before the subscription began, and expiry.
+         */
+        const checkSession = () => {
+          if (session === undefined) {
+            return;
+          }
+          if (session.expiresAt.getTime() <= now().getTime()) {
+            writer.end();
+            return;
+          }
+          database.reader.session.findUnique({ where: { id: session.id }, select: { id: true } }).then(
+            (found) => {
+              if (found === null) {
+                writer.end();
+              }
+            },
+            (error: unknown) => {
+              logger('warn', 'changes.session_check_failed', { error: error instanceof Error ? error.message : String(error) });
+            },
+          );
+        };
+        writer.open(subscription.start, { onHeartbeat: checkSession, onClose: () => subscription.close() });
+        checkSession();
       });
     },
   };
