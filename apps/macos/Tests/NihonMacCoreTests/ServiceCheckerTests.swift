@@ -69,6 +69,12 @@ struct FakeContractClient: APIProtocol {
     {
         throw UnexpectedOperationError()
     }
+
+    func streamChanges(_ input: Operations.StreamChanges.Input) async throws
+        -> Operations.StreamChanges.Output
+    {
+        throw UnexpectedOperationError()
+    }
 }
 
 func health(apiVersion: String = NihonAPIVersion.version) -> Operations.GetHealth.Output {
