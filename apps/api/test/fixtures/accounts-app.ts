@@ -58,6 +58,8 @@ export async function startAccountsApp(
     /** Clock of the sessions and the change feed; the module has its own in `module.now`. */
     now?: () => Date;
     dataDir?: string;
+    /** Directory of a built Web interface to serve next to the API. */
+    webDir?: string;
   } = {},
 ): Promise<AccountsApp> {
   const root = options.dataDir === undefined ? mkdtempSync(join(tmpdir(), 'nihon-accounts-')) : undefined;
@@ -85,6 +87,7 @@ export async function startAccountsApp(
       }),
       logger,
       oauth: options.oauth ?? noOAuthSettings,
+      ...(options.webDir === undefined ? {} : { webDir: options.webDir }),
     }),
   );
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
