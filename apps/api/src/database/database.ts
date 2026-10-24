@@ -47,6 +47,12 @@ export interface Database {
    * transaction outlives `maxTransactionMs`.
    */
   write<T>(work: (transaction: TransactionClient) => Promise<T>): Promise<T>;
+  /**
+   * Runs `callback` once the running write `transaction` has committed, before the next write
+   * starts, so callbacks run in commit order; it never runs when the transaction rolls back.
+   * `callback` must not throw: the write is already confirmed when it runs.
+   */
+  afterCommit(transaction: TransactionClient, callback: () => void): void;
   /** Refuses new writes, lets the running one finish, then closes both connections. */
   close(): Promise<void>;
 }
@@ -99,13 +105,42 @@ export async function openDatabase(options: DatabaseOptions): Promise<OpenedData
   }
 
   const gate = createWriteGate({ maxWaitMs: limits.maxWriteWaitMs, maxQueued: limits.maxQueuedWrites });
+  // Callbacks of the transaction that is running; an entry exists only while it runs.
+  const committed = new WeakMap<TransactionClient, (() => void)[]>();
   let closed: Promise<void> | undefined;
   const database: Database = {
     reader,
     write(work) {
-      return gate.run(() =>
-        writer.$transaction(work, { maxWait: limits.maxWriteWaitMs, timeout: limits.maxTransactionMs }),
-      );
+      return gate.run(async () => {
+        const callbacks: (() => void)[] = [];
+        let running: TransactionClient | undefined;
+        let result;
+        try {
+          result = await writer.$transaction(
+            (transaction) => {
+              running = transaction;
+              committed.set(transaction, callbacks);
+              return work(transaction);
+            },
+            { maxWait: limits.maxWriteWaitMs, timeout: limits.maxTransactionMs },
+          );
+        } finally {
+          if (running !== undefined) {
+            committed.delete(running);
+          }
+        }
+        for (const callback of callbacks) {
+          callback();
+        }
+        return result;
+      });
+    },
+    afterCommit(transaction, callback) {
+      const callbacks = committed.get(transaction);
+      if (callbacks === undefined) {
+        throw new Error('afterCommit needs the transaction of a write that is still running.');
+      }
+      callbacks.push(callback);
     },
     close() {
       closed ??= gate.close().then(async () => {
