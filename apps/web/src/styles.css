@@ -336,6 +336,10 @@ main {
   backdrop-filter: blur(6px);
 }
 
+:root[data-color-mode='light'] .page.auth-card {
+  background: color-mix(in srgb, var(--color-surface) 78%, transparent);
+}
+
 .auth-card h1 {
   font-size: clamp(1.625rem, 1.3rem + 1.2vw, 2rem);
 }
@@ -409,14 +413,21 @@ main {
   font-weight: 500;
 }
 
-.form-problem:focus {
-  outline: none;
+.auth-card [tabindex='-1']:focus {
+  outline: var(--focus-ring);
+  outline-offset: 3px;
 }
 
 .button-block {
-  justify-content: space-between;
+  position: relative;
+  justify-content: center;
   width: 100%;
   margin-top: var(--space-6);
+}
+
+.button-block svg {
+  position: absolute;
+  inset-inline-end: var(--space-6);
 }
 
 .button-primary:disabled {
@@ -431,13 +442,11 @@ main {
 }
 
 .provider-actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   gap: var(--space-3);
 }
 
 .button-provider {
-  flex: 1 1 10rem;
   min-height: 2.75rem;
   padding: var(--space-2) var(--space-4);
   border: 1px solid var(--color-text-muted);
