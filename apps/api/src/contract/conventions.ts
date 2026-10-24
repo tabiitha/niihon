@@ -29,6 +29,8 @@ export const errorCodes = {
   idempotencyKeyReused: 'idempotency_key_reused',
   idempotencyCapacityReached: 'idempotency_capacity_reached',
   authenticationRequired: 'authentication_required',
+  versionConflict: 'version_conflict',
+  preconditionRequired: 'precondition_required',
 } as const;
 
 export const errorResponseSchema = z
