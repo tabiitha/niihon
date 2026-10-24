@@ -47,9 +47,12 @@ When `NIHON_WEB_DIR` is unset (development, tests), the API serves only `/api`. 
 | Library | `/library` |
 | Reader (library) | `/reader?media=<id>` |
 | Profile | `/profile` |
+| Account registration, and the return address of a provider | `/register` |
 | Administration | `/admin` |
 
 Every address is the same static page; the server returns `index.html` for each, so a direct load, a reload, or a shared link opens the right page. Resources created after the build, such as media, are never path segments: they are addressed by a query identifier on a fixed page, such as `/reader?media=<id>`. An unknown address shows a "Page not found" page. A page change moves focus to the main content and updates the document title.
+
+Registration is not an entry of the navigation: the Profile page links to it, and the Profile entry stays highlighted while it is open.
 
 The administration entry is visible to everyone until accounts and roles exist ([#7](https://github.com/tabiitha/niihon/issues/7), [#77](https://github.com/tabiitha/niihon/issues/77)); the server alone will decide who may use an administration feature.
 
@@ -64,6 +67,29 @@ Pages never call `fetch`: they use the client from `src/api/client.ts`, generate
 | `error` | Any other error answer | Error, with Retry and the request identifier for the server log |
 
 Before showing a page, the shell checks `GET /api/health` and the API major version; the navigation stays usable meanwhile. `useResource(key, load)` cancels the previous load with an `AbortSignal` when the page unmounts, when its key changes (a new route or identifier), or on retry, and ignores late answers. Data lives in component state only: leaving a page releases it, and a reload rebuilds it from the API. Nothing is persisted in the browser.
+
+## Account Registration
+
+`/register` is delivered by [issue #234](https://github.com/tabiitha/niihon/issues/234) on the contract of [#233](https://github.com/tabiitha/niihon/issues/233) (see [accounts](accounts.md)). Its code is `src/modules/accounts/`: `RegisterPage.tsx` (the screen), `registration.ts` (the four operations, the pending provider registration, and the reading of the provider's answer), `errors.ts` (the message of each failure), and `locales/`. Like every page, it contains no business rule: the server alone decides which usernames and passwords are valid, whether a name is taken, and which providers exist. The screen only checks what the server cannot see, that something was typed and that the confirmation equals the password.
+
+| Behavior | How |
+| --- | --- |
+| Local registration | Username, password, and confirmation (each password field has a show/hide button) are sent to `registerLocalAccount`. Success shows the created username and a link home; no session is opened, because sign-in is a separate screen ([#76](https://github.com/tabiitha/niihon/issues/76)) |
+| Providers | `listOAuthProviders` decides which buttons appear. Without credentials, or when the list cannot be read, only the local form is shown and registration still works offline |
+| Provider username | The username field is shared: a provider button needs it filled first, because the provider's own name or email is never used. `startOAuthRegistration` also reports a taken name before the provider page opens |
+| Provider return | The provider returns to `/register?code=…&state=…` on this origin (a loopback address, as the server requires). The screen compares `state` with the one the server issued to this tab, removes `code` and `state` from the address and the history at once, and only then calls `completeOAuthRegistration`. A `state` that is missing or different sends nothing. A refusal by the provider (`error=…`) creates nothing |
+| Errors | Each stable code of the registration operations has a message in en, fr, and ja (`errors.ts`); `validation_failed` is told apart by the invalid field (`body.username`, `body.password`). The server's English text is never displayed; the request identifier is shown for the service log. A test fails when the contract names a code the screen cannot explain |
+| Typed data | The username is always kept. After a refusal the passwords are cleared and typed again; after a lost answer (service unreachable, unexplained server error) everything is kept so that Retry is one action |
+| Double submission | A synchronous guard rejects a second submit before the busy state is rendered; the buttons are disabled meanwhile |
+| Stale answers | Every request has an `AbortController`. Leaving the page cancels it and the page ignores a late answer, as with `useResource` |
+| Lost answers | The commands that create a profile carry an `Idempotency-Key`. A retry with the same key (inputs unchanged) returns the profile that was created instead of "username taken", so a lost answer never leaves a second profile. Editing a field starts a new command |
+| Keyboard and assistive technology | Real labels, hints and errors linked with `aria-describedby`, `aria-invalid` on the faulty field, focus moved to that field after a failure, `role="alert"` for failures and `role="status"` for success, show/hide buttons named for their action |
+
+**What the browser keeps.** The password and the confirmation live only in component state: they are cleared after a definite answer and are never put in the address, `localStorage`, `sessionStorage`, a cookie, or a log. The only storage used is the tab's `sessionStorage` entry `nihon.registration.pending` while the provider's page is open: `{ state, provider, idempotencyKey }`. `state` is the single-use reference of the flow (the server stores only its hash, and it authorizes nothing without the provider's one-time code), and the key only lets a retry return the same profile. Neither the authorization code nor a token is stored; the entry is removed as soon as the registration ends, and kept only while a lost answer leaves open whether the profile exists. A browser that blocks storage cannot continue a provider registration and says so; the local form still works.
+
+**Trying it by hand.** After `bun run build`, `NIHON_WEB_DIR=apps/web/dist node apps/api/test/fixtures/accounts-serve.ts` serves the interface and the real accounts module on a temporary database, with Google and GitHub played by a local fake whose authorization pages approve at once (GitHub user 42, Google subject `g-42`). The printed port is the one to open at `/register`. Nothing leaves the machine.
+
+**Appearances.** The card, fields, buttons, and messages use only the theme variables (`--color-*`), so they follow Sakura Milk and Neon Sorbet today and any style registered later; a test rejects a color literal in the account styles. Fields and buttons use `textMuted` for their outline (at least 3:1 against the background in both modes) instead of the decorative `border`. The Landscape style (Bloom Hour, Petal Afterglow) is not a registered theme yet ([#81](https://github.com/tabiitha/niihon/issues/81)), so it is not selectable. The mockups' "Sign in" links are absent until the sign-in screen exists.
 
 ## Interface Languages
 
@@ -93,9 +119,9 @@ A theme is one folder, `resources/themes/<style>/tokens.json`, holding its color
 
 | Command | Checks |
 | --- | --- |
-| `bun run --cwd apps/web test` | Language selection, text completeness, routes, theme tokens and contrast, and the health check against the real API adapter and simulated failures |
+| `bun run --cwd apps/web test` | Language selection, text completeness, routes, theme tokens and contrast, and the health check against the real API adapter and simulated failures; the registration operations against the real API and a fake Google and GitHub on loopback (`apps/api/test/fixtures/accounts-serve.ts`, which needs the Prisma client generated by an API build or test), including duplicates, refused passwords, lost answers, replays, and a stopped service |
 | `bun run --cwd apps/api test` | Static serving: page fallback, cache headers, security headers, 404s, `/api` isolation, Web directory validation |
-| `bun run test:production` | After `bun run build`: the compiled API serves the Web build; every space opens directly; the shell references only same-origin files |
+| `bun run test:production` | After `bun run build`: the compiled API serves the Web build; every space opens directly; the shell references only same-origin files; a local account is registered offline through the compiled API |
 | `bun run test:container` | The image serves the interface, including a reload of `/reader?media=…`, also without network access |
 
 Component rendering and keyboard navigation are verified manually in a browser; an automated browser test tool is not selected yet.
@@ -104,7 +130,7 @@ Component rendering and keyboard navigation are verified manually in a browser; 
 
 | Resource | Bound |
 | --- | --- |
-| Bundle | One JavaScript file (about 235 KiB minified) and one style sheet; no runtime download |
+| Bundle | One JavaScript file (about 258 KiB minified) and one style sheet; no runtime download |
 | Static files | Streamed by Express; nothing is held in memory per request |
 | Pending reads | One per mounted page; cancelled on page change |
 
