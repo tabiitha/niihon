@@ -236,7 +236,7 @@ try {
   });
   resumes.forEach((values, index) => console.log(row(`Series ${index + 1}: resume after 100 missed changes, until the ${topics + 1} replayed topics`, values)));
   resyncs.forEach((values, index) => console.log(row(`Series ${index + 1}: reconnect with a previous process's position, until resync`, values)));
-  console.log(`\nHeap for ${streamsPerAudience * 3} open streams and a full window: ${mib(heapStreams - heapBefore)} more than before them`);
+  console.log(`\nHeap for ${streamsPerAudience * 3} open streams, the window already full: ${mib(heapStreams - heapBefore)} more than before them`);
   console.log(`Unread subscriber: 100,000 changes committed in ${flood.toFixed(0)} ms; dropped ${dropped} time(s); RSS ${mib(rssBefore)} before, ${mib(peakRss)} at peak`);
 } finally {
   for (const stream of opened) {

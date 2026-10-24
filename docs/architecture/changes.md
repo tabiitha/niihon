@@ -35,7 +35,7 @@ Each event's `id` is its position, `<stream>.<sequence>`: the stream is named ra
 
 ### Subscribing and Resuming
 
-1. Open the stream first, then read resources when the first event arrives: a `resync`, or the replayed changes. Changes committed while the client reads are announced on the stream, so nothing falls in between.
+1. Open the stream first, then read resources once it answers `200`. A new subscription starts with `resync`: read everything shown. A resume starts with the replayed changes, possibly none, so do not wait for an event: reread the topics replayed and keep the rest. Changes committed while the client reads are announced on the stream, so nothing falls in between.
 2. Keep the `id` of the last event received.
 3. On reconnection, send it as `Last-Event-ID` (browsers' `EventSource` does so itself, after the `retry` delay) or as the `lastEventId` query parameter; the header wins when both are present.
 
@@ -47,13 +47,13 @@ Each event's `id` is its position, `<stream>.<sequence>`: the stream is named ra
 | Of a previous process (the server restarted) | `resync` `server_restarted` |
 | Malformed or ahead of the server | `resync` `unknown_position` |
 
-The `id` of a `resync` event is the current position, so the next resume starts from there. A position longer than 128 characters is refused with `400 validation_failed`. A client that switches profile starts without a position.
+The `id` of a `resync` event is the current position, so the next resume starts from there. A position advances only with the events a subscriber receives: one that sees few of the installation's changes can fall outside the window and receive an unneeded `resync`, never a wrong state. A position longer than 128 characters is refused with `400 validation_failed`. A client that switches profile starts without a position.
 
 ### Identity Filtering
 
 A change is meant for everyone or for one profile. The subscriber's session, resolved when the stream opens, decides what it receives: a signed-in subscriber gets the changes of its profile and those for everyone; an anonymous one only those for everyone. Positions skipped by filtering are normal; a subscriber never learns another profile's changes, not even their topics.
 
-A stream belongs to its session: it ends right after the subscriber is told of a change that ended its session (sign-out, replacement by a new sign-in, eviction beyond the session limits), and within one heartbeat after the session expires. The client then rereads its session, receives `401 authentication_required`, and signs in again.
+A stream belongs to its session: it ends right after the subscriber is told of a change that ended its session (sign-out, replacement by a new sign-in, eviction beyond the session limits). The server also checks, right after subscribing and at each heartbeat, that the session still exists and has not expired, so a session that ended while the stream was opening, or expired, ends its stream within one heartbeat. The client then rereads its session, receives `401 authentication_required`, and signs in again.
 
 ### Published Topics
 
@@ -110,4 +110,4 @@ Measured with `bun run --cwd apps/api bench:changes` against the real HTTP adapt
 | Series 2: reconnect after a restart, until `resync` | 100 | 0.2 ms | 0.3 ms | 2.2 ms |
 | Series 3: reconnect after a restart, until `resync` | 100 | 0.2 ms | 0.3 ms | 1.8 ms |
 
-The budgets of #72 are p95 ≤ 100 ms for local reads and ≤ 200 ms for mutations. Opening the 30 streams with a full retained window added 3.3 MiB of heap to the benchmark process (server and clients together). A subscriber that never reads, alone while 100,000 changes over 1,000 topics were committed in 100 transactions (28 ms), was disconnected once, and the process RSS went from 322.0 MiB to 339.3 MiB at its peak. On macOS, SQLite's `fsync` does not force a drive cache flush, so write timings there understate Linux.
+The budgets of #72 are p95 ≤ 100 ms for local reads and ≤ 200 ms for mutations. With the retained window already full, opening the 30 streams added 3.3 MiB of heap to the benchmark process (server and clients together). A subscriber that never reads, alone while 100,000 changes over 1,000 topics were committed in 100 transactions (28 ms), was disconnected during the first transaction, once its 64-event queue overflowed; the process RSS went from 322.0 MiB to 339.3 MiB at its peak. The 30 s stall disconnection is covered by a unit test, not measured. On macOS, SQLite's `fsync` does not force a drive cache flush, so write timings there understate Linux.
