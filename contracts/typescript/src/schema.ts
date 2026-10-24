@@ -176,10 +176,56 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/changes/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Follow committed changes as server-sent events
+         * @description Opens a `text/event-stream` announcing changes after they are committed; a change never announces a transaction that was rolled back. Events invalidate: the client rereads the canonical resources of the announced topic, which stay the only source of state.
+         *
+         *     The stream starts with either a `resync` event, after which the client rereads everything it shows, or the changes missed since the position the client sent, one per topic. Positions are the events' `id`s: send the last one received in `Last-Event-ID` (browsers' `EventSource` does so when it reconnects) or in `lastEventId`; the header wins. A position from before a server restart, or older than the changes the server keeps, starts with `resync`.
+         *
+         *     A signed-in subscriber also receives the changes of its own profile, and its stream ends when its session ends; an anonymous one receives only the changes meant for everyone. A comment line is sent every 15 s. A subscriber that does not read is disconnected once 64 events wait for it, or after 30 s without progress; it reconnects with its last position.
+         */
+        get: operations["streamChanges"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @description Data of a `change` event: a committed change visible to the subscriber. It never carries the changed data. */
+        ChangeNotification: {
+            /**
+             * @description Family of resources that changed; reread its canonical resources. Topics are plain strings: ignore unknown ones. `sessions`: the sessions of your profile changed, reread `getCurrentSession`.
+             * @example sessions
+             */
+            topic: string;
+            /**
+             * Format: date-time
+             * @description When the change was committed.
+             * @example 2026-10-15T08:30:00.000Z
+             */
+            occurredAt: string;
+        };
+        /** @description Data of a `resync` event: the missed changes cannot be listed; reread every resource the client shows. */
+        ResyncNotification: {
+            /**
+             * @description Why: `new_subscription` (no position sent), `server_restarted`, `too_far_behind` (more changes were missed than the server keeps), or `unknown_position`. Clients act the same way for every reason, including new ones.
+             * @example server_restarted
+             */
+            reason: string;
+        };
         /** @description Server availability and versions. */
         Health: {
             /** @enum {string} */
@@ -1062,6 +1108,59 @@ export interface operations {
             };
             /** @description Refused request: incompatible client (`unsupported_api_version`). */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Any other error, such as `internal_error` (500), `stopping` (503), or `database_busy` (503). */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    streamChanges: {
+        parameters: {
+            query?: {
+                /** @description Opaque `id` of the last event the client received. Clients store it, never parse it. */
+                lastEventId?: string;
+            };
+            header?: {
+                /** @description Opaque `id` of the last event the client received. Clients store it, never parse it. */
+                "Last-Event-ID"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The stream of `resync` and `change` events, until the client, its session, or the server ends it. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
+            /** @description Refused request: invalid input (`validation_failed`) or incompatible client (`unsupported_api_version`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too many subscriptions are open (`changes_capacity_reached`); retry after `Retry-After`. */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

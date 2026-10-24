@@ -3747,4 +3747,304 @@ public enum Operations {
             }
         }
     }
+    /// Follow committed changes as server-sent events
+    ///
+    /// Opens a `text/event-stream` announcing changes after they are committed; a change never announces a transaction that was rolled back. Events invalidate: the client rereads the canonical resources of the announced topic, which stay the only source of state.
+    ///
+    /// The stream starts with either a `resync` event, after which the client rereads everything it shows, or the changes missed since the position the client sent, one per topic. Positions are the events' `id`s: send the last one received in `Last-Event-ID` (browsers' `EventSource` does so when it reconnects) or in `lastEventId`; the header wins. A position from before a server restart, or older than the changes the server keeps, starts with `resync`.
+    ///
+    /// A signed-in subscriber also receives the changes of its own profile, and its stream ends when its session ends; an anonymous one receives only the changes meant for everyone. A comment line is sent every 15 s. A subscriber that does not read is disconnected once 64 events wait for it, or after 30 s without progress; it reconnects with its last position.
+    ///
+    /// - Remark: HTTP `GET /api/changes/stream`.
+    /// - Remark: Generated from `#/paths//api/changes/stream/get(streamChanges)`.
+    public enum StreamChanges {
+        public static let id: Swift.String = "streamChanges"
+        public struct Input: Sendable, Hashable {
+            /// - Remark: Generated from `#/paths/api/changes/stream/GET/query`.
+            public struct Query: Sendable, Hashable {
+                /// Opaque `id` of the last event the client received. Clients store it, never parse it.
+                ///
+                /// - Remark: Generated from `#/paths/api/changes/stream/GET/query/lastEventId`.
+                public var lastEventId: Swift.String?
+                /// Creates a new `Query`.
+                ///
+                /// - Parameters:
+                ///   - lastEventId: Opaque `id` of the last event the client received. Clients store it, never parse it.
+                public init(lastEventId: Swift.String? = nil) {
+                    self.lastEventId = lastEventId
+                }
+            }
+            public var query: Operations.StreamChanges.Input.Query
+            /// - Remark: Generated from `#/paths/api/changes/stream/GET/header`.
+            public struct Headers: Sendable, Hashable {
+                /// Opaque `id` of the last event the client received. Clients store it, never parse it.
+                ///
+                /// - Remark: Generated from `#/paths/api/changes/stream/GET/header/Last-Event-ID`.
+                public var lastEventID: Swift.String?
+                public var accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.StreamChanges.AcceptableContentType>]
+                /// Creates a new `Headers`.
+                ///
+                /// - Parameters:
+                ///   - lastEventID: Opaque `id` of the last event the client received. Clients store it, never parse it.
+                ///   - accept:
+                public init(
+                    lastEventID: Swift.String? = nil,
+                    accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.StreamChanges.AcceptableContentType>] = .defaultValues()
+                ) {
+                    self.lastEventID = lastEventID
+                    self.accept = accept
+                }
+            }
+            public var headers: Operations.StreamChanges.Input.Headers
+            /// Creates a new `Input`.
+            ///
+            /// - Parameters:
+            ///   - query:
+            ///   - headers:
+            public init(
+                query: Operations.StreamChanges.Input.Query = .init(),
+                headers: Operations.StreamChanges.Input.Headers = .init()
+            ) {
+                self.query = query
+                self.headers = headers
+            }
+        }
+        @frozen public enum Output: Sendable, Hashable {
+            public struct Ok: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/api/changes/stream/GET/responses/200/content`.
+                @frozen public enum Body: Sendable, Hashable {
+                    /// - Remark: Generated from `#/paths/api/changes/stream/GET/responses/200/content/text\/event-stream`.
+                    case textEventStream(OpenAPIRuntime.HTTPBody)
+                    /// The associated value of the enum case if `self` is `.textEventStream`.
+                    ///
+                    /// - Throws: An error if `self` is not `.textEventStream`.
+                    /// - SeeAlso: `.textEventStream`.
+                    public var textEventStream: OpenAPIRuntime.HTTPBody {
+                        get throws {
+                            switch self {
+                            case let .textEventStream(body):
+                                return body
+                            }
+                        }
+                    }
+                }
+                /// Received HTTP response body
+                public var body: Operations.StreamChanges.Output.Ok.Body
+                /// Creates a new `Ok`.
+                ///
+                /// - Parameters:
+                ///   - body: Received HTTP response body
+                public init(body: Operations.StreamChanges.Output.Ok.Body) {
+                    self.body = body
+                }
+            }
+            /// The stream of `resync` and `change` events, until the client, its session, or the server ends it.
+            ///
+            /// - Remark: Generated from `#/paths//api/changes/stream/get(streamChanges)/responses/200`.
+            ///
+            /// HTTP response code: `200 ok`.
+            case ok(Operations.StreamChanges.Output.Ok)
+            /// The associated value of the enum case if `self` is `.ok`.
+            ///
+            /// - Throws: An error if `self` is not `.ok`.
+            /// - SeeAlso: `.ok`.
+            public var ok: Operations.StreamChanges.Output.Ok {
+                get throws {
+                    switch self {
+                    case let .ok(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "ok",
+                            response: self
+                        )
+                    }
+                }
+            }
+            public struct BadRequest: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/api/changes/stream/GET/responses/400/content`.
+                @frozen public enum Body: Sendable, Hashable {
+                    /// - Remark: Generated from `#/paths/api/changes/stream/GET/responses/400/content/application\/json`.
+                    case json(Components.Schemas.ErrorResponse)
+                    /// The associated value of the enum case if `self` is `.json`.
+                    ///
+                    /// - Throws: An error if `self` is not `.json`.
+                    /// - SeeAlso: `.json`.
+                    public var json: Components.Schemas.ErrorResponse {
+                        get throws {
+                            switch self {
+                            case let .json(body):
+                                return body
+                            }
+                        }
+                    }
+                }
+                /// Received HTTP response body
+                public var body: Operations.StreamChanges.Output.BadRequest.Body
+                /// Creates a new `BadRequest`.
+                ///
+                /// - Parameters:
+                ///   - body: Received HTTP response body
+                public init(body: Operations.StreamChanges.Output.BadRequest.Body) {
+                    self.body = body
+                }
+            }
+            /// Refused request: invalid input (`validation_failed`) or incompatible client (`unsupported_api_version`).
+            ///
+            /// - Remark: Generated from `#/paths//api/changes/stream/get(streamChanges)/responses/400`.
+            ///
+            /// HTTP response code: `400 badRequest`.
+            case badRequest(Operations.StreamChanges.Output.BadRequest)
+            /// The associated value of the enum case if `self` is `.badRequest`.
+            ///
+            /// - Throws: An error if `self` is not `.badRequest`.
+            /// - SeeAlso: `.badRequest`.
+            public var badRequest: Operations.StreamChanges.Output.BadRequest {
+                get throws {
+                    switch self {
+                    case let .badRequest(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "badRequest",
+                            response: self
+                        )
+                    }
+                }
+            }
+            public struct ServiceUnavailable: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/api/changes/stream/GET/responses/503/content`.
+                @frozen public enum Body: Sendable, Hashable {
+                    /// - Remark: Generated from `#/paths/api/changes/stream/GET/responses/503/content/application\/json`.
+                    case json(Components.Schemas.ErrorResponse)
+                    /// The associated value of the enum case if `self` is `.json`.
+                    ///
+                    /// - Throws: An error if `self` is not `.json`.
+                    /// - SeeAlso: `.json`.
+                    public var json: Components.Schemas.ErrorResponse {
+                        get throws {
+                            switch self {
+                            case let .json(body):
+                                return body
+                            }
+                        }
+                    }
+                }
+                /// Received HTTP response body
+                public var body: Operations.StreamChanges.Output.ServiceUnavailable.Body
+                /// Creates a new `ServiceUnavailable`.
+                ///
+                /// - Parameters:
+                ///   - body: Received HTTP response body
+                public init(body: Operations.StreamChanges.Output.ServiceUnavailable.Body) {
+                    self.body = body
+                }
+            }
+            /// Too many subscriptions are open (`changes_capacity_reached`); retry after `Retry-After`.
+            ///
+            /// - Remark: Generated from `#/paths//api/changes/stream/get(streamChanges)/responses/503`.
+            ///
+            /// HTTP response code: `503 serviceUnavailable`.
+            case serviceUnavailable(Operations.StreamChanges.Output.ServiceUnavailable)
+            /// The associated value of the enum case if `self` is `.serviceUnavailable`.
+            ///
+            /// - Throws: An error if `self` is not `.serviceUnavailable`.
+            /// - SeeAlso: `.serviceUnavailable`.
+            public var serviceUnavailable: Operations.StreamChanges.Output.ServiceUnavailable {
+                get throws {
+                    switch self {
+                    case let .serviceUnavailable(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "serviceUnavailable",
+                            response: self
+                        )
+                    }
+                }
+            }
+            public struct Default: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/api/changes/stream/GET/responses/default/content`.
+                @frozen public enum Body: Sendable, Hashable {
+                    /// - Remark: Generated from `#/paths/api/changes/stream/GET/responses/default/content/application\/json`.
+                    case json(Components.Schemas.ErrorResponse)
+                    /// The associated value of the enum case if `self` is `.json`.
+                    ///
+                    /// - Throws: An error if `self` is not `.json`.
+                    /// - SeeAlso: `.json`.
+                    public var json: Components.Schemas.ErrorResponse {
+                        get throws {
+                            switch self {
+                            case let .json(body):
+                                return body
+                            }
+                        }
+                    }
+                }
+                /// Received HTTP response body
+                public var body: Operations.StreamChanges.Output.Default.Body
+                /// Creates a new `Default`.
+                ///
+                /// - Parameters:
+                ///   - body: Received HTTP response body
+                public init(body: Operations.StreamChanges.Output.Default.Body) {
+                    self.body = body
+                }
+            }
+            /// Any other error, such as `internal_error` (500), `stopping` (503), or `database_busy` (503).
+            ///
+            /// - Remark: Generated from `#/paths//api/changes/stream/get(streamChanges)/responses/default`.
+            ///
+            /// HTTP response code: `default`.
+            case `default`(statusCode: Swift.Int, Operations.StreamChanges.Output.Default)
+            /// The associated value of the enum case if `self` is `.`default``.
+            ///
+            /// - Throws: An error if `self` is not `.`default``.
+            /// - SeeAlso: `.`default``.
+            public var `default`: Operations.StreamChanges.Output.Default {
+                get throws {
+                    switch self {
+                    case let .`default`(_, response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "default",
+                            response: self
+                        )
+                    }
+                }
+            }
+        }
+        @frozen public enum AcceptableContentType: AcceptableProtocol {
+            case textEventStream
+            case json
+            case other(Swift.String)
+            public init?(rawValue: Swift.String) {
+                switch rawValue.lowercased() {
+                case "text/event-stream":
+                    self = .textEventStream
+                case "application/json":
+                    self = .json
+                default:
+                    self = .other(rawValue)
+                }
+            }
+            public var rawValue: Swift.String {
+                switch self {
+                case let .other(string):
+                    return string
+                case .textEventStream:
+                    return "text/event-stream"
+                case .json:
+                    return "application/json"
+                }
+            }
+            public static var allCases: [Self] {
+                [
+                    .textEventStream,
+                    .json
+                ]
+            }
+        }
+    }
 }

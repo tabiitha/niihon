@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import type { Request, RequestHandler } from 'express';
 
+import type { ChangeFeed } from '../changes/feed.ts';
 import type { Database, TransactionClient } from '../database/database.ts';
 import { hashSecret, newSecret, readSessionToken } from './token.ts';
 
@@ -29,6 +30,9 @@ export const defaultSessionLimits: SessionLimits = {
   maxSessions: 10_000,
   purgeBatch: 100,
 };
+
+/** Topic announced when sessions of a profile open or end; its clients reread their current session. */
+export const sessionsTopic = 'sessions';
 
 /** The signed-in session of a request and the profile it acts for, read when the request arrived. */
 export interface AuthenticatedSession {
@@ -82,12 +86,25 @@ export function currentSession(request: Request): AuthenticatedSession | undefin
  */
 export function createSessions(options: {
   readonly database: Database;
+  /** Told of every session opened or ended, for the clients of its profile; omitted, nothing is announced. */
+  readonly changes?: ChangeFeed;
   readonly now?: () => Date;
   readonly limits?: Partial<SessionLimits>;
 }): Sessions {
   const { database } = options;
   const now = options.now ?? (() => new Date());
   const limits = { ...defaultSessionLimits, ...options.limits };
+
+  /** Announces, per profile, that its sessions changed, ending the subscriptions of the removed ones. */
+  const announce = (transaction: TransactionClient, opened: string | undefined, removed: readonly { id: string; profileId: string }[]) => {
+    const profiles = new Map<string, string[]>(opened === undefined ? [] : [[opened, []]]);
+    for (const { id, profileId } of removed) {
+      profiles.set(profileId, [...(profiles.get(profileId) ?? []), id]);
+    }
+    for (const [profileId, endsSessions] of profiles) {
+      options.changes?.publish(transaction, { topic: sessionsTopic, profileId, endsSessions });
+    }
+  };
 
   return {
     authenticate(request, _response, next) {
@@ -113,27 +130,34 @@ export function createSessions(options: {
       const created = now();
       // Expired sessions leave in batches with each sign-in, so the table stays bounded without a timer.
       await transaction.$executeRaw`DELETE FROM "Session" WHERE "id" IN (SELECT "id" FROM "Session" WHERE "expiresAt" <= ${created} LIMIT ${limits.purgeBatch})`;
+      const removed: { id: string; profileId: string }[] = [];
       if (replaces !== undefined) {
-        await transaction.session.deleteMany({ where: { id: replaces } });
+        const replaced = await transaction.session.findUnique({ where: { id: replaces }, select: { id: true, profileId: true } });
+        if (replaced !== null) {
+          await transaction.session.delete({ where: { id: replaced.id } });
+          removed.push(replaced);
+        }
       }
       const beyondProfile = await transaction.session.findMany({
         where: { profileId, expiresAt: { gt: created } },
         orderBy: { createdAt: 'desc' },
-        select: { id: true },
+        select: { id: true, profileId: true },
         skip: limits.maxPerProfile - 1,
       });
       if (beyondProfile.length > 0) {
         await transaction.session.deleteMany({ where: { id: { in: beyondProfile.map(({ id }) => id) } } });
+        removed.push(...beyondProfile);
       }
       const open = await transaction.session.count({ where: { expiresAt: { gt: created } } });
       if (open >= limits.maxSessions) {
         const oldest = await transaction.session.findMany({
           where: { expiresAt: { gt: created } },
           orderBy: { createdAt: 'asc' },
-          select: { id: true },
+          select: { id: true, profileId: true },
           take: open - limits.maxSessions + 1,
         });
         await transaction.session.deleteMany({ where: { id: { in: oldest.map(({ id }) => id) } } });
+        removed.push(...oldest);
       }
       const token = newSecret();
       const session = await transaction.session.create({
@@ -148,11 +172,18 @@ export function createSessions(options: {
         },
         include: { profile: { select: { id: true, username: true, role: true } } },
       });
+      announce(transaction, profileId, removed);
       return { token, session: toAuthenticated(session) };
     },
 
     async revoke(sessionId) {
-      await database.write((transaction) => transaction.session.deleteMany({ where: { id: sessionId } }));
+      await database.write(async (transaction) => {
+        const revoked = await transaction.session.findUnique({ where: { id: sessionId }, select: { id: true, profileId: true } });
+        if (revoked !== null) {
+          await transaction.session.delete({ where: { id: revoked.id } });
+          announce(transaction, undefined, [revoked]);
+        }
+      });
     },
   };
 }

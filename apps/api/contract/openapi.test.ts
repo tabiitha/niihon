@@ -65,6 +65,30 @@ describe('buildOpenApiDocument', () => {
     assert.equal(plain?.parameters, undefined);
   });
 
+  it('documents an event stream, its request headers, and publishes its event payloads', () => {
+    const payload = z.object({ topic: z.string() }).meta({ id: 'ThingChanged' });
+    const follow = defineOperation({
+      operationId: 'followThings',
+      method: 'get',
+      path: '/stream',
+      summary: 'Follow',
+      headers: z.object({ 'Last-Event-ID': z.string().optional() }),
+      responses: { 200: { description: 'Events', events: { change: payload } } },
+    });
+    const document = buildOpenApiDocument({ title: 'Test', modules: [moduleWith('things', [follow])] });
+    const operation = document.paths?.['/api/things/stream']?.get;
+    const [header] = (operation?.parameters ?? []) as { in: string; name: string; required: boolean }[];
+    assert.deepEqual([header?.in, header?.name, header?.required], ['header', 'Last-Event-ID', false]);
+    const success = (operation?.responses as Record<string, { content?: Record<string, { schema: { description: string } }> }>)['200'];
+    assert.deepEqual(Object.keys(success?.content ?? {}), ['text/event-stream']);
+    assert.match(success?.content?.['text/event-stream']?.schema.description ?? '', /`change` carries `ThingChanged`/);
+    assert.ok(document.components?.schemas?.['ThingChanged']);
+    assert.match((operation?.responses as Record<string, { description: string }>)['400']?.description ?? '', /validation_failed/);
+
+    const anonymous = defineOperation({ ...follow, responses: { 200: { description: 'Events', events: { change: z.object({}) } } } });
+    assert.throws(() => buildOpenApiDocument({ title: 'Test', modules: [moduleWith('things', [anonymous])] }), /schema identifier/);
+  });
+
   it('rejects duplicate operation identifiers', () => {
     assert.throws(
       () => buildOpenApiDocument({ title: 'Test', modules: [moduleWith('a', [ping]), moduleWith('b', [ping])] }),

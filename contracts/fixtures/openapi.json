@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Nihon API conformance fixture",
-    "version": "1.3.0",
+    "version": "1.4.0",
     "description": "REST contract of the local Nihon server. Generated from the server's operation declarations; do not edit.\n\nGenerated clients send `Nihon-API-Version: 1`. The server refuses a different major version with `400 unsupported_api_version`; `GET /api/health` stays available to every client and reports `apiVersion`. Every response carries `Nihon-Request-Id`, also present in error bodies. Conventions: docs/architecture/api-contract.md."
   },
   "servers": [

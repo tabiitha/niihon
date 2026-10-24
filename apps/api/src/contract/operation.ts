@@ -1,4 +1,4 @@
-import express, { type Request, type RequestHandler, type Router } from 'express';
+import express, { type Request, type RequestHandler, type Response, type Router } from 'express';
 import { z } from 'zod';
 
 import { currentSession } from '../sessions/sessions.ts';
@@ -13,6 +13,11 @@ export interface ResponseContract {
   readonly description: string;
   /** JSON body; omitted for a response without a body, such as `204`. */
   readonly schema?: z.ZodType;
+  /**
+   * A `text/event-stream` (server-sent events) response instead of a JSON body: the JSON payload
+   * schema of each event type, by event name. Added with `addEventStream`.
+   */
+  readonly events?: Readonly<Record<string, z.ZodType>>;
 }
 
 /**
@@ -29,6 +34,8 @@ export interface OperationContract {
   readonly description?: string;
   readonly params?: z.ZodObject;
   readonly query?: z.ZodObject;
+  /** Request headers the operation reads, by their canonical name, such as `Last-Event-ID`; optional ones only. */
+  readonly headers?: z.ZodObject;
   /** JSON request body. Declare it with `z.strictObject` so that unexpected fields are refused. */
   readonly body?: z.ZodType;
   /** Largest accepted body in bytes; larger ones are refused with `413 payload_too_large`. Default `defaultMaxBodyBytes`. */
@@ -64,6 +71,7 @@ export interface OperationInput<Operation extends OperationContract> {
   readonly params: Parsed<Operation extends { params: infer Schema } ? Schema : undefined>;
   readonly query: Parsed<Operation extends { query: infer Schema } ? Schema : undefined>;
   readonly body: Parsed<Operation extends { body: infer Schema } ? Schema : undefined>;
+  readonly headers: Parsed<Operation extends { headers: infer Schema } ? Schema : undefined>;
 }
 
 export type OperationResult<Operation extends OperationContract> = {
@@ -140,7 +148,35 @@ export function addOperation<Operation extends OperationContract>(
   if (operation.idempotent === true) {
     throw new Error(`Idempotent operation "${operation.operationId}" must be added with context.commands.add.`);
   }
+  if (isEventStream(operation)) {
+    throw new Error(`Event stream "${operation.operationId}" must be added with addEventStream.`);
+  }
   return routeOperation(router, operation);
+}
+
+/** Whether the operation answers with server-sent events rather than JSON. */
+export function isEventStream(operation: OperationContract): boolean {
+  return Object.values(operation.responses).some((response) => response.events !== undefined);
+}
+
+/**
+ * Adds the route of an operation answering with server-sent events. Its input is validated as for
+ * `addOperation`; the handler then owns `response` and writes the stream itself.
+ */
+export function addEventStream<Operation extends OperationContract>(
+  router: Router,
+  operation: Operation,
+): { handle(handler: (input: OperationInput<Operation>, request: Request, response: Response) => void | Promise<void>): void } {
+  if (!isEventStream(operation) || operation.body !== undefined || operation.idempotent === true) {
+    throw new Error(`Operation "${operation.operationId}" is not a bodiless event stream.`);
+  }
+  return {
+    handle(handler) {
+      router[operation.method](toExpressPath(operation.path), ...parsersOf(operation), async (request, response) => {
+        await handler(parseOperationInput(operation, request), request, response);
+      });
+    },
+  };
 }
 
 /** `addOperation` without the idempotency check; only the command layer (src/commands) calls it directly. */
@@ -150,17 +186,8 @@ export function routeOperation<Operation extends OperationContract>(
 ): { handle(handler: OperationHandler<Operation>): void } {
   return {
     handle(handler) {
-      const parsers = [
-        ...(operation.session === 'required' ? [requireSession] : []),
-        ...(operation.body === undefined ? [] : [jsonBody(operation.maxBodyBytes ?? defaultMaxBodyBytes)]),
-      ];
-      router[operation.method](toExpressPath(operation.path), ...parsers, async (request, response) => {
-        const input = {
-          params: operation.params === undefined ? undefined : parseInput(operation.params, request.params, 'path'),
-          query: operation.query === undefined ? undefined : parseInput(operation.query, request.query, 'query'),
-          body: operation.body === undefined ? undefined : parseInput(operation.body, request.body, 'body'),
-        } as OperationInput<Operation>;
-        const result = await handler(input, request);
+      router[operation.method](toExpressPath(operation.path), ...parsersOf(operation), async (request, response) => {
+        const result = await handler(parseOperationInput(operation, request), request);
         if (result.body === undefined) {
           response.status(result.status).end();
         } else {
@@ -169,6 +196,29 @@ export function routeOperation<Operation extends OperationContract>(
       });
     },
   };
+}
+
+function parsersOf(operation: OperationContract): RequestHandler[] {
+  return [
+    ...(operation.session === 'required' ? [requireSession] : []),
+    ...(operation.body === undefined ? [] : [jsonBody(operation.maxBodyBytes ?? defaultMaxBodyBytes)]),
+  ];
+}
+
+function parseOperationInput<Operation extends OperationContract>(operation: Operation, request: Request): OperationInput<Operation> {
+  return {
+    params: operation.params === undefined ? undefined : parseInput(operation.params, request.params, 'path'),
+    query: operation.query === undefined ? undefined : parseInput(operation.query, request.query, 'query'),
+    body: operation.body === undefined ? undefined : parseInput(operation.body, request.body, 'body'),
+    headers:
+      operation.headers === undefined
+        ? undefined
+        : parseInput(
+            operation.headers,
+            Object.fromEntries(Object.keys(operation.headers.shape).map((name) => [name, request.get(name)])),
+            'header',
+          ),
+  } as OperationInput<Operation>;
 }
 
 /** Refuses a request without a valid session before anything else of it is read. */

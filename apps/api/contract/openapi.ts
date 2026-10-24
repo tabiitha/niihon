@@ -42,6 +42,7 @@ export function buildOpenApiDocument({ title, modules }: OpenApiDocumentOptions)
     });
   }
   const operationIds = new Set<string>();
+  const eventSchemas: z.ZodType[] = [];
   for (const { prefix, tag, operations } of groups(modules)) {
     for (const operation of operations) {
       if (operationIds.has(operation.operationId)) {
@@ -67,17 +68,37 @@ export function buildOpenApiDocument({ title, modules }: OpenApiDocumentOptions)
         request: {
           ...(operation.params === undefined ? {} : { params: operation.params }),
           ...(operation.query === undefined ? {} : { query: operation.query }),
-          ...(operation.idempotent === true ? { headers: z.object({ [idempotencyKeyHeader]: idempotencyKeySchema.optional() }) } : {}),
+          ...(operation.idempotent === true || operation.headers !== undefined
+            ? {
+                headers: z.object({
+                  ...(operation.idempotent === true ? { [idempotencyKeyHeader]: idempotencyKeySchema.optional() } : {}),
+                  ...operation.headers?.shape,
+                }),
+              }
+            : {}),
           ...(operation.body === undefined
             ? {}
             : { body: { required: true, content: { 'application/json': { schema: operation.body } } } }),
         },
         responses: responsesOf(operation),
       });
+      // Event payloads are not referenced by the stream schema: publish them so clients can decode them.
+      for (const response of Object.values(operation.responses)) {
+        for (const schema of Object.values(response.events ?? {})) {
+          const id = z.globalRegistry.get(schema)?.id;
+          if (id === undefined) {
+            throw new Error(`An event payload of "${operation.operationId}" needs a schema identifier (meta id).`);
+          }
+          eventSchemas.push(schema);
+        }
+      }
     }
   }
 
-  return new OpenApiGeneratorV31(registry.definitions).generateDocument({
+  return new OpenApiGeneratorV31([
+    ...registry.definitions,
+    ...eventSchemas.map((schema) => ({ type: 'schema' as const, schema })),
+  ]).generateDocument({
     openapi: '3.1.0',
     info: { title, version: apiVersion, description },
     servers: [{ url: 'http://127.0.0.1:4000', description: 'Default local installation' }],
@@ -111,6 +132,20 @@ function responsesOf(operation: OperationContract): Record<string, ResponseConfi
           }
         : {}),
       ...(response.schema === undefined ? {} : { content: { 'application/json': { schema: response.schema } } }),
+      ...(response.events === undefined
+        ? {}
+        : {
+            content: {
+              'text/event-stream': {
+                schema: {
+                  type: 'string',
+                  description: `Server-sent events. Each event's \`data\` is one line of JSON: ${Object.entries(response.events)
+                    .map(([name, schema]) => `\`${name}\` carries \`${String(z.globalRegistry.get(schema)?.id)}\``)
+                    .join(', ')}.`,
+                },
+              },
+            },
+          }),
     };
   }
   const errors: Record<string, string> = { ...operation.errors };
@@ -133,7 +168,7 @@ function responsesOf(operation: OperationContract): Record<string, ResponseConfi
     errors[415] ??= 'Body that is not `application/json` (`unsupported_media_type`).';
   }
   const commonBadRequest = [
-    ...(operation.params !== undefined || operation.query !== undefined || operation.body !== undefined
+    ...(operation.params !== undefined || operation.query !== undefined || operation.headers !== undefined || operation.body !== undefined
       ? ['invalid input (`validation_failed`)']
       : []),
     ...(operation.versioned === false ? [] : ['incompatible client (`unsupported_api_version`)']),

@@ -1,5 +1,6 @@
 import type { Router } from 'express';
 
+import type { ChangeFeed } from '../changes/feed.ts';
 import type { Commands } from '../commands/idempotency.ts';
 import type { OAuthSettings } from '../config.ts';
 import type { OperationContract } from '../contract/operation.ts';
@@ -18,6 +19,11 @@ export interface ModuleContext {
    * `currentSession(request)`; operations declaring `session: 'required'` refuse requests without one.
    */
   readonly sessions: Sessions;
+  /**
+   * Announces committed changes to subscribed clients: `changes.publish(transaction, { topic })`
+   * inside a write, so nothing is announced when it rolls back.
+   */
+  readonly changes: ChangeFeed;
   /** The server log; never pass it credentials or request bodies. */
   readonly logger: Logger;
   /** Provider credentials and return addresses configured for this installation. */

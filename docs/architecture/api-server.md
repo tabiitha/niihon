@@ -12,7 +12,7 @@ The Nihon API is an Express.js/TypeScript REST server running on Node.js. It is 
 | `resources/themes/` | Theme tokens shared by the clients |
 | `apps/api/contract/` | OpenAPI document builder and client generation ([REST contract](api-contract.md)) |
 | `apps/api/prisma/`, `apps/api/prisma.config.ts` | Prisma schema and versioned SQL migrations ([persistence](persistence.md)) |
-| `apps/api/bench/` | Measurement scripts (persistence, accounts, command idempotency) |
+| `apps/api/bench/` | Measurement scripts (persistence, accounts, command idempotency, sign-in, change notifications) |
 | `contracts/` | Published OpenAPI contract, generated TypeScript and Swift clients, conformance fixtures |
 | `compose.yaml`, `.dockerignore` | Docker Compose service built from source; build-context allowlist |
 | `.github/workflows/api.yml` | Application CI |
@@ -33,6 +33,7 @@ Only what is needed exists. `packaging/macos` is created by the issue that first
 | `src/instance-lock.ts` | Exclusive ownership of the data directory | File system |
 | `src/database/` | Migrations, snapshots, and the reader and writer Prisma clients ([persistence](persistence.md)) | SQLite, file system |
 | `src/sessions/` | Sign-in sessions: resolves each request's session token, opens and revokes sessions ([sessions](sessions.md)) | SQLite |
+| `src/changes/` | Change feed: announces committed changes to subscribed clients and lets them resume ([change notifications](changes.md)) | None |
 | `src/commands/` | Idempotent commands: replay of a committed command under the client's key, and the installation's command key ([command idempotency](command-idempotency.md)) | SQLite, file system |
 | `src/server.ts` | Claims the directory, migrates and opens the database, listens, stops gracefully | Network, file system |
 | `src/main.ts` | Process entry: configuration errors, signals, exit codes | Process |
@@ -51,9 +52,9 @@ export interface ApiModule {
 }
 ```
 
-To add a module, create its folder and add one entry to `src/modules/registry.ts`. Each route is declared as an operation and added with `addOperation`, as described in the [REST contract](api-contract.md#single-source); then run `bun run contract:generate`. Modules interact only through what another module exports. The registry holds the [accounts](accounts.md) module.
+To add a module, create its folder and add one entry to `src/modules/registry.ts`. Each route is declared as an operation and added with `addOperation`, as described in the [REST contract](api-contract.md#single-source); then run `bun run contract:generate`. Modules interact only through what another module exports. The registry holds the [accounts](accounts.md) and [changes](changes.md) modules.
 
-`context.database` gives the module the installation database: `database.reader` for reads and `database.write(...)` for write transactions. `context.commands.add(router, operation)` adds a command that a client can retry safely with an `Idempotency-Key`; see [command idempotency](command-idempotency.md#writing-a-command). `context.sessions` opens and revokes sign-in sessions, and `currentSession(request)` gives the session a request was authenticated with; an operation declaring `session: 'required'` is refused without one, and `session: 'optional'` declares in the contract that it reads the session when one is sent ([sessions](sessions.md)). A module keeps its Prisma models in `apps/api/prisma/schema/<id>.prisma` and adds its migrations with `bun run db:migration`; see [persistence](persistence.md).
+`context.database` gives the module the installation database: `database.reader` for reads and `database.write(...)` for write transactions. `context.commands.add(router, operation)` adds a command that a client can retry safely with an `Idempotency-Key`; see [command idempotency](command-idempotency.md#writing-a-command). `context.changes.publish(transaction, { topic, profileId? })` announces a change to subscribed clients once that write commits, never when it rolls back ([change notifications](changes.md)). `context.sessions` opens and revokes sign-in sessions, and `currentSession(request)` gives the session a request was authenticated with; an operation declaring `session: 'required'` is refused without one, and `session: 'optional'` declares in the contract that it reads the session when one is sent ([sessions](sessions.md)). A module keeps its Prisma models in `apps/api/prisma/schema/<id>.prisma` and adds its migrations with `bun run db:migration`; see [persistence](persistence.md).
 
 `NIHON_MODULES` selects the enabled modules. When it is unset, every registered module is enabled; when it is set, only the listed identifiers are (an empty value enables none). An identifier that no module carries stops startup with exit code 2. A disabled module's router is never mounted, so every path under `/api/<id>/` answers 404, exactly as if the module did not exist.
 
@@ -99,7 +100,7 @@ On start, the server validates its configuration, claims the data directory, rea
 | 4 | The database belongs to a newer release or is not a Nihon database; it is left untouched |
 | 5 | A migration failed; it was rolled back and the data is unchanged |
 
-On SIGINT or SIGTERM the server stops accepting connections, answers 503 to new requests on open connections, lets in-flight requests finish for up to 10 seconds, closes the remaining sockets, closes the database after its running write, then releases the data directory. Compose allows 15 seconds before killing the container.
+On SIGINT or SIGTERM the server ends every [change stream](changes.md), stops accepting connections, answers 503 to new requests on open connections, lets in-flight requests finish for up to 10 seconds, closes the remaining sockets, closes the database after its running write, then releases the data directory. Compose allows 15 seconds before killing the container.
 
 ### Single Instance per Data Directory
 
@@ -116,6 +117,7 @@ Before listening, the server opens `nihon-instance.lock` in the data directory w
 | Shutdown | 10 s grace for in-flight requests |
 | Sessions | 30-day lifetime, 20 per profile, 10,000 unexpired (the oldest dropped beyond either); see [sessions](sessions.md#limits) |
 | Idempotent commands | 24 h replay, 20,000 unexpired records, 4 KiB per stored response; see [command idempotency](command-idempotency.md#limits) |
+| Change streams | 100 subscriptions, 1,024 changes kept for resuming, 64 waiting events per subscriber, 30 s without progress; see [change notifications](changes.md#bounds-and-slow-subscribers) |
 
 These bounds are a starting point; tune them after measurement.
 

@@ -423,4 +423,80 @@ describe('installation database', () => {
       await addParents(database, 'next');
     });
   });
+
+  describe('after-commit callbacks', () => {
+    it('run once the transaction committed, in commit order, when readers already see the data', async () => {
+      const { database } = await open(release2, { ...fast, maxWriteWaitMs: 5_000 });
+      const seen: string[] = [];
+      await Promise.all(
+        ['a', 'b', 'c'].map((name) =>
+          database.write(async (transaction) => {
+            await transaction.$executeRaw`INSERT INTO "Parent" ("name", "label") VALUES (${name}, ${name})`;
+            database.afterCommit(transaction, () => {
+              seen.push(name);
+            });
+            assert.ok(!seen.includes(name), 'nothing runs before the commit');
+          }),
+        ),
+      );
+      assert.deepEqual(seen, ['a', 'b', 'c']);
+    });
+
+    it('never run when the transaction rolls back, whatever the cause', async () => {
+      const { database } = await open(release2, { ...fast, maxTransactionMs: 50 });
+      const seen: string[] = [];
+      await assert.rejects(
+        database.write(async (transaction) => {
+          await transaction.$executeRaw`INSERT INTO "Parent" ("name", "label") VALUES ('failed', 'FAILED')`;
+          database.afterCommit(transaction, () => seen.push('failed'));
+          throw new Error('business rule refused');
+        }),
+        /business rule refused/,
+      );
+      await assert.rejects(
+        database.write(async (transaction) => {
+          await transaction.$executeRaw`INSERT INTO "Parent" ("name", "label") VALUES ('dup', 'DUP')`;
+          database.afterCommit(transaction, () => seen.push('constraint'));
+          await transaction.$executeRaw`INSERT INTO "Parent" ("name", "label") VALUES ('dup', 'DUP')`;
+        }),
+      );
+      await assert.rejects(
+        database.write(async (transaction) => {
+          database.afterCommit(transaction, () => seen.push('timeout'));
+          await new Promise((resolve) => setTimeout(resolve, 200));
+        }),
+      );
+      assert.deepEqual(seen, []);
+      assert.deepEqual(await database.reader.$queryRaw`SELECT COUNT(*) AS "count" FROM "Parent"`, [{ count: 0n }]);
+    });
+
+    it('keep a committed write confirmed and run the others when one callback throws', async () => {
+      const { database } = await open(release2);
+      const seen: string[] = [];
+      const warnings: string[] = [];
+      const onWarning = (warning: Error) => warnings.push(warning.message);
+      process.on('warning', onWarning);
+      try {
+        await database.write(async (transaction) => {
+          await transaction.$executeRaw`INSERT INTO "Parent" ("name", "label") VALUES ('kept', 'KEPT')`;
+          database.afterCommit(transaction, () => {
+            throw new Error('subscriber failed');
+          });
+          database.afterCommit(transaction, () => seen.push('next'));
+        });
+        await new Promise((resolve) => setImmediate(resolve));
+      } finally {
+        process.off('warning', onWarning);
+      }
+      assert.deepEqual(seen, ['next']);
+      assert.ok(warnings.some((message) => message.includes('subscriber failed')));
+      assert.deepEqual(await database.reader.$queryRaw`SELECT COUNT(*) AS "count" FROM "Parent"`, [{ count: 1n }]);
+    });
+
+    it('refuse a transaction that is no longer running', async () => {
+      const { database } = await open(release2);
+      const finished = await database.write(async (transaction) => transaction);
+      assert.throws(() => database.afterCommit(finished, () => {}), /still running/);
+    });
+  });
 });

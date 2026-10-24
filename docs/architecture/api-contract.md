@@ -77,6 +77,10 @@ Module codes start with the module identifier, such as `example_item_not_found`.
 
 An operation declaring `session: 'required'` requires a [session](sessions.md); the contract lists the `sessionCookie` (`nihon_session` cookie, Web) and `sessionToken` (`Authorization: Bearer`, native clients) security schemes on it. An operation declaring `session: 'optional'` lists them with an empty alternative: it acts on the session when the client sends one, such as `signOut`, and works without. A success response declared without a `schema`, such as the `204` of `signOut`, has no body.
 
+### Event Streams
+
+An operation whose success response declares `events` answers `text/event-stream` (server-sent events) instead of JSON and is added with `addEventStream`, such as [`streamChanges`](changes.md). Each event's `data` is one line of JSON; its schema is published under `components/schemas` with the identifier the response description names, so both clients can decode it. An operation may also declare optional request `headers`, such as `Last-Event-ID`, validated like its other input (`validation_failed` paths `header.…`). The TypeScript client receives the stream as the raw response body; browsers usually follow it with `EventSource`. The Swift client receives it as `HTTPBody`, which `swift-openapi-runtime` decodes with `asDecodedServerSentEvents()`.
+
 ### Request Correlation
 
 Every response carries a `Nihon-Request-Id` header, repeated as `error.requestId` in error bodies and as `requestId` in the `request.failed` log event. A client may send its own `Nihon-Request-Id` (1 to 64 characters `A-Z a-z 0-9 . _ -`) to correlate a call with its own logs; the server reuses it, and replaces a malformed value with a new UUID.
@@ -100,7 +104,7 @@ A read that is no longer needed is cancelled by the client: pass an `AbortSignal
 
 ## Versioning and Compatibility
 
-The contract is at version 1.3.0 (account registration added to 1.0.0 in 1.1.0, idempotency keys on commands in 1.2.0, sign-in and sessions in 1.3.0). The contract version is `info.version` in `contracts/openapi.json` (`apiVersion` in `apps/api/src/contract/conventions.ts`). Generated clients send its major part in a `Nihon-API-Version` header on every request.
+The contract is at version 1.4.0 (account registration added to 1.0.0 in 1.1.0, idempotency keys on commands in 1.2.0, sign-in and sessions in 1.3.0, change notifications in 1.4.0). The contract version is `info.version` in `contracts/openapi.json` (`apiVersion` in `apps/api/src/contract/conventions.ts`). Generated clients send its major part in a `Nihon-API-Version` header on every request.
 
 | Request | Server answer |
 | --- | --- |

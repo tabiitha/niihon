@@ -3,6 +3,7 @@ import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { after, before, describe, it } from 'node:test';
 
+import express from 'express';
 import { z } from 'zod';
 
 import { createApp } from '../app.ts';
@@ -11,7 +12,7 @@ import { exampleItems, exampleModule } from '../../test/fixtures/example-module.
 import { unusedDatabase } from '../../test/fixtures/unused-database.ts';
 import { apiMajorVersion, errorResponseSchema, timestampSchema } from './conventions.ts';
 import { decodeCursor, encodeCursor } from './cursor.ts';
-import { ApiError, toExpressPath } from './operation.ts';
+import { addEventStream, addOperation, ApiError, defineOperation, toExpressPath } from './operation.ts';
 
 describe('contract conventions over HTTP', () => {
   let server: Server;
@@ -116,5 +117,21 @@ describe('toExpressPath', () => {
   it('converts OpenAPI path parameters', () => {
     assert.equal(toExpressPath('/items/{itemId}/tags/{tag_id}'), '/items/:itemId/tags/:tag_id');
     assert.equal(toExpressPath('/items'), '/items');
+  });
+});
+
+describe('event stream operations', () => {
+  const stream = defineOperation({
+    operationId: 'followThings',
+    method: 'get',
+    path: '/stream',
+    summary: 'Follow',
+    responses: { 200: { description: 'Events', events: { change: z.object({}) } } },
+  });
+
+  it('are added with addEventStream only', () => {
+    assert.throws(() => addOperation(express.Router(), stream), /addEventStream/);
+    assert.throws(() => addEventStream(express.Router(), { ...stream, responses: { 200: { description: 'JSON' } } }), /not a bodiless event stream/);
+    assert.doesNotThrow(() => addEventStream(express.Router(), stream));
   });
 });

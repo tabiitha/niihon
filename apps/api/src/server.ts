@@ -2,6 +2,7 @@ import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
 import { createApp } from './app.ts';
+import { createChangeFeed } from './changes/feed.ts';
 import { loadCommandKey } from './commands/command-key.ts';
 import { createCommands } from './commands/idempotency.ts';
 import type { OAuthSettings } from './config.ts';
@@ -64,12 +65,14 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   }
   const { database, migration } = opened;
   let stopping = false;
+  const changes = createChangeFeed({ database });
   const server = createServer(
     createApp({
       version: options.version,
       modules: options.modules,
       database,
       commands: createCommands({ database, key: commandKey }),
+      changes,
       logger: options.logger,
       ...(options.oauth === undefined ? {} : { oauth: options.oauth }),
       isStopping: () => stopping,
@@ -94,6 +97,8 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     migration,
     stop() {
       stopping = true;
+      // Event streams never finish by themselves: end them so they do not hold the shutdown grace.
+      changes.close();
       stopped ??= closeServer(server, options.shutdownGraceMs ?? shutdownGraceMs)
         .finally(() => database.close())
         .finally(() => lock.release());
