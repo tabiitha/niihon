@@ -5,11 +5,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { createApp } from '../../src/app.ts';
+import { createChangeFeed, type ChangeFeed, type ChangeFeedLimits } from '../../src/changes/feed.ts';
 import { createCommands, type CommandLimits } from '../../src/commands/idempotency.ts';
 import { noOAuthSettings, type OAuthSettings } from '../../src/config.ts';
 import { openDatabase, type Database } from '../../src/database/database.ts';
 import { createJsonLogger } from '../../src/log.ts';
 import { createAccountsModule, type AccountsModuleOptions } from '../../src/modules/accounts/index.ts';
+import { createChangesModule, type ChangesModuleOptions } from '../../src/modules/changes/index.ts';
 import { createSessions, type SessionLimits } from '../../src/sessions/sessions.ts';
 
 export interface CallOptions {
@@ -29,6 +31,8 @@ export interface CallResult {
 export interface AccountsApp {
   readonly baseUrl: string;
   readonly database: Database;
+  /** The change feed the sessions announce to and the changes module serves. */
+  readonly changes: ChangeFeed;
   /** Every log line the server wrote. */
   readonly logs: string[];
   post(path: string, body: unknown, init?: CallOptions): Promise<CallResult>;
@@ -39,7 +43,7 @@ export interface AccountsApp {
 }
 
 /**
- * The accounts module over a real database in a temporary data directory, served on a loopback
+ * The accounts and changes modules over a real database in a temporary data directory, served on a loopback
  * port. Pass `dataDir` to start again on the data of an earlier app, as after a restart.
  */
 export async function startAccountsApp(
@@ -49,7 +53,9 @@ export async function startAccountsApp(
     databaseLimits?: Parameters<typeof openDatabase>[0]['limits'];
     commandLimits?: Partial<CommandLimits>;
     sessionLimits?: Partial<SessionLimits>;
-    /** Clock of the sessions; the module has its own in `module.now`. */
+    changeLimits?: Partial<ChangeFeedLimits>;
+    changesModule?: ChangesModuleOptions;
+    /** Clock of the sessions and the change feed; the module has its own in `module.now`. */
     now?: () => Date;
     dataDir?: string;
   } = {},
@@ -59,14 +65,21 @@ export async function startAccountsApp(
   const { database } = await openDatabase({ dataDir, ...(options.databaseLimits === undefined ? {} : { limits: options.databaseLimits }) });
   const logs: string[] = [];
   const logger = createJsonLogger((line) => logs.push(line));
+  const changes = createChangeFeed({
+    database,
+    ...(options.now === undefined ? {} : { now: options.now }),
+    ...(options.changeLimits === undefined ? {} : { limits: options.changeLimits }),
+  });
   const server: Server = createServer(
     createApp({
       version: '1.2.3',
-      modules: [createAccountsModule(options.module)],
+      modules: [createAccountsModule(options.module), createChangesModule(options.changesModule)],
       database,
       commands: createCommands({ database, ...(options.commandLimits === undefined ? {} : { limits: options.commandLimits }) }),
+      changes,
       sessions: createSessions({
         database,
+        changes,
         ...(options.now === undefined ? {} : { now: options.now }),
         ...(options.sessionLimits === undefined ? {} : { limits: options.sessionLimits }),
       }),
@@ -86,6 +99,7 @@ export async function startAccountsApp(
   return {
     baseUrl,
     database,
+    changes,
     logs,
     post: (path, body, { contentType = 'application/json', raw, idempotencyKey, headers = {} } = {}) =>
       call(path, {
@@ -96,6 +110,7 @@ export async function startAccountsApp(
     get: (path, { headers = {} } = {}) => call(path, { headers }),
     delete: (path, { headers = {} } = {}) => call(path, { method: 'DELETE', headers }),
     async stop() {
+      changes.close();
       await new Promise<void>((resolve) => server.close(() => resolve()));
       server.closeAllConnections();
       await database.close();

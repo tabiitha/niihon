@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Nihon API",
-    "version": "1.3.0",
+    "version": "1.4.0",
     "description": "REST contract of the local Nihon server. Generated from the server's operation declarations; do not edit.\n\nGenerated clients send `Nihon-API-Version: 1`. The server refuses a different major version with `400 unsupported_api_version`; `GET /api/health` stays available to every client and reports `apiVersion`. Every response carries `Nihon-Request-Id`, also present in error bodies. Conventions: docs/architecture/api-contract.md."
   },
   "servers": [
@@ -17,6 +17,9 @@
     },
     {
       "name": "accounts"
+    },
+    {
+      "name": "changes"
     }
   ],
   "components": {
@@ -34,6 +37,47 @@
       }
     },
     "schemas": {
+      "ChangeNotification": {
+        "type": "object",
+        "properties": {
+          "topic": {
+            "type": "string",
+            "description": "Family of resources that changed; reread its canonical resources. Topics are plain strings: ignore unknown ones. `sessions`: the sessions of your profile changed, reread `getCurrentSession`.",
+            "examples": [
+              "sessions"
+            ]
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the change was committed.",
+            "examples": [
+              "2026-10-15T08:30:00.000Z"
+            ]
+          }
+        },
+        "required": [
+          "topic",
+          "occurredAt"
+        ],
+        "description": "Data of a `change` event: a committed change visible to the subscriber. It never carries the changed data."
+      },
+      "ResyncNotification": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "description": "Why: `new_subscription` (no position sent), `server_restarted`, `too_far_behind` (more changes were missed than the server keeps), or `unknown_position`. Clients act the same way for every reason, including new ones.",
+            "examples": [
+              "server_restarted"
+            ]
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "description": "Data of a `resync` event: the missed changes cannot be listed; reread every resource the client shows."
+      },
       "Health": {
         "type": "object",
         "properties": {
@@ -1371,6 +1415,94 @@
           },
           "400": {
             "description": "Refused request: incompatible client (`unsupported_api_version`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Any other error, such as `internal_error` (500), `stopping` (503), or `database_busy` (503).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/changes/stream": {
+      "get": {
+        "operationId": "streamChanges",
+        "summary": "Follow committed changes as server-sent events",
+        "description": "Opens a `text/event-stream` announcing changes after they are committed; a change never announces a transaction that was rolled back. Events invalidate: the client rereads the canonical resources of the announced topic, which stay the only source of state.\n\nThe stream starts with either a `resync` event, after which the client rereads everything it shows, or the changes missed since the position the client sent, one per topic. Positions are the events' `id`s: send the last one received in `Last-Event-ID` (browsers' `EventSource` does so when it reconnects) or in `lastEventId`; the header wins. A position from before a server restart, or older than the changes the server keeps, starts with `resync`.\n\nA signed-in subscriber also receives the changes of its own profile, and its stream ends when its session ends; an anonymous one receives only the changes meant for everyone. A comment line is sent every 15 s. A subscriber that does not read is disconnected once 64 events wait for it, or after 30 s without progress; it reconnects with its last position.",
+        "tags": [
+          "changes"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "sessionToken": []
+          },
+          {}
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "description": "Opaque `id` of the last event the client received. Clients store it, never parse it."
+            },
+            "required": false,
+            "description": "Opaque `id` of the last event the client received. Clients store it, never parse it.",
+            "name": "lastEventId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "description": "Opaque `id` of the last event the client received. Clients store it, never parse it."
+            },
+            "required": false,
+            "description": "Opaque `id` of the last event the client received. Clients store it, never parse it.",
+            "name": "Last-Event-ID",
+            "in": "header"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The stream of `resync` and `change` events, until the client, its session, or the server ends it.",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string",
+                  "description": "Server-sent events. Each event's `data` is one line of JSON: `change` carries `ChangeNotification`, `resync` carries `ResyncNotification`."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Refused request: invalid input (`validation_failed`) or incompatible client (`unsupported_api_version`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Too many subscriptions are open (`changes_capacity_reached`); retry after `Retry-After`.",
             "content": {
               "application/json": {
                 "schema": {

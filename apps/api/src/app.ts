@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import express, { type ErrorRequestHandler, type Express, type RequestHandler } from 'express';
 
+import { createChangeFeed, type ChangeFeed } from './changes/feed.ts';
 import { createCommands, type Commands } from './commands/idempotency.ts';
 import { noOAuthSettings, type OAuthSettings } from './config.ts';
 import {
@@ -33,7 +34,9 @@ export interface AppOptions {
   readonly database: Database;
   /** Idempotent commands over `database`; by default keyed with a random secret that lasts as long as the process. */
   readonly commands?: Commands;
-  /** Sign-in sessions over `database`; created with the default limits when omitted. */
+  /** Change notifications over `database`; created with the default limits when omitted. */
+  readonly changes?: ChangeFeed;
+  /** Sign-in sessions over `database`, announcing their changes to `changes`; created with the default limits when omitted. */
   readonly sessions?: Sessions;
   readonly logger: Logger;
   /** Provider credentials for the modules that offer provider sign-up; none by default. */
@@ -53,7 +56,8 @@ export function createApp({
   modules,
   database,
   commands = createCommands({ database }),
-  sessions = createSessions({ database }),
+  changes = createChangeFeed({ database }),
+  sessions = createSessions({ database, changes }),
   logger,
   oauth = noOAuthSettings,
   isStopping = () => false,
@@ -76,7 +80,7 @@ export function createApp({
 
   for (const module of modules) {
     const router = express.Router();
-    module.register(router, { database, commands, sessions, logger, oauth });
+    module.register(router, { database, commands, changes, sessions, logger, oauth });
     app.use(`/api/${module.id}`, router);
   }
 

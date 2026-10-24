@@ -69,6 +69,17 @@ public protocol APIProtocol: Sendable {
     /// - Remark: HTTP `DELETE /api/accounts/sessions/current`.
     /// - Remark: Generated from `#/paths//api/accounts/sessions/current/delete(signOut)`.
     func signOut(_ input: Operations.SignOut.Input) async throws -> Operations.SignOut.Output
+    /// Follow committed changes as server-sent events
+    ///
+    /// Opens a `text/event-stream` announcing changes after they are committed; a change never announces a transaction that was rolled back. Events invalidate: the client rereads the canonical resources of the announced topic, which stay the only source of state.
+    ///
+    /// The stream starts with either a `resync` event, after which the client rereads everything it shows, or the changes missed since the position the client sent, one per topic. Positions are the events' `id`s: send the last one received in `Last-Event-ID` (browsers' `EventSource` does so when it reconnects) or in `lastEventId`; the header wins. A position from before a server restart, or older than the changes the server keeps, starts with `resync`.
+    ///
+    /// A signed-in subscriber also receives the changes of its own profile, and its stream ends when its session ends; an anonymous one receives only the changes meant for everyone. A comment line is sent every 15 s. A subscriber that does not read is disconnected once 64 events wait for it, or after 30 s without progress; it reconnects with its last position.
+    ///
+    /// - Remark: HTTP `GET /api/changes/stream`.
+    /// - Remark: Generated from `#/paths//api/changes/stream/get(streamChanges)`.
+    func streamChanges(_ input: Operations.StreamChanges.Input) async throws -> Operations.StreamChanges.Output
 }
 
 /// Convenience overloads for operation inputs.
@@ -192,6 +203,25 @@ extension APIProtocol {
     /// - Remark: Generated from `#/paths//api/accounts/sessions/current/delete(signOut)`.
     public func signOut(headers: Operations.SignOut.Input.Headers = .init()) async throws -> Operations.SignOut.Output {
         try await signOut(Operations.SignOut.Input(headers: headers))
+    }
+    /// Follow committed changes as server-sent events
+    ///
+    /// Opens a `text/event-stream` announcing changes after they are committed; a change never announces a transaction that was rolled back. Events invalidate: the client rereads the canonical resources of the announced topic, which stay the only source of state.
+    ///
+    /// The stream starts with either a `resync` event, after which the client rereads everything it shows, or the changes missed since the position the client sent, one per topic. Positions are the events' `id`s: send the last one received in `Last-Event-ID` (browsers' `EventSource` does so when it reconnects) or in `lastEventId`; the header wins. A position from before a server restart, or older than the changes the server keeps, starts with `resync`.
+    ///
+    /// A signed-in subscriber also receives the changes of its own profile, and its stream ends when its session ends; an anonymous one receives only the changes meant for everyone. A comment line is sent every 15 s. A subscriber that does not read is disconnected once 64 events wait for it, or after 30 s without progress; it reconnects with its last position.
+    ///
+    /// - Remark: HTTP `GET /api/changes/stream`.
+    /// - Remark: Generated from `#/paths//api/changes/stream/get(streamChanges)`.
+    public func streamChanges(
+        query: Operations.StreamChanges.Input.Query = .init(),
+        headers: Operations.StreamChanges.Input.Headers = .init()
+    ) async throws -> Operations.StreamChanges.Output {
+        try await streamChanges(Operations.StreamChanges.Input(
+            query: query,
+            headers: headers
+        ))
     }
 }
 

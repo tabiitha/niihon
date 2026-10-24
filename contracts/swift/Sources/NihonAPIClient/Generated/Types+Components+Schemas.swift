@@ -6,6 +6,54 @@ public import struct Foundation.Date
 extension Components {
     /// Types generated from the `#/components/schemas` section of the OpenAPI document.
     public enum Schemas {
+        /// Data of a `change` event: a committed change visible to the subscriber. It never carries the changed data.
+        ///
+        /// - Remark: Generated from `#/components/schemas/ChangeNotification`.
+        public struct ChangeNotification: Codable, Hashable, Sendable {
+            /// Family of resources that changed; reread its canonical resources. Topics are plain strings: ignore unknown ones. `sessions`: the sessions of your profile changed, reread `getCurrentSession`.
+            ///
+            /// - Remark: Generated from `#/components/schemas/ChangeNotification/topic`.
+            public var topic: Swift.String
+            /// When the change was committed.
+            ///
+            /// - Remark: Generated from `#/components/schemas/ChangeNotification/occurredAt`.
+            public var occurredAt: Foundation.Date
+            /// Creates a new `ChangeNotification`.
+            ///
+            /// - Parameters:
+            ///   - topic: Family of resources that changed; reread its canonical resources. Topics are plain strings: ignore unknown ones. `sessions`: the sessions of your profile changed, reread `getCurrentSession`.
+            ///   - occurredAt: When the change was committed.
+            public init(
+                topic: Swift.String,
+                occurredAt: Foundation.Date
+            ) {
+                self.topic = topic
+                self.occurredAt = occurredAt
+            }
+            public enum CodingKeys: String, CodingKey {
+                case topic
+                case occurredAt
+            }
+        }
+        /// Data of a `resync` event: the missed changes cannot be listed; reread every resource the client shows.
+        ///
+        /// - Remark: Generated from `#/components/schemas/ResyncNotification`.
+        public struct ResyncNotification: Codable, Hashable, Sendable {
+            /// Why: `new_subscription` (no position sent), `server_restarted`, `too_far_behind` (more changes were missed than the server keeps), or `unknown_position`. Clients act the same way for every reason, including new ones.
+            ///
+            /// - Remark: Generated from `#/components/schemas/ResyncNotification/reason`.
+            public var reason: Swift.String
+            /// Creates a new `ResyncNotification`.
+            ///
+            /// - Parameters:
+            ///   - reason: Why: `new_subscription` (no position sent), `server_restarted`, `too_far_behind` (more changes were missed than the server keeps), or `unknown_position`. Clients act the same way for every reason, including new ones.
+            public init(reason: Swift.String) {
+                self.reason = reason
+            }
+            public enum CodingKeys: String, CodingKey {
+                case reason
+            }
+        }
         /// Server availability and versions.
         ///
         /// - Remark: Generated from `#/components/schemas/Health`.
