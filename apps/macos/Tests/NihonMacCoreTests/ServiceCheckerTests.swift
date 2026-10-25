@@ -11,6 +11,11 @@ struct UnexpectedOperationError: Error {}
 /// A contract client whose health answer is chosen by the test.
 struct FakeContractClient: APIProtocol {
     let answer: @Sendable () async throws -> Operations.GetHealth.Output
+    /// The registration operations, when a test exercises them; otherwise they are a test mistake.
+    var registerLocal: (@Sendable (Operations.RegisterLocalAccount.Input) async throws -> Operations.RegisterLocalAccount.Output)?
+    var listProviders: (@Sendable (Operations.ListOAuthProviders.Input) async throws -> Operations.ListOAuthProviders.Output)?
+    var startRegistration: (@Sendable (Operations.StartOAuthRegistration.Input) async throws -> Operations.StartOAuthRegistration.Output)?
+    var completeRegistration: (@Sendable (Operations.CompleteOAuthRegistration.Input) async throws -> Operations.CompleteOAuthRegistration.Output)?
 
     func getHealth(_ input: Operations.GetHealth.Input) async throws -> Operations.GetHealth.Output {
         try await answer()
@@ -19,25 +24,29 @@ struct FakeContractClient: APIProtocol {
     func registerLocalAccount(_ input: Operations.RegisterLocalAccount.Input) async throws
         -> Operations.RegisterLocalAccount.Output
     {
-        throw UnexpectedOperationError()
+        guard let registerLocal else { throw UnexpectedOperationError() }
+        return try await registerLocal(input)
     }
 
     func listOAuthProviders(_ input: Operations.ListOAuthProviders.Input) async throws
         -> Operations.ListOAuthProviders.Output
     {
-        throw UnexpectedOperationError()
+        guard let listProviders else { throw UnexpectedOperationError() }
+        return try await listProviders(input)
     }
 
     func startOAuthRegistration(_ input: Operations.StartOAuthRegistration.Input) async throws
         -> Operations.StartOAuthRegistration.Output
     {
-        throw UnexpectedOperationError()
+        guard let startRegistration else { throw UnexpectedOperationError() }
+        return try await startRegistration(input)
     }
 
     func completeOAuthRegistration(_ input: Operations.CompleteOAuthRegistration.Input) async throws
         -> Operations.CompleteOAuthRegistration.Output
     {
-        throw UnexpectedOperationError()
+        guard let completeRegistration else { throw UnexpectedOperationError() }
+        return try await completeRegistration(input)
     }
 
     func signIn(_ input: Operations.SignIn.Input) async throws

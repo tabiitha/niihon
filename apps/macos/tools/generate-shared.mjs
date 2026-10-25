@@ -32,6 +32,8 @@ const textModules = [
   { type: 'LibraryText', directory: 'apps/web/src/modules/library/locales' },
   { type: 'ProfileText', directory: 'apps/web/src/modules/profile/locales' },
   { type: 'AdminText', directory: 'apps/web/src/modules/admin/locales' },
+  { type: 'AccountsText', directory: 'apps/web/src/modules/accounts/locales' },
+  { type: 'MacAccountsText', directory: 'apps/macos/Sources/NihonMacCore/Accounts/locales' },
 ];
 
 const themesDirectory = 'resources/themes';

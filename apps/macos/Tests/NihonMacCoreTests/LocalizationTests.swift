@@ -22,7 +22,7 @@ struct LocalizationTests {
 
     @Test("every module has a non-empty text for every key in every language", arguments: [
         ShellText.self, MacShellText.self, HomeText.self, LearningText.self, KanjiText.self,
-        LibraryText.self, ProfileText.self, AdminText.self,
+        LibraryText.self, ProfileText.self, AdminText.self, AccountsText.self, MacAccountsText.self,
     ] as [any TextKey.Type])
     func completeness(module: any TextKey.Type) {
         assertComplete(module)
@@ -32,6 +32,8 @@ struct LocalizationTests {
     func sources() {
         #expect(ShellText.source == "apps/web/src/shell/locales")
         #expect(MacShellText.source == "apps/macos/Sources/NihonMacCore/Shell/locales")
+        #expect(AccountsText.source == "apps/web/src/modules/accounts/locales")
+        #expect(MacAccountsText.source == "apps/macos/Sources/NihonMacCore/Accounts/locales")
         #expect(Language.ja.text(ShellText.navKanji) == "漢字")
         #expect(Language.fr.text(ShellText.retry) == "Réessayer")
     }

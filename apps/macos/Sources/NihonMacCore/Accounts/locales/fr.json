@@ -1,0 +1,12 @@
+{
+  "errorIncompatible": "Cette app a été conçue pour une autre version du service Nihon. Mettez à jour l'app ou le service pour que leurs versions correspondent, puis réessayez.",
+  "errorRedirectUri": "Le service n'accepte pas l'adresse que cette app utilise pour revenir du fournisseur. Utilisez le formulaire avec nom d'utilisateur et mot de passe.",
+  "errorListener": "Nihon n'a pas pu se préparer à recevoir la réponse du fournisseur sur ce Mac. Utilisez le formulaire avec nom d'utilisateur et mot de passe.",
+  "providerClosed": "La fenêtre du fournisseur a été fermée avant la fin de l'inscription. Rien n'a été créé.",
+  "waitingForProvider": "En attente de {provider}… Terminez dans la fenêtre qui s'est ouverte.",
+  "completing": "Finalisation de votre inscription…",
+  "cancel": "Annuler",
+  "createAccountMenu": "Créer un compte",
+  "returnPageTitle": "Retour dans Nihon",
+  "returnPageBody": "Le fournisseur a répondu. Vous pouvez fermer cette fenêtre et revenir dans Nihon."
+}

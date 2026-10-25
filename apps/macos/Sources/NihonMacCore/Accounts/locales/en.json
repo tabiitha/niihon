@@ -1,0 +1,12 @@
+{
+  "errorIncompatible": "This app was built for another version of the Nihon service. Update the app or the service so that their versions match, then try again.",
+  "errorRedirectUri": "The service does not accept the address this app uses to come back from the provider. Use the username and password form.",
+  "errorListener": "Nihon could not prepare to receive the provider's answer on this Mac. Use the username and password form.",
+  "providerClosed": "The provider's window was closed before the registration ended. Nothing was created.",
+  "waitingForProvider": "Waiting for {provider}… Finish in the window that opened.",
+  "completing": "Completing your registration…",
+  "cancel": "Cancel",
+  "createAccountMenu": "Create an Account",
+  "returnPageTitle": "Back to Nihon",
+  "returnPageBody": "The provider answered. You can close this window and return to Nihon."
+}
