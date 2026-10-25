@@ -20,6 +20,9 @@ public final class ServiceConnection {
     public private(set) var attempt = 0
     /// The service address, for display.
     public let address: String
+    /// The address the checks go to, `nil` when the setting is not allowed. Other requests of the window use
+    /// this one rather than reading the setting again.
+    public let serviceURL: URL?
 
     private let checker: (any ServiceChecking)?
 
@@ -32,10 +35,12 @@ public final class ServiceConnection {
     ) {
         if let url = ServiceAddress.resolve(setting: setting) {
             address = url.absoluteString
+            serviceURL = url
             checker = makeChecker(url)
         } else {
             let setting = setting ?? ""
             address = setting
+            serviceURL = nil
             checker = nil
             state = .invalidAddress(setting: setting)
         }

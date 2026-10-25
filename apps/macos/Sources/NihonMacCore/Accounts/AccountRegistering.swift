@@ -46,9 +46,29 @@ public protocol AccountRegistering: Sendable {
 /// Registers accounts through the client generated from the contract.
 public struct AccountRegistrationClient: AccountRegistering {
     private let client: any APIProtocol
+    /// Ends the session this client created when the client goes away.
+    private let session: SessionOwner?
 
     public init(client: any APIProtocol) {
+        self.init(client: client, session: nil)
+    }
+
+    private init(client: any APIProtocol, session: SessionOwner?) {
         self.client = client
+        self.session = session
+    }
+
+    /// Holds a `URLSession` and invalidates it once nothing uses it any longer; running requests finish first.
+    private final class SessionOwner: Sendable {
+        let session: URLSession
+
+        init(_ session: URLSession) {
+            self.session = session
+        }
+
+        deinit {
+            session.finishTasksAndInvalidate()
+        }
     }
 
     /// A client of the service at `serviceURL`. The session is ephemeral: nothing is cached on disk.
@@ -57,10 +77,13 @@ public struct AccountRegistrationClient: AccountRegistering {
         configuration.timeoutIntervalForRequest = Self.requestTimeout
         configuration.urlCache = nil
         let session = URLSession(configuration: configuration)
-        self.init(client: NihonAPI.makeClient(
-            serverURL: serviceURL,
-            transport: URLSessionTransport(configuration: .init(session: session))
-        ))
+        self.init(
+            client: NihonAPI.makeClient(
+                serverURL: serviceURL,
+                transport: URLSessionTransport(configuration: .init(session: session))
+            ),
+            session: SessionOwner(session)
+        )
     }
 
     /// Hashing a password and exchanging a code with a provider take longer than a health check.

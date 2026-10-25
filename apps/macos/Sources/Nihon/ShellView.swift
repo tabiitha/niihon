@@ -88,7 +88,7 @@ struct ShellView: View {
 
     /// The service address, once the window is connected to it.
     private var connectedService: URL? {
-        if case .connected = connection.state { ServiceAddress.resolve(setting: UserDefaults.standard.string(forKey: ServiceAddress.settingKey)) } else { nil }
+        if case .connected = connection.state { connection.serviceURL } else { nil }
     }
 
     private func openRegistration() {

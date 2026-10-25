@@ -8,16 +8,20 @@ import NihonMacCore
 @MainActor
 final class WebAuthenticationPresenter: NSObject, AuthorizationPagePresenting, ASWebAuthenticationPresentationContextProviding {
     private var session: ASWebAuthenticationSession?
+    /// Identifies the session being shown, so that the end of an earlier one is not taken for this one's.
+    private var sessionID: UUID?
 
     func present(_ url: URL, closed: @escaping @MainActor @Sendable () -> Void) {
         dismiss()
         // The provider never redirects to this scheme (its return address is the loopback address), so the
         // completion handler only runs when the window is closed or dismissed.
+        let id = UUID()
         let session = ASWebAuthenticationSession(
             url: url, callbackURLScheme: "nihon-provider-window",
             completionHandler: Self.completionHandler { [weak self] in
-                guard let self, self.session != nil else { return }
+                guard let self, self.sessionID == id else { return }
                 self.session = nil
+                self.sessionID = nil
                 closed()
             }
         )
@@ -26,8 +30,10 @@ final class WebAuthenticationPresenter: NSObject, AuthorizationPagePresenting, A
         // prompt that asks to share information between the app and the website.
         session.prefersEphemeralWebBrowserSession = true
         self.session = session
+        sessionID = id
         if !session.start() {
             self.session = nil
+            sessionID = nil
             closed()
         }
     }
@@ -43,6 +49,7 @@ final class WebAuthenticationPresenter: NSObject, AuthorizationPagePresenting, A
     func dismiss() {
         guard let session else { return }
         self.session = nil
+        sessionID = nil
         session.cancel()
     }
 
