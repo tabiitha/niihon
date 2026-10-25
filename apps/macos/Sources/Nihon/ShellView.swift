@@ -13,6 +13,9 @@ struct ShellView: View {
         setting: UserDefaults.standard.string(forKey: ServiceAddress.settingKey)
     )
     @State private var selection: Space? = .home
+    /// The registration screen of the Profile space, while it is open. Leaving the Profile space, losing the
+    /// connection, or closing the window ends it and ignores any late answer.
+    @State private var registration: RegistrationModel?
 
     var body: some View {
         let language = settings.language
@@ -33,22 +36,30 @@ struct ShellView: View {
                 detail(space: space, language: language)
             }
         }
-        .navigationTitle(language.text(ShellText.documentTitle, ["page": language.text(space.label)]))
+        .navigationTitle(language.text(ShellText.documentTitle, [
+            "page": registration == nil ? language.text(space.label) : language.text(AccountsText.title),
+        ]))
         .environment(\.palette, palette)
         .environment(\.locale, Locale(identifier: language.rawValue))
         .preferredColorScheme(preferredColorScheme)
         .task(id: connection.attempt) {
             await connection.check()
         }
+        .onChange(of: selection) { _, space in
+            if space != .profile { closeRegistration() }
+        }
+        .onDisappear { closeRegistration() }
         .onChange(of: connection.state) { _, state in
             announce(state, language: language)
+            if case .connected = state {} else { closeRegistration() }
             if case .connected = state {
                 StartupProbe.shared?.windowConnected()
             }
         }
         .focusedSceneValue(\.shellActions, ShellActions(
             select: { selection = $0 },
-            retry: connection.canRetry ? { connection.retry() } : nil
+            retry: connection.canRetry ? { connection.retry() } : nil,
+            register: connectedService == nil ? nil : { openRegistration() }
         ))
         .task {
             await StartupProbe.shared?.drive(openWindow: openWindow, select: { selection = $0 })
@@ -59,7 +70,11 @@ struct ShellView: View {
     private func detail(space: Space, language: Language) -> some View {
         switch connection.state {
         case .connected:
-            SpacePage(space: space, language: language) { selection = $0 }
+            if let registration, space == .profile {
+                RegistrationView(model: registration, language: language) { closeRegistration() }
+            } else {
+                SpacePage(space: space, language: language, select: { selection = $0 }, register: { openRegistration() })
+            }
         case .checking:
             StatusView(status: .checking, language: language, address: connection.address, retry: nil)
         case .failed(let failure):
@@ -69,6 +84,28 @@ struct ShellView: View {
         case .invalidAddress:
             StatusView(status: .invalidAddress, language: language, address: connection.address, retry: nil)
         }
+    }
+
+    /// The service address, once the window is connected to it.
+    private var connectedService: URL? {
+        if case .connected = connection.state { ServiceAddress.resolve(setting: UserDefaults.standard.string(forKey: ServiceAddress.settingKey)) } else { nil }
+    }
+
+    private func openRegistration() {
+        guard let serviceURL = connectedService else { return }
+        selection = .profile
+        registration?.leave()
+        registration = RegistrationModel(
+            client: AccountRegistrationClient(serviceURL: serviceURL),
+            listener: LoopbackProviderReturnListener(),
+            presenter: WebAuthenticationPresenter(),
+            language: { [settings] in settings.language }
+        )
+    }
+
+    private func closeRegistration() {
+        registration?.leave()
+        registration = nil
     }
 
     private var palette: Palette {
