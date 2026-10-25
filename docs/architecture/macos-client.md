@@ -1,6 +1,6 @@
 # macOS Client
 
-The macOS client is a native SwiftUI application for Apple silicon Macs running macOS 26 or later. Like the Web client, it contains no business rule and no database: it displays what the local service returns through the [REST contract](api-contract.md). This page describes the connected shell delivered by [issue #73](https://github.com/tabiitha/niihon/issues/73); controlling the service from the Mac belongs to [#74](https://github.com/tabiitha/niihon/issues/74). Intel Macs and other systems use the [Web client](web-client.md).
+The macOS client is a native SwiftUI application for Apple silicon Macs running macOS 26 or later. Like the Web client, it contains no business rule and no database: it displays what the local service returns through the [REST contract](api-contract.md). This page describes the connected shell delivered by [issue #73](https://github.com/tabiitha/niihon/issues/73) and the account registration screen of [issue #235](https://github.com/tabiitha/niihon/issues/235); controlling the service from the Mac belongs to [#74](https://github.com/tabiitha/niihon/issues/74). Intel Macs and other systems use the [Web client](web-client.md).
 
 ## Package Structure
 
@@ -12,9 +12,11 @@ The macOS client is a native SwiftUI application for Apple silicon Macs running 
 | `Sources/NihonMacCore/Localization/` | Interface language selection and text lookup |
 | `Sources/NihonMacCore/Theme/` | Theme tokens, WCAG contrast, and light, dark, or system mode |
 | `Sources/NihonMacCore/Navigation/` | The spaces of the shell |
+| `Sources/NihonMacCore/Accounts/` | Account registration: the operations through the generated client, the message of each failure, the form state, and the loopback receiver of the provider's answer |
+| `Sources/NihonMacCore/Accounts/locales/` | Texts that only the native registration needs |
 | `Sources/NihonMacCore/Shell/locales/` | Texts that only the native shell needs |
 | `Sources/NihonMacCore/Generated/` | Swift sources generated from the shared texts and theme tokens; never edited |
-| `Sources/Nihon/` | The SwiftUI application: window, sidebar, pages, status views, menu commands, measurement mode |
+| `Sources/Nihon/` | The SwiftUI application: window, sidebar, pages, status views, the registration screen and its web authentication window, menu commands, measurement mode |
 | `Tests/NihonMacCoreTests/` | Tests of the core, including against the real HTTP adapter |
 | `Bundle/` | `Info.plist` and the App Sandbox entitlements of the app bundle |
 | `scripts/build-app.sh`, `scripts/measure.sh` | Build and sign `build/Nihon.app`; measure startup and memory |
@@ -66,6 +68,8 @@ The client reads the same JSON texts and theme tokens as the Web client; they re
 | `apps/web/src/shell/locales/*.json` | `ShellText` (navigation, states, retry) |
 | `apps/macos/Sources/NihonMacCore/Shell/locales/*.json` | `MacShellText` (native wording, Go menu, address errors) |
 | `apps/web/src/modules/<space>/locales/*.json` | `HomeText`, `LearningText`, `KanjiText`, `LibraryText`, `ProfileText`, `AdminText` |
+| `apps/web/src/modules/accounts/locales/*.json` | `AccountsText` (the registration screen, shared with the Web client) |
+| `apps/macos/Sources/NihonMacCore/Accounts/locales/*.json` | `MacAccountsText` (native wording of the registration: provider window, return page, menu) |
 | `resources/themes/<style>/tokens.json` | `ColorRole` and `ThemeCatalog.themes` |
 
 Each key becomes an enumeration case, so a text used by the client cannot be missing at compile time. The generator stops (exit code 2) when a `locales` folder lacks a language, has a missing or extra key, an empty text, or different `{placeholders}`, or when a theme misses a color role in either mode. `bun run macos:check` fails (exit code 1) when the committed Swift sources differ from the JSON files, so a change of the shared texts or tokens must be regenerated and committed with it. To give the client a new module's texts, add its `locales` folder to `textModules` in `tools/generate-shared.mjs`.
@@ -80,11 +84,52 @@ Requirements: macOS 26 or later on Apple silicon, Xcode 26 or later (Swift 6.2 o
 | --- | --- |
 | `apps/macos/scripts/build-app.sh` | Build `apps/macos/build/Nihon.app` in release mode, signed ad hoc with the sandbox entitlements; `NIHON_CODESIGN_IDENTITY` selects another identity |
 | `open apps/macos/build/Nihon.app` | Run the app; add `--args -NihonServiceURL http://127.0.0.1:4100` for another port |
-| `swift test --package-path apps/macos` | Test the core: language selection, text completeness, theme contrast, address validation, failure classification with a fake contract client, connection states, and a check against the real HTTP adapter (`apps/api/test/fixtures/serve.ts`) before and after it stops |
+| `swift test --package-path apps/macos` | Test the core: language selection, text completeness, theme contrast, address validation, failure classification with a fake contract client, connection states, a check against the real HTTP adapter (`apps/api/test/fixtures/serve.ts`) before and after it stops, and the registration (messages for every code of the contract, the form state, the loopback receiver, and local and provider registrations against the real service with fake providers, `apps/api/test/fixtures/accounts-serve.ts`) |
 | `bun run macos:generate`, `bun run macos:check` | Regenerate, or check, the Swift texts and themes |
 | `apps/macos/scripts/measure.sh [runs]` | Measure startup and memory, see below |
 
-Xcode opens `apps/macos/Package.swift` directly. Views are verified manually; an automated interface test tool is not selected yet. Distribution signing, notarization, and installation belong to the packaging work.
+Xcode opens `apps/macos/Package.swift` directly. Views are verified manually, including the registration screen; an automated interface test tool is not selected yet. Distribution signing, notarization, and installation belong to the packaging work.
+
+## Account Registration
+
+The Profile space offers **Create an account**, and the Go menu offers **Create an Account** (Shift-Command-A) while the window is connected. Both open the registration screen of [issue #235](https://github.com/tabiitha/niihon/issues/235), on the contract of [#233](https://github.com/tabiitha/niihon/issues/233) (see [accounts](accounts.md)); the Web counterpart is described in the [Web client](web-client.md#account-registration). Like every part of the client, it contains no business rule: the service alone decides which usernames and passwords are valid, whether a name is taken, and which providers exist. The screen only checks what the service cannot see, that something was typed and that the confirmation equals the password.
+
+| Part | Responsibility |
+| --- | --- |
+| `Accounts/AccountRegistering.swift` | The four operations (`registerLocalAccount`, `listOAuthProviders`, `startOAuthRegistration`, `completeOAuthRegistration`) through the generated client, with an ephemeral `URLSession` and a 30 s timeout (hashing a password and exchanging a code take longer than a health check) |
+| `Accounts/RegistrationProblem.swift` | The failure classification (the same as the Web client's) and the message of each stable error code, with how a retry goes |
+| `Accounts/RegistrationModel.swift` | The state of the form, apart from SwiftUI so that its rules are tested |
+| `Accounts/ProviderReturn.swift`, `LoopbackProviderReturn.swift` | The return address of a provider registration and its receiver |
+| `Nihon/RegistrationView.swift` | The screen: card, fields, errors, provider buttons |
+| `Nihon/WebAuthenticationPresenter.swift` | The system web authentication window that shows the provider's page |
+
+| Behavior | How |
+| --- | --- |
+| Local registration | Username, password, and confirmation (secure fields, each with a show/hide button) are sent to `registerLocalAccount`. Success shows the created username and a way back home; no session is opened, because sign-in is a separate screen ([#76](https://github.com/tabiitha/niihon/issues/76)) |
+| Providers | `listOAuthProviders` decides which buttons appear. Without credentials, or when the list cannot be read, only the local form is shown and registration still works offline |
+| Provider username | The username field is shared: a provider button needs it filled first, because the provider's own name or email is never used. `startOAuthRegistration` also reports a taken name before the provider's page opens |
+| Provider window | The provider's page opens in an `ASWebAuthenticationSession` that prefers an ephemeral session: it shares no cookie with Safari and opens without the system prompt that asks to share information between the app and the website. The window only displays; Nihon never sees what is typed in it. The screen shows that it is waiting, with **Cancel**; closing the window ends the attempt and creates nothing |
+| Provider return | See below. The returned `state` is compared with the one the service issued; a missing or different `state` sends nothing. A refusal by the provider creates nothing |
+| Errors | Each stable code of the registration operations has a message in en, fr, and ja; `validation_failed` is told apart by the invalid field. A `502` or `503` that carries a code the registration explains (`accounts_oauth_provider_failed`, `accounts_oauth_flow_consumed`, `accounts_busy`, `idempotency_capacity_reached`) is the service answering, not a stopped service; without such a code those statuses (and `stopping`) still mean a stopped service or a failing relay. The service's English text is never displayed; the request identifier is shown for the service log. A test reads every code and its real HTTP status from `contracts/openapi.json` and fails when one has no message |
+| Typed data and retries | The username is always kept. After a definite refusal the passwords are cleared and the next attempt is a new command; after a lost answer, an unexplained or `internal_error` failure, `accounts_busy`, `database_busy`, or `idempotency_key_in_use` everything is kept and the same command is repeated with the same `Idempotency-Key`, so a profile that was created is returned instead of reported as taken; after `idempotency_capacity_reached` the next attempt is sent without a key. A provider completion that is not decided offers **Try again** with the same code and key. Editing a field starts a new command |
+| Double submission | The model drops a second submit synchronously while one is running; the buttons are disabled meanwhile |
+| Stale answers | Leaving the screen (another space, the connection lost, the window closed) cancels the request, stops the receiver, closes the provider's window, and ignores any late answer |
+| Accessibility | Headers carry the header trait, each field has a label and a hint (the problem when it has one), focus moves to the faulty field after a failure, a failure and a success are announced to VoiceOver, fields and buttons are at least 44 points high, and the progress indicator is a static symbol when Reduce Motion is on |
+
+### Receiving the Provider's Answer
+
+The service accepts an `http` loopback address as `redirectUri`. The app therefore opens a listener on `127.0.0.1` (`NWListener`, an ephemeral port), gives `http://127.0.0.1:<port>/oauth/callback` to `startOAuthRegistration`, and waits for the provider's browser to come back to it. The listener:
+
+- accepts connections from the loopback interface only, at most 8 at a time, reads at most 8 KiB and for at most 5 s per connection, and answers only `GET /oauth/callback`; any other path or an incomplete answer gets a 404 or 400 and the wait goes on;
+- takes the first answer that has a `state` of at most 128 characters and a `code` of at most 2,048 characters (or `error=…`), then closes; it keeps nothing, logs nothing, and answers with a small page that echoes none of the parameters (`Cache-Control: no-store`, `Referrer-Policy: no-referrer`, a restrictive `Content-Security-Policy`) asking to return to Nihon;
+- stops when the provider's window is closed, when the person cancels, when the screen is left, or at the flow's `expiresAt`.
+
+The authorization code and the `state` live in memory only for the duration of the attempt: nothing is written to the logs, user defaults, or files. A forged request to the loopback port is harmless without the `state`, which only the service and this attempt know, and the service still verifies the code with the provider.
+
+**Sandbox.** Listening needs the `com.apple.security.network.server` entitlement, which `Bundle/Nihon.entitlements` now declares next to `com.apple.security.network.client`. The app can therefore accept connections from any local program on its loopback port during an attempt; the limits above and the unknown `state` are what keep that harmless. This is a security setting of the bundle and is flagged for the owner's review. Without it the sandboxed app cannot listen, shows "Nihon could not prepare to receive the provider's answer on this Mac", and local registration still works.
+
+**Provider configuration.** The provider must accept a loopback return address with a variable port, which the installation's own credentials have to allow ([accounts](accounts.md)); this has not been checked against Google's or GitHub's current rules, because no real provider round trip was made. A Mac whose installation lists no provider shows only the local form.
+
 
 ## Measurement
 
@@ -97,6 +142,8 @@ Xcode opens `apps/macos/Package.swift` directly. Views are verified manually; an
 | Pending requests | One health check per window; the previous one is cancelled on retry or window close |
 | Request time | 10 seconds |
 | Data kept | The connection state and service versions of each window, released with the window; nothing on disk |
+| Registration requests | One at a time per screen (a second submit is dropped); 30 seconds each; the provider's attempt lasts until the service's `expiresAt` (10 minutes) |
+| Loopback receiver | One per attempt, on `127.0.0.1` only; 8 connections, 8 KiB and 5 s per connection; closed after the first valid answer |
 
 These bounds are a starting point; tune them after measurement.
 
