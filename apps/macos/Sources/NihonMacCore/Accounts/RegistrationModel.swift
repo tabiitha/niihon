@@ -57,6 +57,9 @@ public final class RegistrationModel {
     private var receiver: (any ProviderReturnReceiving)?
     private var key = Key.unset
     private var completion: Completion?
+    /// Why the wait for the provider was stopped by the person, when it was.
+    private enum Stop { case windowClosed, cancelled }
+    private var stop: Stop?
 
     public init(
         client: any AccountRegistering,
@@ -178,6 +181,9 @@ public final class RegistrationModel {
             return fail(.init(.usernameNeededForProvider, field: .username))
         }
         let generation = begin(.starting(provider: provider))
+        // A new attempt leaves nothing of a previous one: its code can no longer be repeated.
+        completion = nil
+        stop = nil
         let username = username
         task = Task { [client, listener] in
             let receiver: any ProviderReturnReceiving
@@ -212,15 +218,21 @@ public final class RegistrationModel {
             receiver.stop()
             return fail(.init(.errorGeneric), generation: generation)
         }
+        receiver.expect(state: start.state)
         busy = .waiting(provider: provider)
-        presenter.present(page) { receiver.stop() }
+        presenter.present(page) { [weak self] in
+            self?.stop = .windowClosed
+            receiver.stop()
+        }
         let outcome = await receiver.wait(until: start.expiresAt)
         guard generation == self.generation else { return }
         presenter.dismiss()
         self.receiver = nil
         switch outcome {
         case .stopped:
-            fail(.init(.native(.providerClosed)), generation: generation)
+            fail(.init(.native(stop == .cancelled ? .providerCancelled : .providerClosed)), generation: generation)
+        case .listenerLost:
+            fail(.init(.native(.errorListenerLost)), generation: generation)
         case .expired:
             fail(.init(.errorFlowExpired), generation: generation)
         case .returned(let answer):
@@ -277,6 +289,7 @@ public final class RegistrationModel {
 
     /// Stops waiting for the provider because the person asked to.
     public func cancelProvider() {
+        stop = .cancelled
         receiver?.stop()
     }
 

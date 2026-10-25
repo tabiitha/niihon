@@ -2,8 +2,9 @@ import Foundation
 import Network
 
 /// Receives the provider's answer on a loopback port of this Mac, the return address that the service accepts
-/// for a native client. It listens on `127.0.0.1` only, serves one tiny page, takes the first valid answer and
-/// closes; nothing it reads is logged or stored.
+/// for a native client. It listens on `127.0.0.1` only, serves one tiny page, takes the first answer that carries
+/// the `state` issued for the attempt and closes; any other request is refused and ignored. Nothing it reads is
+/// logged or stored.
 public struct LoopbackProviderReturnListener: ProviderReturnListening {
     /// The path the provider returns to.
     public static let path = "/oauth/callback"
@@ -24,7 +25,6 @@ final class LoopbackReceiver: ProviderReturnReceiving, @unchecked Sendable {
     /// Connections served at the same time; the provider's browser needs one.
     static let maximumConnections = 8
 
-    let returnAddress: String
     private let listener: NWListener
     private let queue = DispatchQueue(label: "nihon.oauth-return")
     private let language: Language
@@ -32,48 +32,62 @@ final class LoopbackReceiver: ProviderReturnReceiving, @unchecked Sendable {
     private var outcome: ProviderWait?
     private var waiter: CheckedContinuation<ProviderWait, Never>?
     private var connections = 0
+    private var expectedState: String?
 
-    private init(listener: NWListener, port: UInt16, language: Language) {
+    /// The address of the listening port; read only once `open` has returned.
+    var returnAddress: String {
+        "http://127.0.0.1:\(listener.port?.rawValue ?? 0)\(LoopbackProviderReturnListener.path)"
+    }
+
+    private init(listener: NWListener, language: Language) {
         self.listener = listener
         self.language = language
-        returnAddress = "http://127.0.0.1:\(port)\(LoopbackProviderReturnListener.path)"
     }
 
     static func open(language: Language) async throws -> LoopbackReceiver {
         let parameters = NWParameters.tcp
         parameters.requiredLocalEndpoint = .hostPort(host: .ipv4(.loopback), port: .any)
-        let listener = try NWListener(using: parameters)
-        let queue = DispatchQueue(label: "nihon.oauth-return.start")
-        let port: UInt16 = try await withCheckedThrowingContinuation { continuation in
+        let receiver = LoopbackReceiver(listener: try NWListener(using: parameters), language: language)
+        try await receiver.start()
+        return receiver
+    }
+
+    /// Starts listening once, with the handlers it keeps, and returns when the port is known.
+    private func start() async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
             let once = Once()
-            listener.stateUpdateHandler = { state in
+            listener.newConnectionHandler = { [weak self] connection in self?.accept(connection) }
+            listener.stateUpdateHandler = { [weak self] state in
                 switch state {
                 case .ready:
                     if once.first() {
-                        if let port = listener.port?.rawValue {
-                            continuation.resume(returning: port)
+                        if self?.listener.port != nil {
+                            continuation.resume()
                         } else {
                             continuation.resume(throwing: ListenerError.noPort)
                         }
                     }
                 case .failed(let error):
-                    if once.first() { continuation.resume(throwing: error) }
+                    if once.first() {
+                        self?.listener.cancel()
+                        continuation.resume(throwing: error)
+                    } else {
+                        self?.finish(.listenerLost)
+                    }
                 case .cancelled:
                     if once.first() { continuation.resume(throwing: ListenerError.cancelled) }
                 default:
                     break
                 }
             }
-            listener.newConnectionHandler = { $0.cancel() }
             listener.start(queue: queue)
         }
-        let receiver = LoopbackReceiver(listener: listener, port: port, language: language)
-        listener.newConnectionHandler = { [weak receiver] connection in receiver?.accept(connection) }
-        listener.stateUpdateHandler = { [weak receiver] state in
-            if case .failed = state { receiver?.finish(.stopped) }
-        }
-        listener.start(queue: receiver.queue)
-        return receiver
+    }
+
+    func expect(state: String) {
+        lock.lock()
+        expectedState = state
+        lock.unlock()
     }
 
     func wait(until deadline: Date) async -> ProviderWait {
@@ -150,11 +164,17 @@ final class LoopbackReceiver: ProviderReturnReceiving, @unchecked Sendable {
         }
         let items = components.queryItems ?? []
         func value(_ name: String) -> String? { items.first { $0.name == name }?.value }
-        let state = value("state").flatMap { $0.isEmpty || $0.count > 128 ? nil : $0 }
+        lock.lock()
+        let expected = expectedState
+        lock.unlock()
+        // Only the answer to this attempt counts: without the issued `state` nothing ends the wait.
+        guard let expected, let state = value("state"), state == expected else {
+            return .refuse(.badRequest)
+        }
         let answer: ProviderReturn
         if items.contains(where: { $0.name == "error" }) {
             answer = .denied(state: state)
-        } else if let state, let code = value("code"), !code.isEmpty, code.count <= 2048 {
+        } else if let code = value("code"), !code.isEmpty, code.count <= 2048 {
             answer = .code(state: state, code: code)
         } else {
             return .refuse(.badRequest)

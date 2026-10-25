@@ -36,6 +36,7 @@ struct LoopbackProviderReturnTests {
     @Test("takes the code and the state of the provider's answer, and answers with a page that echoes nothing")
     func codeAndState() async throws {
         let receiver = try await listener.open(language: .fr)
+        receiver.expect(state: "state-1")
         let waiting = inFlight(receiver)
         let reply = try await get(receiver.returnAddress, "?code=the-secret-code&state=state-1")
         #expect(await waiting.value == .returned(.code(state: "state-1", code: "the-secret-code")))
@@ -49,6 +50,7 @@ struct LoopbackProviderReturnTests {
     @Test("reports a refusal of the provider with its state")
     func denied() async throws {
         let receiver = try await listener.open(language: .en)
+        receiver.expect(state: "state-1")
         let waiting = inFlight(receiver)
         _ = try await get(receiver.returnAddress, "?error=access_denied&state=state-1")
         #expect(await waiting.value == .returned(.denied(state: "state-1")))
@@ -57,6 +59,7 @@ struct LoopbackProviderReturnTests {
     @Test("ignores other paths and incomplete answers, and keeps waiting for the real one")
     func strangers() async throws {
         let receiver = try await listener.open(language: .en)
+        receiver.expect(state: "real")
         let waiting = inFlight(receiver)
         let base = receiver.returnAddress
         let other = base.replacing("/oauth/callback", with: "/favicon.ico")
@@ -67,13 +70,39 @@ struct LoopbackProviderReturnTests {
         #expect(try await get(base, "?code=&state=s").status == 400)
         let tooLong = String(repeating: "a", count: 129)
         #expect(try await get(base, "?code=c&state=\(tooLong)").status == 400)
+        #expect(try await get(base, "?error=access_denied").status == 400)
         _ = try await get(base, "?code=c&state=real")
         #expect(await waiting.value == .returned(.code(state: "real", code: "c")))
+    }
+
+    @Test("refuses an answer that does not carry the issued state, however well formed, and keeps waiting")
+    func otherState() async throws {
+        let receiver = try await listener.open(language: .en)
+        receiver.expect(state: "issued")
+        let waiting = inFlight(receiver)
+        let base = receiver.returnAddress
+        #expect(try await get(base, "?code=forged&state=other").status == 400)
+        #expect(try await get(base, "?error=access_denied&state=other").status == 400)
+        #expect(try await get(base, "?code=forged").status == 400)
+        // Nothing of the refused requests ended the wait: the real answer still arrives.
+        _ = try await get(base, "?code=real&state=issued")
+        #expect(await waiting.value == .returned(.code(state: "issued", code: "real")))
+    }
+
+    @Test("refuses every answer until the issued state is known")
+    func beforeTheStateIsKnown() async throws {
+        let receiver = try await listener.open(language: .en)
+        let waiting = inFlight(receiver)
+        #expect(try await get(receiver.returnAddress, "?code=early&state=s").status == 400)
+        receiver.expect(state: "s")
+        _ = try await get(receiver.returnAddress, "?code=late&state=s")
+        #expect(await waiting.value == .returned(.code(state: "s", code: "late")))
     }
 
     @Test("takes only the first answer, then stops listening")
     func singleUse() async throws {
         let receiver = try await listener.open(language: .en)
+        receiver.expect(state: "s")
         let waiting = inFlight(receiver)
         _ = try await get(receiver.returnAddress, "?code=first&state=s")
         #expect(await waiting.value == .returned(.code(state: "s", code: "first")))
@@ -110,6 +139,7 @@ struct LoopbackProviderReturnTests {
     @Test("survives a request that is too large or never ends, and still takes the real answer")
     func abuse() async throws {
         let receiver = try await listener.open(language: .en)
+        receiver.expect(state: "real")
         let waiting = inFlight(receiver)
         let port = try #require(URL(string: receiver.returnAddress)?.port)
         // Garbage without a line end, larger than the limit: the connection is dropped.

@@ -12,6 +12,8 @@ public enum ProviderWait: Equatable, Sendable {
     case returned(ProviderReturn)
     /// The waiting was stopped: the provider's window was closed, the person cancelled, or the form was left.
     case stopped
+    /// The listener broke while waiting, so no answer can arrive any more.
+    case listenerLost
     /// The service's deadline for the flow passed without an answer.
     case expired
 }
@@ -20,6 +22,9 @@ public enum ProviderWait: Equatable, Sendable {
 public protocol ProviderReturnReceiving: Sendable {
     /// The `http` loopback address of this attempt, which the service accepts as `redirectUri`.
     var returnAddress: String { get }
+    /// Sets the `state` the service issued for this attempt. From then on only an answer carrying it is taken;
+    /// any other request is refused with a 400 and the wait goes on, so that a stray request cannot end it.
+    func expect(state: String)
     /// Waits for the answer until `deadline`. Cancelling the calling task stops the wait.
     func wait(until deadline: Date) async -> ProviderWait
     /// Stops waiting and releases the address. Safe to call at any time and more than once.

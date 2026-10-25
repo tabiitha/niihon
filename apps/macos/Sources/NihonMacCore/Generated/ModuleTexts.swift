@@ -593,6 +593,8 @@ public enum MacAccountsText: String, TextKey {
     case errorRedirectUri
     case errorListener
     case providerClosed
+    case providerCancelled
+    case errorListenerLost
     case waitingForProvider
     case completing
     case cancel
@@ -608,6 +610,8 @@ public enum MacAccountsText: String, TextKey {
             .errorRedirectUri: "The service does not accept the address this app uses to come back from the provider. Use the username and password form.",
             .errorListener: "Nihon could not prepare to receive the provider's answer on this Mac. Use the username and password form.",
             .providerClosed: "The provider's window was closed before the registration ended. Nothing was created.",
+            .providerCancelled: "You cancelled the registration with the provider. Nothing was created.",
+            .errorListenerLost: "Nihon stopped receiving the provider's answer on this Mac. Nothing was created; try again.",
             .waitingForProvider: "Waiting for {provider}… Finish in the window that opened.",
             .completing: "Completing your registration…",
             .cancel: "Cancel",
@@ -620,6 +624,8 @@ public enum MacAccountsText: String, TextKey {
             .errorRedirectUri: "Le service n'accepte pas l'adresse que cette app utilise pour revenir du fournisseur. Utilisez le formulaire avec nom d'utilisateur et mot de passe.",
             .errorListener: "Nihon n'a pas pu se préparer à recevoir la réponse du fournisseur sur ce Mac. Utilisez le formulaire avec nom d'utilisateur et mot de passe.",
             .providerClosed: "La fenêtre du fournisseur a été fermée avant la fin de l'inscription. Rien n'a été créé.",
+            .providerCancelled: "Vous avez annulé l'inscription auprès du fournisseur. Rien n'a été créé.",
+            .errorListenerLost: "Nihon a cessé de pouvoir recevoir la réponse du fournisseur sur ce Mac. Rien n'a été créé ; réessayez.",
             .waitingForProvider: "En attente de {provider}… Terminez dans la fenêtre qui s'est ouverte.",
             .completing: "Finalisation de votre inscription…",
             .cancel: "Annuler",
@@ -632,6 +638,8 @@ public enum MacAccountsText: String, TextKey {
             .errorRedirectUri: "プロバイダーから戻るためにこのアプリが使うアドレスを、サービスが受け付けませんでした。ユーザー名とパスワードのフォームをご利用ください。",
             .errorListener: "このMacでプロバイダーからの応答を受け取る準備ができませんでした。ユーザー名とパスワードのフォームをご利用ください。",
             .providerClosed: "登録が終わる前にプロバイダーのウインドウが閉じられました。何も作成されていません。",
+            .providerCancelled: "プロバイダーでの登録をキャンセルしました。何も作成されていません。",
+            .errorListenerLost: "このMacでプロバイダーからの応答を受け取れなくなりました。何も作成されていません。もう一度お試しください。",
             .waitingForProvider: "{provider}を待っています… 開いたウインドウで手続きを完了してください。",
             .completing: "登録を完了しています…",
             .cancel: "キャンセル",

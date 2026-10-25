@@ -56,6 +56,11 @@ final class ScriptedReceiver: ProviderReturnReceiving, @unchecked Sendable {
     private var outcome: ProviderWait?
     private var waiter: CheckedContinuation<ProviderWait, Never>?
     private(set) var stops = 0
+    private(set) var expected: String?
+
+    func expect(state: String) {
+        lock.lock(); expected = state; lock.unlock()
+    }
 
     func wait(until deadline: Date) async -> ProviderWait {
         await withCheckedContinuation { continuation in
@@ -340,6 +345,7 @@ struct ProviderRegistrationModelTests {
         let starts = await h.service.starts
         #expect(starts.map(\.provider) == ["github"] && starts.map(\.username) == ["sakura"])
         #expect(starts.first?.returnAddress == "http://127.0.0.1:49152/oauth/callback")
+        #expect(h.receiver.expected == "state-1")
 
         h.receiver.deliver(.returned(.code(state: "state-1", code: "the-code")))
         await waitUntil { await h.service.waitingCompletion == 1 }
@@ -398,7 +404,42 @@ struct ProviderRegistrationModelTests {
         await openProviderPage(h)
         h.model.cancelProvider()
         await h.model.settle()
-        #expect(h.model.problem?.message == .native(.providerClosed))
+        #expect(h.model.problem?.message == .native(.providerCancelled))
+        #expect(h.model.busy == nil)
+        #expect(await h.service.completions.isEmpty)
+    }
+
+    @Test("says so when the listener breaks while waiting")
+    func listenerLost() async {
+        let h = Harness()
+        await openProviderPage(h)
+        h.receiver.deliver(.listenerLost)
+        await h.model.settle()
+        #expect(h.model.problem?.message == .native(.errorListenerLost))
+        #expect(h.model.busy == nil)
+        #expect(await h.service.completions.isEmpty)
+    }
+
+    @Test("keeps the code of an undecided completion only until a new provider attempt starts")
+    func newAttemptDropsTheOldCode() async {
+        let h = Harness()
+        await openProviderPage(h)
+        h.receiver.deliver(.returned(.code(state: "state-1", code: "old-code")))
+        await waitUntil { await h.service.waitingCompletion == 1 }
+        await h.service.answerCompletion(.failure(.unavailable))
+        await h.model.settle()
+        #expect(h.model.canRepeatCompletion)
+
+        // A new attempt, which the person then refuses: the old code must not be offered again.
+        h.model.continueWith("github")
+        #expect(!h.model.canRepeatCompletion)
+        await waitUntil { await h.service.waitingStart == 1 }
+        await h.service.answerStart(.failure(taken))
+        await h.model.settle()
+        #expect(h.model.problem?.message == .shared(.errorUsernameTaken))
+        #expect(!h.model.canRepeatCompletion)
+        h.model.repeatCompletion()
+        #expect(await h.service.completions.count == 1)
         #expect(h.model.busy == nil)
     }
 
