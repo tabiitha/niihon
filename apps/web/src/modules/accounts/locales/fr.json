@@ -1,6 +1,5 @@
 {
   "title": "Créez votre compte",
-  "subtitle": "Votre compte est stocké sur cet ordinateur. Aucune connexion Internet n’est nécessaire.",
   "usernameLabel": "Nom d’utilisateur",
   "usernameHint": "De 3 à 32 caractères : lettres, chiffres, _ - ou .",
   "passwordLabel": "Mot de passe",
@@ -13,7 +12,6 @@
   "submit": "Créer le compte",
   "submitting": "Création du compte…",
   "providersTitle": "Ou utilisez un compte existant",
-  "providersNote": "Facultatif. Le fournisseur confirme seulement qui vous êtes ; Nihon ne lit jamais votre adresse e-mail. Le nom d’utilisateur ci-dessus est le nom que Nihon utilise.",
   "continueWithProvider": "Continuer avec {provider}",
   "providerGoogle": "Google",
   "providerGithub": "GitHub",

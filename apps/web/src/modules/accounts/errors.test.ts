@@ -5,7 +5,7 @@ import { describe, it } from 'node:test';
 
 import { classifyErrorResponse } from '../../api/outcome.ts';
 import { languages } from '../../i18n/languages.ts';
-import { describeFailure, explainedCodes, messageByCode, type Retry } from './errors.ts';
+import { describeFailure, explainedCodes, hintFor, messageByCode, type Problem, type Retry } from './errors.ts';
 import { accountsTexts } from './texts.ts';
 
 type Operation = { operationId?: string; responses: Record<string, { description?: string }> };
@@ -142,6 +142,52 @@ describe('interface texts of the accounts module', () => {
       assert.match(accountsTexts.texts[language].successBody, /\{username\}/, language);
       assert.match(accountsTexts.texts[language].continueWithProvider, /\{provider\}/, language);
       assert.match(accountsTexts.texts[language].errorReference, /\{requestId\}/, language);
+    }
+  });
+});
+
+describe('help under a field', () => {
+  const problem = (message: Problem['message'], field?: Problem['field']): Problem => ({ message, ...(field === undefined ? {} : { field }) });
+
+  it('appears only after a refusal of that very field', () => {
+    assert.equal(hintFor(problem('errorUsernameInvalid', 'username'), 'username'), 'usernameHint');
+    assert.equal(hintFor(problem('errorPasswordInvalid', 'password'), 'password'), 'passwordHint');
+  });
+
+  it('stays away when there is no problem or the problem belongs to another field', () => {
+    for (const field of ['username', 'password', 'confirmation'] as const) {
+      assert.equal(hintFor(undefined, field), undefined, `${field} without a problem`);
+    }
+    assert.equal(hintFor(problem('errorUsernameInvalid', 'username'), 'password'), undefined);
+    assert.equal(hintFor(problem('errorPasswordInvalid', 'password'), 'username'), undefined);
+    assert.equal(hintFor(problem('errorPasswordInvalid', 'password'), 'confirmation'), undefined);
+  });
+
+  it('stays away for a name already taken, a missing value, or two passwords that differ', () => {
+    assert.equal(hintFor(problem('errorUsernameTaken', 'username'), 'username'), undefined);
+    assert.equal(hintFor(problem('usernameRequired', 'username'), 'username'), undefined);
+    assert.equal(hintFor(problem('usernameNeededForProvider', 'username'), 'username'), undefined);
+    assert.equal(hintFor(problem('passwordRequired', 'password'), 'password'), undefined);
+    assert.equal(hintFor(problem('passwordsDiffer', 'confirmation'), 'confirmation'), undefined);
+  });
+
+  it('follows what the server refused: an invalid name or password', () => {
+    const refused = (path: string) => describeFailure(answer(400, 'validation_failed', [path]));
+    assert.equal(hintFor(refused('body.username'), 'username'), 'usernameHint');
+    assert.equal(hintFor(refused('body.password'), 'password'), 'passwordHint');
+    assert.equal(hintFor(describeFailure(answer(409, 'accounts_username_taken')), 'username'), undefined);
+  });
+});
+
+describe('texts of the accounts screens', () => {
+  it('has no text that no screen shows', () => {
+    const here = (name: string) => readFileSync(fileURLToPath(new URL(name, import.meta.url)), 'utf8');
+    const code = ['RegisterPage.tsx', 'errors.ts', 'form.ts', 'registration.ts'].map(here).join('\n');
+    for (const key of Object.keys(accountsTexts.texts.en)) {
+      assert.match(code, new RegExp(`'${key}'`), `${key} is never used`);
+    }
+    for (const removed of ['subtitle', 'providersNote']) {
+      assert.equal(removed in accountsTexts.texts.en, false, `${removed} stays removed`);
     }
   });
 });

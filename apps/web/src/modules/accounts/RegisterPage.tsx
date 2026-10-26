@@ -8,7 +8,7 @@ import { Link, useRouter } from '../../router/Router.tsx';
 import { routes } from '../../router/routes.ts';
 import { ArrowIcon, EyeIcon, EyeOffIcon } from '../../shell/icons.tsx';
 import { Page } from '../../shell/Page.tsx';
-import type { FormField, Problem } from './errors.ts';
+import { hintFor, type FormField, type Problem } from './errors.ts';
 import { createRegistrationForm, viewOfFinish, type ReturnView } from './form.ts';
 import {
   createPendingStore,
@@ -116,13 +116,17 @@ function RegistrationForm() {
     );
   }
 
-  const describedBy = (field: FormField, hint?: string) =>
-    [hint, problem?.field === field ? ids.problem : undefined].filter((id) => id !== undefined).join(' ') || undefined;
+  // The message of the faulty field, then its help (shown only after a refusal of that field).
+  const hintIds = { username: `${ids.username}-hint`, password: `${ids.password}-hint` };
+  const hintKey = (field: FormField) => hintFor(problem, field);
+  const describedBy = (field: FormField) =>
+    [problem?.field === field ? ids.problem : undefined, hintKey(field) === undefined ? undefined : hintIds[field as 'username' | 'password']]
+      .filter((id) => id !== undefined)
+      .join(' ') || undefined;
   const offered = providers.status === 'ready' ? providers.data : [];
 
   return (
     <Page title={t('title')} className="auth-card">
-      <p className="muted">{t('subtitle')}</p>
       <form
         noValidate
         onSubmit={(event) => {
@@ -145,12 +149,14 @@ function RegistrationForm() {
             required
             value={username}
             aria-invalid={problem?.field === 'username' ? true : undefined}
-            aria-describedby={describedBy('username', `${ids.username}-hint`)}
+            aria-describedby={describedBy('username')}
             onChange={(event) => form.setField('username', event.target.value)}
           />
-          <span id={`${ids.username}-hint`} className="field-hint">
-            {t('usernameHint')}
-          </span>
+          {hintKey('username') !== undefined && (
+            <span id={hintIds.username} className="field-hint">
+              {t('usernameHint')}
+            </span>
+          )}
         </div>
         {(
           [
@@ -172,7 +178,7 @@ function RegistrationForm() {
                 required
                 value={value}
                 aria-invalid={problem?.field === field ? true : undefined}
-                aria-describedby={describedBy(field, field === 'password' ? `${id}-hint` : undefined)}
+                aria-describedby={describedBy(field)}
                 onChange={(event) => form.setField(field, event.target.value)}
               />
               <button
@@ -184,8 +190,8 @@ function RegistrationForm() {
                 {reveal[field] ? <EyeOffIcon /> : <EyeIcon />}
               </button>
             </div>
-            {field === 'password' && (
-              <span id={`${id}-hint`} className="field-hint">
+            {field === 'password' && hintKey('password') !== undefined && (
+              <span id={hintIds.password} className="field-hint">
                 {t('passwordHint')}
               </span>
             )}
@@ -199,7 +205,6 @@ function RegistrationForm() {
       {offered.length > 0 && (
         <section className="providers" aria-labelledby={ids.providers}>
           <h2 id={ids.providers}>{t('providersTitle')}</h2>
-          <p className="muted">{t('providersNote')}</p>
           <div className="provider-actions">
             {offered.map((provider) => {
               const name = provider === 'google' ? t('providerGoogle') : provider === 'github' ? t('providerGithub') : provider;
