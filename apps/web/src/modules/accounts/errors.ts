@@ -52,6 +52,24 @@ export const messageByCode: Readonly<Record<string, Problem>> = {
 };
 
 /** The codes `messageByCode` explains: their 502 and 503 answers come from the server, not from a relay. */
+/**
+ * The help a field shows, and only after the server refused what was typed in that very field: the rule is
+ * written under the refusal, never beside an empty or accepted field, and never for a name that is merely
+ * taken (a rule would not help) or a missing value (the message already says what to do).
+ */
+export function hintFor(problem: Problem | undefined, field: FormField): TextKey | undefined {
+  if (problem?.field !== field) {
+    return undefined;
+  }
+  if (field === 'username' && problem.message === 'errorUsernameInvalid') {
+    return 'usernameHint';
+  }
+  if (field === 'password' && problem.message === 'errorPasswordInvalid') {
+    return 'passwordHint';
+  }
+  return undefined;
+}
+
 export const explainedCodes: ReadonlySet<string> = new Set(Object.keys(messageByCode));
 
 /** Chooses the message of a failed registration request. Never shows the server's English text. */

@@ -1,6 +1,5 @@
 {
   "title": "アカウントを作成",
-  "subtitle": "アカウントはこのコンピューターに保存されます。インターネット接続は不要です。",
   "usernameLabel": "ユーザー名",
   "usernameHint": "3〜32文字：文字、数字、_ - または .",
   "passwordLabel": "パスワード",
@@ -13,7 +12,6 @@
   "submit": "アカウントを作成",
   "submitting": "アカウントを作成しています…",
   "providersTitle": "または既存のアカウントを使う",
-  "providersNote": "任意です。プロバイダーは本人確認だけを行い、Nihonがメールアドレスを読み取ることはありません。上のユーザー名がNihonで使われる名前になります。",
   "continueWithProvider": "{provider}で続ける",
   "providerGoogle": "Google",
   "providerGithub": "GitHub",
