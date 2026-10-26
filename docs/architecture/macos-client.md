@@ -51,7 +51,7 @@ The bar takes the place of the title bar: the window uses the hidden title bar s
 
 | Window width | Layout |
 | --- | --- |
-| Wide enough for the three parts side by side | One row, as the Web header (the bar stops growing at 1280 points and is centered) |
+| Wide enough for the three parts side by side (a new window opens at 1200 by 720 points, enough in the three languages) | One row, as the Web header (the bar stops growing at 1280 points and is centered) |
 | Narrower | The learning spaces move to a second row under the brand and the account spaces |
 | Narrowest (the window cannot be smaller than 480 by 420 points) | The brand, then all six spaces on lines that wrap, so that none is clipped or hidden |
 

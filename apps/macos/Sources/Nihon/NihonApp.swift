@@ -14,7 +14,7 @@ struct NihonApp: App {
         // keeps its title for the Window menu and Mission Control.
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentMinSize)
-        .defaultSize(width: 1040, height: 700)
+        .defaultSize(width: 1200, height: 720)
         .commands {
             ShellCommands(language: settings.language)
         }
