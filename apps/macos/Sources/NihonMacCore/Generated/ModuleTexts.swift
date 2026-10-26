@@ -367,7 +367,6 @@ public enum AdminText: String, TextKey {
 /// Texts of `apps/web/src/modules/accounts/locales`.
 public enum AccountsText: String, TextKey {
     case title
-    case subtitle
     case usernameLabel
     case usernameHint
     case passwordLabel
@@ -380,7 +379,6 @@ public enum AccountsText: String, TextKey {
     case submit
     case submitting
     case providersTitle
-    case providersNote
     case continueWithProvider
     case providerGoogle
     case providerGithub
@@ -424,7 +422,6 @@ public enum AccountsText: String, TextKey {
     public static let table: [Language: [AccountsText: String]] = [
         .en: [
             .title: "Create your account",
-            .subtitle: "Your account is stored on this computer. No Internet connection is needed.",
             .usernameLabel: "Username",
             .usernameHint: "3 to 32 characters: letters, digits, _ - or .",
             .passwordLabel: "Password",
@@ -437,7 +434,6 @@ public enum AccountsText: String, TextKey {
             .submit: "Create account",
             .submitting: "Creating your account…",
             .providersTitle: "Or use an existing account",
-            .providersNote: "Optional. The provider only confirms who you are; Nihon never reads your email address. The username above is the name Nihon uses.",
             .continueWithProvider: "Continue with {provider}",
             .providerGoogle: "Google",
             .providerGithub: "GitHub",
@@ -478,7 +474,6 @@ public enum AccountsText: String, TextKey {
         ],
         .fr: [
             .title: "Créez votre compte",
-            .subtitle: "Votre compte est stocké sur cet ordinateur. Aucune connexion Internet n’est nécessaire.",
             .usernameLabel: "Nom d’utilisateur",
             .usernameHint: "De 3 à 32 caractères : lettres, chiffres, _ - ou .",
             .passwordLabel: "Mot de passe",
@@ -491,7 +486,6 @@ public enum AccountsText: String, TextKey {
             .submit: "Créer le compte",
             .submitting: "Création du compte…",
             .providersTitle: "Ou utilisez un compte existant",
-            .providersNote: "Facultatif. Le fournisseur confirme seulement qui vous êtes ; Nihon ne lit jamais votre adresse e-mail. Le nom d’utilisateur ci-dessus est le nom que Nihon utilise.",
             .continueWithProvider: "Continuer avec {provider}",
             .providerGoogle: "Google",
             .providerGithub: "GitHub",
@@ -532,7 +526,6 @@ public enum AccountsText: String, TextKey {
         ],
         .ja: [
             .title: "アカウントを作成",
-            .subtitle: "アカウントはこのコンピューターに保存されます。インターネット接続は不要です。",
             .usernameLabel: "ユーザー名",
             .usernameHint: "3〜32文字：文字、数字、_ - または .",
             .passwordLabel: "パスワード",
@@ -545,7 +538,6 @@ public enum AccountsText: String, TextKey {
             .submit: "アカウントを作成",
             .submitting: "アカウントを作成しています…",
             .providersTitle: "または既存のアカウントを使う",
-            .providersNote: "任意です。プロバイダーは本人確認だけを行い、Nihonがメールアドレスを読み取ることはありません。上のユーザー名がNihonで使われる名前になります。",
             .continueWithProvider: "{provider}で続ける",
             .providerGoogle: "Google",
             .providerGithub: "GitHub",

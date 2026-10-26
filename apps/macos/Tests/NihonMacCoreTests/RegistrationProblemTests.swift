@@ -123,6 +123,41 @@ struct RegistrationProblemTests {
         #expect(RegistrationProblem.describe(answer(503, "accounts_busy")).field == nil)
     }
 
+    @Test("show a field's help only after the service refused what was typed in that field")
+    func help() throws {
+        let refusedName = RegistrationProblem.describe(answer(400, "validation_failed", fields: ["body.username"]))
+        let refusedPassword = RegistrationProblem.describe(answer(400, "validation_failed", fields: ["body.password"]))
+        #expect(refusedName.help(for: .username) == .usernameHint)
+        #expect(refusedName.help(for: .password) == nil && refusedName.help(for: .confirmation) == nil)
+        #expect(refusedPassword.help(for: .password) == .passwordHint)
+        #expect(refusedPassword.help(for: .username) == nil && refusedPassword.help(for: .confirmation) == nil)
+
+        // No other refusal comes with a help: not a taken name, not any other code of the contract.
+        for (code, status) in try contractCodes() where code != "validation_failed" {
+            let problem = RegistrationProblem.describe(answer(status, code))
+            for field in [RegistrationField.username, .password, .confirmation] {
+                #expect(problem.help(for: field) == nil, "\(code) must not bring a help")
+            }
+        }
+        let taken = RegistrationProblem.describe(answer(409, "accounts_username_taken"))
+        #expect(taken.field == .username && taken.help(for: .username) == nil)
+
+        // Nor the checks made before anything is sent: a missing value, a missing name before a provider, two
+        // different passwords.
+        let local: [RegistrationProblem] = [
+            .init(.usernameRequired, field: .username), .init(.passwordRequired, field: .password),
+            .init(.passwordsDiffer, field: .confirmation), .init(.usernameNeededForProvider, field: .username),
+        ]
+        for problem in local {
+            for field in [RegistrationField.username, .password, .confirmation] {
+                #expect(problem.help(for: field) == nil)
+            }
+        }
+        // A refusal that names no field brings no help to any field.
+        let otherField = RegistrationProblem.describe(answer(400, "validation_failed", fields: ["body.role"]))
+        #expect([RegistrationField.username, .password, .confirmation].allSatisfy { otherField.help(for: $0) == nil })
+    }
+
     @Test("distinguish an unreachable service, an incompatible client, and an unknown error")
     func kinds() {
         #expect(RegistrationProblem.describe(.unavailable) == RegistrationProblem(.errorUnavailable, retry: .same))

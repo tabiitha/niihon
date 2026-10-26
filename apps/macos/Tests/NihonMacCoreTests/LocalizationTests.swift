@@ -38,6 +38,23 @@ struct LocalizationTests {
         #expect(Language.fr.text(ShellText.retry) == "Réessayer")
     }
 
+    @Test("has exactly the keys of the shared Web accounts texts, so a removed text cannot linger")
+    func accountsKeysMatchTheSharedFiles() throws {
+        let directory = URL(filePath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .appending(path: AccountsText.source)
+        let generated = Set(AccountsText.allCases.map(\.rawValue))
+        for language in Language.allCases {
+            let data = try Data(contentsOf: directory.appending(path: "\(language.rawValue).json"))
+            let keys = try #require(JSONSerialization.jsonObject(with: data) as? [String: String]).keys
+            #expect(generated == Set(keys), "\(language): generated and shared keys differ")
+        }
+        // The standing subtitle and providers note were dropped: only the help after a refusal remains.
+        #expect(!generated.contains("subtitle") && !generated.contains("providersNote"))
+        #expect(generated.contains("usernameHint") && generated.contains("passwordHint"))
+    }
+
     @Test("names every space in every language")
     func spaces() {
         for language in Language.allCases {

@@ -66,16 +66,12 @@ struct RegistrationView: View {
         Text(language.text(AccountsText.title))
             .font(.largeTitle.bold())
             .accessibilityAddTraits(.isHeader)
-        Text(language.text(AccountsText.subtitle))
-            .font(.body.weight(.medium))
-            .foregroundStyle(palette[.accentText])
-            .padding(.top, 6)
         if let problem = model.problem {
             problemBox(problem)
         }
         usernameField
-        passwordField(.password, label: .passwordLabel, hint: .passwordHint, show: .showPassword, hide: .hidePassword)
-        passwordField(.confirmation, label: .confirmationLabel, hint: nil, show: .showConfirmation, hide: .hideConfirmation)
+        passwordField(.password, label: .passwordLabel, show: .showPassword, hide: .hidePassword)
+        passwordField(.confirmation, label: .confirmationLabel, show: .showConfirmation, hide: .hideConfirmation)
         Button {
             model.submit()
         } label: {
@@ -131,14 +127,16 @@ struct RegistrationView: View {
                 .focused($focus, equals: .username)
                 .fieldBox(invalid: model.problem?.field == .username, palette: palette)
                 .accessibilityLabel(language.text(AccountsText.usernameLabel))
-                .accessibilityHint(hint(.username, AccountsText.usernameHint))
-            hintText(AccountsText.usernameHint)
+                .accessibilityHint(hint(.username))
+            if let help = model.problem?.help(for: .username) {
+                hintText(help)
+            }
         }
         .padding(.top, 20)
     }
 
     private func passwordField(
-        _ field: RegistrationField, label: AccountsText, hint hintKey: AccountsText?, show: AccountsText, hide: AccountsText
+        _ field: RegistrationField, label: AccountsText, show: AccountsText, hide: AccountsText
     ) -> some View {
         let isShown = revealed.contains(field)
         return VStack(alignment: .leading, spacing: 6) {
@@ -155,7 +153,7 @@ struct RegistrationView: View {
                 .autocorrectionDisabled()
                 .focused($focus, equals: field)
                 .accessibilityLabel(language.text(label))
-                .accessibilityHint(hint(field, hintKey))
+                .accessibilityHint(hint(field))
                 Button {
                     if isShown { revealed.remove(field) } else { revealed.insert(field) }
                     focus = field
@@ -168,8 +166,8 @@ struct RegistrationView: View {
                 .accessibilityLabel(language.text(isShown ? hide : show))
             }
             .fieldBox(invalid: model.problem?.field == field, palette: palette)
-            if let hintKey {
-                hintText(hintKey)
+            if let help = model.problem?.help(for: field) {
+                hintText(help)
             }
         }
         .padding(.top, 20)
@@ -179,12 +177,14 @@ struct RegistrationView: View {
         Text(language.text(key)).font(.callout).foregroundStyle(palette[.textMuted])
     }
 
-    /// What VoiceOver reads after the label: the problem of this field when it has one, otherwise its hint.
-    private func hint(_ field: RegistrationField, _ key: AccountsText?) -> String {
-        if let problem = model.problem, problem.field == field {
-            return problem.message.text(language)
-        }
-        return key.map { language.text($0) } ?? ""
+    /// What VoiceOver reads after the label: the problem of this field when it has one, then its help when the
+    /// refusal comes with one. Nothing at rest. The problem is also announced once when it appears; this is what
+    /// is read on the field itself.
+    private func hint(_ field: RegistrationField) -> String {
+        guard let problem = model.problem, problem.field == field else { return "" }
+        return [problem.message.text(language), problem.help(for: field).map { language.text($0) }]
+            .compactMap { $0 }
+            .joined(separator: " ")
     }
 
     private func binding(_ field: RegistrationField) -> Binding<String> {
@@ -208,7 +208,6 @@ struct RegistrationView: View {
             Text(language.text(AccountsText.providersTitle))
                 .font(.title3.bold())
                 .accessibilityAddTraits(.isHeader)
-            Text(language.text(AccountsText.providersNote)).foregroundStyle(palette[.textMuted])
             if let waiting = waitingProvider {
                 HStack(spacing: 12) {
                     if reduceMotion {

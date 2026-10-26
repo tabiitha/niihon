@@ -95,6 +95,19 @@ public struct RegistrationProblem: Equatable, Sendable {
         self.init(.shared(message), field: field, retry: retry)
     }
 
+    /// The help a field shows, and only after the service refused what was typed in that very field: the rule
+    /// is written under the refusal, never beside an empty or accepted field, and never for a name that is merely
+    /// taken (a rule would not help) or a missing value (the message already says what to do). The same rule as
+    /// the Web client's `hintFor`.
+    public func help(for field: RegistrationField) -> AccountsText? {
+        guard self.field == field, case .shared(let text) = message else { return nil }
+        switch (field, text) {
+        case (.username, .errorUsernameInvalid): return .usernameHint
+        case (.password, .errorPasswordInvalid): return .passwordHint
+        default: return nil
+        }
+    }
+
     /// Stable error codes of the registration operations (see docs/architecture/accounts.md) and the message
     /// that explains each one. The service decides what is refused; this table only chooses the words and how
     /// a retry goes.
