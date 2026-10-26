@@ -5,9 +5,10 @@ import SwiftUI
 /// with a compatible API version. The navigation bar stays usable meanwhile.
 struct ShellView: View {
     static let windowID = "main"
-    /// Smallest window: the navigation bar then wraps under the brand rather than clipping.
+    /// Smallest content area: the navigation bar then wraps under the brand rather than clipping, and the page below
+    /// scrolls.
     static let minimumWidth: CGFloat = 480
-    static let minimumHeight: CGFloat = 420
+    static let minimumHeight: CGFloat = 480
 
     @Environment(AppSettings.self) private var settings
     @Environment(\.colorScheme) private var colorScheme

@@ -10,9 +10,8 @@ struct NihonApp: App {
             ShellView()
                 .environment(settings)
         }
-        // The navigation bar takes the place of the title bar, as the header does in the Web client; the window
-        // keeps its title for the Window menu and Mission Control.
-        .windowStyle(.hiddenTitleBar)
+        // A standard title bar above the navigation bar: it keeps the window buttons, the drag area, and full screen
+        // exactly as in any Mac app, and shows the current space as the window title.
         .windowResizability(.contentMinSize)
         .defaultSize(width: 1200, height: 720)
         .commands {
