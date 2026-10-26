@@ -7,6 +7,10 @@ import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { after, before, describe, it } from 'node:test';
 
+import { createApiClient } from '../../src/api/service.ts';
+import { describeFailure } from '../../src/modules/accounts/errors.ts';
+import { loadProviders, newIdempotencyKey, registerLocal } from '../../src/modules/accounts/registration.ts';
+
 // Checks the production build as users receive it: the compiled API (apps/api/dist) serving the Web build
 // (apps/web/dist) on one loopback origin. Run `bun run build` from the repository root first.
 const webDir = fileURLToPath(new URL('../../dist/', import.meta.url));
@@ -18,7 +22,7 @@ for (const path of [join(webDir, 'index.html'), apiEntry]) {
 }
 
 const html = { headers: { Accept: 'text/html,application/xhtml+xml,*/*;q=0.8' } };
-const pages = ['/', '/learn', '/kanji', '/library', '/reader?media=item-01', '/profile', '/admin'];
+const pages = ['/', '/learn', '/kanji', '/library', '/reader?media=item-01', '/profile', '/register', '/admin'];
 
 describe('production Web build served by the API', () => {
   let child: ChildProcess;
@@ -83,5 +87,25 @@ describe('production Web build served by the API', () => {
     const response = await fetch(`${baseUrl}/api/health`);
     assert.equal(response.status, 200);
     assert.equal(((await response.json()) as { status: string }).status, 'ok');
+  });
+
+  it('registers a local account offline through the compiled API, and refuses a duplicate and a weak password', async () => {
+    const client = createApiClient(baseUrl);
+    const signal = new AbortController().signal;
+    const providers = await loadProviders(client, signal);
+    assert.deepEqual(providers, { ok: true, data: [] }, 'without provider credentials the installation works offline');
+
+    const created = await registerLocal(client, { username: 'Offline_User', password: 'a long enough passphrase' }, newIdempotencyKey(), signal);
+    assert.ok(created.ok);
+    assert.equal(created.data.registeredWith, 'local');
+    assert.equal(created.data.role, 'user');
+
+    const duplicate = await registerLocal(client, { username: 'offline_user', password: 'a long enough passphrase' }, newIdempotencyKey(), signal);
+    assert.ok(!duplicate.ok);
+    assert.equal(describeFailure(duplicate.failure).message, 'errorUsernameTaken');
+
+    const weak = await registerLocal(client, { username: 'another_user', password: 'weak' }, newIdempotencyKey(), signal);
+    assert.ok(!weak.ok);
+    assert.equal(describeFailure(weak.failure).message, 'errorPasswordInvalid');
   });
 });

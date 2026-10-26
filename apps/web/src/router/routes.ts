@@ -10,6 +10,7 @@ export const routes = {
   library: '/library',
   reader: '/reader',
   profile: '/profile',
+  register: '/register',
   admin: '/admin',
 } as const;
 
