@@ -3,7 +3,7 @@ import SwiftUI
 
 /// The navigation bar at the top of the window, laid out like the Web client's header: the brand, the learning
 /// spaces, then the account spaces. Wide windows show one row; narrower ones put the spaces under the brand,
-/// and the narrowest scroll them sideways so that none is clipped.
+/// and the narrowest let the spaces wrap onto more lines, so that none is clipped.
 struct NavigationBar: View {
     /// Room for the window's close, minimize, and zoom buttons, which sit over the bar's leading edge.
     static let windowButtonsInset: CGFloat = 70
@@ -18,7 +18,7 @@ struct NavigationBar: View {
         ViewThatFits(in: .horizontal) {
             oneRow
             twoRows
-            scrollingRows
+            wrappingRows
         }
         .padding(.leading, Self.windowButtonsInset)
         .padding(.trailing, 24)
@@ -50,17 +50,16 @@ struct NavigationBar: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var scrollingRows: some View {
+    private var wrappingRows: some View {
         VStack(alignment: .leading, spacing: 12) {
             brand
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 24) {
-                    links(.primary)
-                    links(.account)
+            FlowLayout(spacing: 4) {
+                ForEach(NavigationGroup.primary.spaces + NavigationGroup.account.spaces) { space in
+                    item(space)
                 }
-                .padding(.vertical, 4)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var brand: some View {
@@ -79,18 +78,62 @@ struct NavigationBar: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Nihon")
+        .accessibilitySortPriority(3)
     }
 
     private func links(_ group: NavigationGroup) -> some View {
         HStack(spacing: 4) {
-            ForEach(group.spaces) { space in
-                NavigationItem(space: space, language: language, isSelected: space == selection) {
-                    select(space)
-                }
-            }
+            ForEach(group.spaces) { item($0) }
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(language.text(group.label))
+        // Whatever the layout shows first, assistive technology reads the brand, the learning spaces, then the
+        // account spaces, as in the Web client's markup.
+        .accessibilitySortPriority(group == .primary ? 2 : 1)
+    }
+
+    private func item(_ space: Space) -> some View {
+        NavigationItem(space: space, language: language, isSelected: space == selection) {
+            select(space)
+        }
+    }
+}
+
+/// Lays its views out left to right and starts a new line when the next one does not fit, as a wrapping flex row.
+private struct FlowLayout: Layout {
+    let spacing: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let arrangement = arrange(width: proposal.width ?? .infinity, subviews: subviews)
+        return CGSize(width: arrangement.width, height: arrangement.height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let arrangement = arrange(width: bounds.width, subviews: subviews)
+        for (subview, origin) in zip(subviews, arrangement.origins) {
+            subview.place(at: CGPoint(x: bounds.minX + origin.x, y: bounds.minY + origin.y), proposal: .unspecified)
+        }
+    }
+
+    private func arrange(width: CGFloat, subviews: Subviews) -> (origins: [CGPoint], width: CGFloat, height: CGFloat) {
+        var origins: [CGPoint] = []
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var lineHeight: CGFloat = 0
+        var widest: CGFloat = 0
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > 0, x + size.width > width {
+                x = 0
+                y += lineHeight + spacing
+                lineHeight = 0
+            }
+            origins.append(CGPoint(x: x, y: y))
+            x += size.width + spacing
+            lineHeight = max(lineHeight, size.height)
+            widest = max(widest, x - spacing)
+        }
+        return (origins, widest, y + lineHeight)
     }
 }
 

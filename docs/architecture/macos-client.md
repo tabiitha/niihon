@@ -11,12 +11,12 @@ The macOS client is a native SwiftUI application for Apple silicon Macs running 
 | `Sources/NihonMacCore/Connection/` | Service address, health check through the generated client, and the per-window connection state |
 | `Sources/NihonMacCore/Localization/` | Interface language selection and text lookup |
 | `Sources/NihonMacCore/Theme/` | Theme tokens, WCAG contrast, and light, dark, or system mode |
-| `Sources/NihonMacCore/Navigation/` | The spaces of the shell |
+| `Sources/NihonMacCore/Navigation/` | The spaces of the shell, their two groups, and their Go menu shortcuts |
 | `Sources/NihonMacCore/Accounts/` | Account registration: the operations through the generated client, the message of each failure, the form state, and the loopback receiver of the provider's answer |
 | `Sources/NihonMacCore/Accounts/locales/` | Texts that only the native registration needs |
 | `Sources/NihonMacCore/Shell/locales/` | Texts that only the native shell needs |
 | `Sources/NihonMacCore/Generated/` | Swift sources generated from the shared texts and theme tokens; never edited |
-| `Sources/Nihon/` | The SwiftUI application: window, sidebar, pages, status views, the registration screen and its web authentication window, menu commands, measurement mode |
+| `Sources/Nihon/` | The SwiftUI application: window, navigation bar, pages, status views, the registration screen and its web authentication window, menu commands, measurement mode |
 | `Tests/NihonMacCoreTests/` | Tests of the core, including against the real HTTP adapter |
 | `Bundle/` | `Info.plist` and the App Sandbox entitlements of the app bundle |
 | `scripts/build-app.sh`, `scripts/measure.sh` | Build and sign `build/Nihon.app`; measure startup and memory |
@@ -30,7 +30,7 @@ The service runs separately, normally with Docker Compose as described in the [R
 
 The client connects to `http://127.0.0.1:4000` by default. Docker Desktop forwards the published port to the Mac's loopback interface, so the client never uses the Mac's LAN address or a `.local` name, which would require the Local Network permission. The user default `NihonServiceURL` changes the address, for example with the launch argument `-NihonServiceURL http://127.0.0.1:4100`. Only `http` or `https` URLs of a loopback IP address (`127.0.0.0/8`, `[::1]`) without path, query, or credentials are accepted; any other value shows a "service address is not allowed" page and sends no request.
 
-Each window checks `GET /api/health` and the API major version before showing a page; the sidebar stays usable meanwhile. Failures use the same classification as the Web client:
+Each window checks `GET /api/health` and the API major version before showing a page; the navigation bar stays usable meanwhile. Failures use the same classification as the Web client:
 
 | State | Cause | Displayed |
 | --- | --- | --- |
@@ -45,17 +45,29 @@ The bundle declares `NSAllowsLocalNetworking` in `Info.plist`, required for plai
 
 ## Navigation and Keyboard
 
-The window shows a sidebar with the learning spaces (Home, Learn, Kanji, Library) and the account spaces (Profile, Administration), as in the Web client. The pages present each space with the shared texts until the features exist; Home keeps the approved hierarchy of a pink **Start review** primary action and a separate **Discover new kana** action.
+The window shows a navigation bar at the top, laid out like the Web client's header: the Nihon brand on the left, the learning spaces (Home, Learn, Kanji, Library) in the middle, and the account spaces (Profile, Administration) on the right. Each space is a pill with an icon and its shared label; the current space is filled with the accent color, a space under the pointer gets a faint accent tint, and the space with the keyboard focus gets a ring in the theme's focus color. The brand opens Home. The Web client's markup keeps the same order (brand, learning spaces, account spaces), and so does the order read by assistive technology, even when the layout puts the learning spaces on a second row. The icons are SF Symbols; the Web client's own line icons are not reproduced, but its logo is drawn natively from the same shapes.
+
+The bar takes the place of the title bar: the window uses the hidden title bar style, so the bar sits on the same background gradient as the page and the window's close, minimize, and zoom buttons float over its leading edge, which the bar leaves free (70 points). The window keeps its title (the current space, or the registration screen, followed by Nihon) for the Window menu, Mission Control, and assistive technology. The bar is not drawn by `NavigationSplitView` or a toolbar, which would give macOS' own sidebar or glass toolbar instead of the Web client's pills.
+
+| Window width | Layout |
+| --- | --- |
+| Wide enough for the three parts side by side | One row, as the Web header (the bar stops growing at 1280 points and is centered) |
+| Narrower | The learning spaces move to a second row under the brand and the account spaces |
+| Narrowest (the window cannot be smaller than 480 by 420 points) | The brand, then all six spaces on lines that wrap, so that none is clipped or hidden |
+
+SwiftUI chooses the layout from the real text widths, so another language or a larger font switches layouts at another width.
+
+The pages present each space with the shared texts until the features exist; Home keeps the approved hierarchy of a pink **Start review** primary action and a separate **Discover new kana** action.
 
 | Key | Action |
 | --- | --- |
-| Up and Down arrows in the sidebar | Change space |
-| Tab, Shift-Tab | Move between the sidebar and the page (controls of the page with Full Keyboard Access) |
-| Command-1 to Command-6 | Open a space (Go menu) |
+| Tab, Shift-Tab | Move between the brand, the spaces of the bar, and the controls of the page (buttons with Full Keyboard Access, which is a system setting) |
+| Space, Return on a focused space | Open it |
+| Command-1 to Command-6 | Open a space (Go menu), numbered from left to right in the bar |
 | Command-R, or Return on a failure | Retry the connection |
 | Command-N | Open another window, with its own connection state |
 
-Headings carry the header trait, and a failure is announced to VoiceOver when it replaces the page.
+Headings carry the header trait, and a failure is announced to VoiceOver when it replaces the page. The two groups of spaces are labelled with the Web client's texts (main navigation, account), each space is a button named by its label, and the current one is exposed as selected; the brand is a button named Nihon. The text and icon of a space use the theme's text color, or the color shown on the accent for the current space, and the tests check the pairs the themes declare plus the text on the hover tint.
 
 ## Shared Texts and Themes
 
