@@ -2,17 +2,24 @@ import NihonMacCore
 import SwiftUI
 
 /// The navigation bar at the top of the window, laid out like the Web client's header: the brand, the learning
-/// spaces, then the account spaces. Wide windows show one row; narrower ones put the spaces under the brand,
-/// and the narrowest let the spaces wrap onto more lines, so that none is clipped.
+/// spaces, then the account spaces. Wide windows show one row; narrower ones put the learning spaces under the
+/// brand and the account spaces, as the Web client does, and the narrowest let each group wrap onto more lines,
+/// so that none is clipped.
 struct NavigationBar: View {
-    /// Room for the window's close, minimize, and zoom buttons, which sit over the bar's leading edge.
-    static let windowButtonsInset: CGFloat = 70
-
     let language: Language
     let selection: Space
     let select: (Space) -> Void
 
+    /// The three ways the bar lays itself out, from the widest window to the narrowest.
+    private enum Arrangement {
+        case oneRow, twoRows, wrapping
+
+        /// The group shown first after the brand, reading from the top left.
+        var firstGroup: NavigationGroup { self == .twoRows ? .account : .primary }
+    }
+
     @Environment(\.palette) private var palette
+    @FocusState private var focus: NavigationStop?
 
     var body: some View {
         ViewThatFits(in: .horizontal) {
@@ -20,20 +27,24 @@ struct NavigationBar: View {
             twoRows
             wrappingRows
         }
-        .padding(.leading, Self.windowButtonsInset)
-        .padding(.trailing, 24)
+        .padding(.horizontal, 24)
         .padding(.vertical, 16)
-        .frame(maxWidth: 1280 + Self.windowButtonsInset)
+        .frame(maxWidth: 1280 + 48)
         .frame(maxWidth: .infinity)
+        // A new window gives its first focusable view the focus; the ring should only appear once a key asks for it.
+        .task {
+            try? await Task.sleep(for: .milliseconds(300))
+            if focus == .brand { focus = nil }
+        }
     }
 
     private var oneRow: some View {
         HStack(spacing: 32) {
             brand
             Spacer(minLength: 0)
-            links(.primary)
+            links(.primary, in: .oneRow)
             Spacer(minLength: 0)
-            links(.account)
+            links(.account, in: .oneRow)
         }
         .frame(maxWidth: .infinity)
     }
@@ -43,9 +54,9 @@ struct NavigationBar: View {
             HStack(spacing: 32) {
                 brand
                 Spacer(minLength: 0)
-                links(.account)
+                links(.account, in: .twoRows)
             }
-            links(.primary)
+            links(.primary, in: .twoRows)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -53,51 +64,116 @@ struct NavigationBar: View {
     private var wrappingRows: some View {
         VStack(alignment: .leading, spacing: 12) {
             brand
-            FlowLayout(spacing: 4) {
-                ForEach(NavigationGroup.primary.spaces + NavigationGroup.account.spaces) { space in
-                    item(space)
-                }
-            }
-            // The wrapped lines cannot show the two groups apart, so assistive technology gets one list.
-            .accessibilityElement(children: .contain)
-            .accessibilityLabel(language.text(NavigationGroup.primary.label))
+            links(.primary, in: .wrapping)
+            links(.account, in: .wrapping)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var brand: some View {
-        Button {
-            select(.home)
-        } label: {
-            HStack(spacing: 8) {
-                SakuraLogo()
-                    .frame(width: 36, height: 36)
-                    .accessibilityHidden(true)
-                Text("Nihon")
-                    .font(.system(size: 24, weight: .bold))
-                    .foregroundStyle(palette[.text])
-            }
-            .contentShape(Rectangle())
+        HStack(spacing: 8) {
+            SakuraLogo()
+                .frame(width: 36, height: 36)
+            Text("Nihon")
+                .font(.system(size: 24, weight: .bold))
+                .foregroundStyle(palette[.text])
         }
-        .buttonStyle(.plain)
+        .contentShape(Rectangle())
+        .focusRing(RoundedRectangle(cornerRadius: 8), isFocused: focus == .brand)
+        .navigationStop(.brand, focus: $focus, move: move) { select(.home) }
         .accessibilityLabel("Nihon")
         .accessibilitySortPriority(3)
     }
 
-    private func links(_ group: NavigationGroup) -> some View {
-        HStack(spacing: 4) {
+    private func links(_ group: NavigationGroup, in arrangement: Arrangement) -> some View {
+        let layout = arrangement == .wrapping ? AnyLayout(FlowLayout(spacing: 4)) : AnyLayout(HStackLayout(spacing: 4))
+        return layout {
             ForEach(group.spaces) { item($0) }
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(language.text(group.label))
-        // Whatever the layout shows first, assistive technology reads the brand, the learning spaces, then the
-        // account spaces, as in the Web client's markup.
-        .accessibilitySortPriority(group == .primary ? 2 : 1)
+        // Assistive technology reads the bar in the order Tab and the eye follow: the brand, then each group in the
+        // order the layout shows them, which puts the account spaces before the learning spaces on two rows.
+        .accessibilitySortPriority(group == arrangement.firstGroup ? 2 : 1)
     }
 
     private func item(_ space: Space) -> some View {
-        NavigationItem(space: space, language: language, isSelected: space == selection) {
-            select(space)
+        NavigationItem(space: space, language: language, isSelected: space == selection, isFocused: focus == .space(space))
+            .navigationStop(.space(space), focus: $focus, move: move) { select(space) }
+            .accessibilityLabel(language.text(space.label))
+            .accessibilityAddTraits(space == selection ? .isSelected : [])
+    }
+
+    /// Moves the keyboard focus to the previous or next stop of the bar, in reading order.
+    private func move(from stop: NavigationStop, by step: Int) {
+        let stops = NavigationStop.all
+        guard let index = stops.firstIndex(of: stop) else { return }
+        focus = stops[min(max(index + step, 0), stops.count - 1)]
+    }
+}
+
+/// What the keyboard can reach in the bar: the brand, then the spaces in reading order.
+private enum NavigationStop: Hashable {
+    case brand
+    case space(Space)
+
+    static let all: [NavigationStop] = [.brand] + (NavigationGroup.primary.spaces + NavigationGroup.account.spaces).map { .space($0) }
+}
+
+private extension View {
+    /// Makes the view a button the keyboard reaches with Tab whatever the Full Keyboard Access setting is, which
+    /// the system only applies to its own controls. Space and Return open it, the arrow keys move along the bar,
+    /// and a click opens it without leaving a ring behind.
+    func navigationStop(
+        _ stop: NavigationStop,
+        focus: FocusState<NavigationStop?>.Binding,
+        move: @escaping (NavigationStop, Int) -> Void,
+        action: @escaping () -> Void
+    ) -> some View {
+        self
+            .focusable(true, interactions: .edit)
+            .focusEffectDisabled()
+            .focused(focus, equals: stop)
+            .onKeyPress(keys: [.space, .return]) { _ in
+                action()
+                return .handled
+            }
+            .onKeyPress(.leftArrow) {
+                move(stop, -1)
+                return .handled
+            }
+            .onKeyPress(.rightArrow) {
+                move(stop, 1)
+                return .handled
+            }
+            .onTapGesture {
+                focus.wrappedValue = nil
+                action()
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction { action() }
+    }
+
+    /// The keyboard focus ring: drawn outside the shape, with a gap, so that it contrasts with the page background
+    /// whether or not the space is the filled current one.
+    func focusRing(_ shape: some InsettableShape, isFocused: Bool) -> some View {
+        modifier(FocusRing(shape: shape, isFocused: isFocused))
+    }
+}
+
+private struct FocusRing<Outline: InsettableShape>: ViewModifier {
+    let shape: Outline
+    let isFocused: Bool
+
+    @Environment(\.palette) private var palette
+
+    func body(content: Content) -> some View {
+        // Only present while focused, so that the ring does not enlarge the frame of every space.
+        content.overlay {
+            if isFocused {
+                shape.inset(by: -3).stroke(palette[.focus], lineWidth: 3)
+            }
         }
     }
 }
@@ -145,36 +221,15 @@ private struct NavigationItem: View {
     let space: Space
     let language: Language
     let isSelected: Bool
-    let action: () -> Void
-
-    @State private var isHovering = false
-
-    var body: some View {
-        Button(action: action) {
-            NavigationItemLabel(space: space, language: language, isSelected: isSelected, isHovering: isHovering)
-        }
-        .buttonStyle(.plain)
-        .focusEffectDisabled()
-        .onHover { isHovering = $0 }
-        .accessibilityLabel(language.text(space.label))
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
-    }
-}
-
-private struct NavigationItemLabel: View {
-    let space: Space
-    let language: Language
-    let isSelected: Bool
-    let isHovering: Bool
+    let isFocused: Bool
 
     @Environment(\.palette) private var palette
-    @Environment(\.isFocused) private var isFocused
+    @State private var isHovering = false
 
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: space.systemImage)
                 .font(.system(size: 17))
-                .accessibilityHidden(true)
             Text(language.text(space.label))
                 .font(.system(size: 16))
         }
@@ -182,12 +237,9 @@ private struct NavigationItemLabel: View {
         .padding(.horizontal, 16)
         .frame(minHeight: 44)
         .background(background, in: Capsule())
-        .overlay {
-            Capsule()
-                .strokeBorder(palette[.focus], lineWidth: 3)
-                .opacity(isFocused ? 1 : 0)
-        }
         .contentShape(Capsule())
+        .focusRing(Capsule(), isFocused: isFocused)
+        .onHover { isHovering = $0 }
     }
 
     private var background: Color {

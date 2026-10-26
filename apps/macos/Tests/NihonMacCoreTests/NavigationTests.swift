@@ -46,6 +46,21 @@ struct NavigationTests {
             }
         }
     }
+
+    @Test("keeps the focus ring visible on the whole background gradient and on the filled current space",
+          arguments: ThemeCatalog.themes.map(\.id))
+    func focusRingContrast(themeID: String) {
+        let theme = ThemeCatalog.theme(id: themeID)
+        for mode in ColorMode.allCases {
+            let colors = theme.mode(mode)
+            // The ring is drawn outside the pill, so it lies on the page; WCAG 1.4.11 asks for 3:1 against it. It
+            // also touches the neighbouring pill, which may be the filled one.
+            for neighbour in [ColorRole.background, .backgroundAccent, .accent] {
+                let ratio = RGBColor.contrastRatio(colors[.focus], colors[neighbour])
+                #expect(ratio >= 3, "\(themeID) \(mode): the focus ring on \(neighbour) is \(ratio)")
+            }
+        }
+    }
 }
 
 private extension RGBColor {
