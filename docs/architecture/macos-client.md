@@ -67,7 +67,7 @@ The pages present each space with the shared texts until the features exist; Hom
 | Command-R, or Return on a failure | Retry the connection |
 | Command-N | Open another window, with its own connection state |
 
-Headings carry the header trait, and a failure is announced to VoiceOver when it replaces the page. The two groups of spaces are labelled with the Web client's texts (main navigation, account), each space is a button named by its label, and the current one is exposed as selected; the brand is a button named Nihon. The text and icon of a space use the theme's text color, or the color shown on the accent for the current space, and the tests check the pairs the themes declare plus the text on the hover tint.
+Headings carry the header trait, and a failure is announced to VoiceOver when it replaces the page. The two groups of spaces are labelled with the Web client's texts (main navigation, account; in the narrowest layout, where the lines wrap and cannot show the groups apart, one list named main navigation holds all six), each space is a button named by its label, and the current one is exposed as selected; the brand is a button named Nihon. The text and icon of a space use the theme's text color, or the color shown on the accent for the current space, and the tests check the pairs the themes declare plus the text on the hover tint.
 
 ## Shared Texts and Themes
 

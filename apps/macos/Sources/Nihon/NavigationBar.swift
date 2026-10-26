@@ -58,6 +58,9 @@ struct NavigationBar: View {
                     item(space)
                 }
             }
+            // The wrapped lines cannot show the two groups apart, so assistive technology gets one list.
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel(language.text(NavigationGroup.primary.label))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
