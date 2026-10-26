@@ -10,6 +10,10 @@ struct NihonApp: App {
             ShellView()
                 .environment(settings)
         }
+        // The navigation bar takes the place of the title bar, as the header does in the Web client; the window
+        // keeps its title for the Window menu and Mission Control.
+        .windowStyle(.hiddenTitleBar)
+        .windowResizability(.contentMinSize)
         .defaultSize(width: 1040, height: 700)
         .commands {
             ShellCommands(language: settings.language)

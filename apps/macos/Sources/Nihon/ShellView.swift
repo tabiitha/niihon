@@ -1,10 +1,13 @@
 import NihonMacCore
 import SwiftUI
 
-/// One window: the sidebar of spaces and the selected page, shown once the local service answers with a
-/// compatible API version. The sidebar stays usable meanwhile.
+/// One window: the navigation bar of spaces above the selected page, shown once the local service answers
+/// with a compatible API version. The navigation bar stays usable meanwhile.
 struct ShellView: View {
     static let windowID = "main"
+    /// Smallest window: the navigation bar then wraps under the brand and scrolls rather than clipping.
+    static let minimumWidth: CGFloat = 480
+    static let minimumHeight: CGFloat = 420
 
     @Environment(AppSettings.self) private var settings
     @Environment(\.colorScheme) private var colorScheme
@@ -12,30 +15,21 @@ struct ShellView: View {
     @State private var connection = ServiceConnection(
         setting: UserDefaults.standard.string(forKey: ServiceAddress.settingKey)
     )
-    @State private var selection: Space? = .home
+    @State private var selection: Space = .home
     /// The registration screen of the Profile space, while it is open. Leaving the Profile space, losing the
     /// connection, or closing the window ends it and ignores any late answer.
     @State private var registration: RegistrationModel?
 
     var body: some View {
         let language = settings.language
-        let space = selection ?? .home
-        NavigationSplitView {
-            List(selection: $selection) {
-                Section(language.text(ShellText.navigationLabel)) {
-                    ForEach(Space.primary) { SidebarRow(space: $0, language: language) }
-                }
-                Section(language.text(ShellText.accountNavigationLabel)) {
-                    ForEach(Space.account) { SidebarRow(space: $0, language: language) }
-                }
-            }
-            .navigationSplitViewColumnWidth(min: 180, ideal: 210)
-        } detail: {
-            ZStack {
-                ThemeBackground()
-                detail(space: space, language: language)
-            }
+        let space = selection
+        VStack(spacing: 0) {
+            NavigationBar(language: language, selection: space) { selection = $0 }
+            detail(space: space, language: language)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .frame(minWidth: Self.minimumWidth, minHeight: Self.minimumHeight)
+        .background { ThemeBackground() }
         .navigationTitle(language.text(ShellText.documentTitle, [
             "page": registration == nil ? language.text(space.label) : language.text(AccountsText.title),
         ]))
@@ -130,29 +124,6 @@ struct ShellView: View {
         }
         if let title {
             AccessibilityNotification.Announcement(title).post()
-        }
-    }
-}
-
-private struct SidebarRow: View {
-    let space: Space
-    let language: Language
-
-    var body: some View {
-        Label(language.text(space.label), systemImage: space.systemImage)
-            .tag(space)
-    }
-}
-
-extension Space {
-    var systemImage: String {
-        switch self {
-        case .home: "house"
-        case .learning: "book"
-        case .kanji: "character.book.closed.ja"
-        case .library: "books.vertical"
-        case .profile: "person.crop.circle"
-        case .admin: "gearshape.2"
         }
     }
 }

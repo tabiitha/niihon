@@ -23,11 +23,11 @@ struct ShellCommands: Commands {
 
     var body: some Commands {
         CommandMenu(language.text(MacShellText.goMenu)) {
-            ForEach(Array(Space.allCases.enumerated()), id: \.element) { index, space in
+            ForEach(Space.primary + Space.account) { space in
                 Button(language.text(space.label)) {
                     actions?.select(space)
                 }
-                .keyboardShortcut(KeyEquivalent(Character(String(index + 1))), modifiers: .command)
+                .keyboardShortcut(KeyEquivalent(Character(String(space.shortcutNumber))), modifiers: .command)
                 .disabled(actions == nil)
             }
             Divider()
