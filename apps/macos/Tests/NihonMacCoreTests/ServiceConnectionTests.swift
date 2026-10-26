@@ -119,6 +119,7 @@ struct ServiceConnectionTests {
         connection.retry()
         #expect(connection.attempt == 0)
         #expect(connection.state == .invalidAddress(setting: "http://nihon.local:4000"))
+        #expect(connection.serviceURL == nil)
         #expect(!connection.canRetry)
     }
 
@@ -131,5 +132,6 @@ struct ServiceConnectionTests {
         }
         #expect(requested == URL(string: "http://127.0.0.1:4100"))
         #expect(connection.address == "http://127.0.0.1:4100")
+        #expect(connection.serviceURL == requested)
     }
 }

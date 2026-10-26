@@ -6,6 +6,7 @@ struct SpacePage: View {
     let space: Space
     let language: Language
     let select: (Space) -> Void
+    let register: () -> Void
 
     @Environment(\.palette) private var palette
 
@@ -17,7 +18,10 @@ struct SpacePage: View {
                 case .learning: page(LearningText.title, LearningText.body)
                 case .kanji: page(KanjiText.title, KanjiText.body)
                 case .library: page(LibraryText.title, LibraryText.body)
-                case .profile: page(ProfileText.title, ProfileText.body)
+                case .profile:
+                    page(ProfileText.title, ProfileText.body)
+                    Button(language.text(ProfileText.createAccount), action: register)
+                        .buttonStyle(SecondaryButtonStyle())
                 case .admin: page(AdminText.title, AdminText.body)
                 }
             }

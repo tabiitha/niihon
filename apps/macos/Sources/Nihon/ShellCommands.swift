@@ -6,13 +6,16 @@ struct ShellActions {
     let select: (Space) -> Void
     /// `nil` when the window has nothing to retry.
     let retry: (() -> Void)?
+    /// `nil` when the window is not connected to the service.
+    let register: (() -> Void)?
 }
 
 extension FocusedValues {
     @Entry var shellActions: ShellActions?
 }
 
-/// The Go menu: Command-1 to Command-6 open the spaces of the key window, Command-R retries the connection.
+/// The Go menu: Command-1 to Command-6 open the spaces of the key window, Shift-Command-A opens the account
+/// registration, Command-R retries the connection.
 struct ShellCommands: Commands {
     let language: Language
 
@@ -28,6 +31,11 @@ struct ShellCommands: Commands {
                 .disabled(actions == nil)
             }
             Divider()
+            Button(language.text(MacAccountsText.createAccountMenu)) {
+                actions?.register?()
+            }
+            .keyboardShortcut("a", modifiers: [.command, .shift])
+            .disabled(actions?.register == nil)
             Button(language.text(MacShellText.retryConnection)) {
                 actions?.retry?()
             }
