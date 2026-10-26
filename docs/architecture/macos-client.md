@@ -45,29 +45,36 @@ The bundle declares `NSAllowsLocalNetworking` in `Info.plist`, required for plai
 
 ## Navigation and Keyboard
 
-The window shows a navigation bar at the top, laid out like the Web client's header: the Nihon brand on the left, the learning spaces (Home, Learn, Kanji, Library) in the middle, and the account spaces (Profile, Administration) on the right. Each space is a pill with an icon and its shared label; the current space is filled with the accent color, a space under the pointer gets a faint accent tint, and the space with the keyboard focus gets a ring in the theme's focus color. The brand opens Home. The Web client's markup keeps the same order (brand, learning spaces, account spaces), and so does the order read by assistive technology, even when the layout puts the learning spaces on a second row. The icons are SF Symbols; the Web client's own line icons are not reproduced, but its logo is drawn natively from the same shapes.
+The window shows a navigation bar at the top, laid out like the Web client's header: the Nihon brand on the left, the learning spaces (Home, Learn, Kanji, Library) in the middle, and the account spaces (Profile, Administration) on the right. Each space is a pill with an icon and its shared label; the current space is filled with the accent color, a space under the pointer gets a faint accent tint, and the brand or space with the keyboard focus gets a ring in the theme's focus color, drawn outside the pill with a small gap so that it contrasts with the page whether or not the pill is filled. The brand opens Home. The icons are SF Symbols; the Web client's own line icons are not reproduced, but its logo is drawn natively from the same shapes.
 
-The bar takes the place of the title bar: the window uses the hidden title bar style, so the bar sits on the same background gradient as the page and the window's close, minimize, and zoom buttons float over its leading edge, which the bar leaves free (70 points). The window keeps its title (the current space, or the registration screen, followed by Nihon) for the Window menu, Mission Control, and assistive technology. The bar is not drawn by `NavigationSplitView` or a toolbar, which would give macOS' own sidebar or glass toolbar instead of the Web client's pills.
+The window keeps the standard macOS title bar, which shows the current space (or the registration screen) followed by Nihon, and the navigation bar is the first thing of the window's content, on the same background gradient as the page. The title bar keeps the window buttons, the drag area, and full screen (where the title bar hides and the bar stays at the top) exactly as in any Mac app; the bar is not drawn by `NavigationSplitView` or a toolbar, which would give macOS' own sidebar or glass toolbar instead of the Web client's pills.
 
 | Window width | Layout |
 | --- | --- |
 | Wide enough for the three parts side by side (a new window opens at 1200 by 720 points, enough in the three languages) | One row, as the Web header (the bar stops growing at 1280 points and is centered) |
-| Narrower | The learning spaces move to a second row under the brand and the account spaces |
-| Narrowest (the window cannot be smaller than 480 by 420 points) | The brand, then all six spaces on lines that wrap, so that none is clipped or hidden |
+| Narrower | Two rows, as the Web header below its 52 rem breakpoint: the brand and the account spaces, then the learning spaces |
+| Narrowest | The brand, then each of the two groups on its own lines that wrap, so that none is clipped or hidden |
 
-SwiftUI chooses the layout from the real text widths, so another language or a larger font switches layouts at another width.
+SwiftUI chooses the layout from the real text widths, so each language switches at its own width. Measured with the shipped fonts, in steps of 20 points of window width, the bar shows one row from 1000 points in English, 1080 in French, and 980 in Japanese, and two rows down to 520, 580, and 500 points; below that it wraps. Sizes are fixed points, so the layout does not react to a larger text size setting. A window size saved by macOS from an earlier launch takes precedence over the default 1200 by 720, so a person with a smaller saved window sees two rows even where a new window would show one.
+
+The smallest window is 480 by 512 points: the content is at least 480 by 480 under the 32 point title bar. At that size the bar takes up to about 210 points (French, four lines), and the page below scrolls, so nothing is clipped: the status views (checking, service not responding, update needed, error, address not allowed) and the registration screen are scrollable, and at the smallest size the update needed view and the registration screen need scrolling to reach their last controls (Try again also answers Return and Command-R).
 
 The pages present each space with the shared texts until the features exist; Home keeps the approved hierarchy of a pink **Start review** primary action and a separate **Discover new kana** action.
 
 | Key | Action |
 | --- | --- |
-| Tab, Shift-Tab | Move between the brand, the spaces of the bar, and the controls of the page (buttons with Full Keyboard Access, which is a system setting) |
+| Tab, Shift-Tab | Move between the brand, the spaces of the bar, and the controls of the page. The bar is reached whatever the Full Keyboard Access setting is; the page's own buttons follow that system setting |
+| Left, Right arrow on the bar | Move to the previous or next space, in the bar's markup order (brand, learning spaces, account spaces) |
 | Space, Return on a focused space | Open it |
-| Command-1 to Command-6 | Open a space (Go menu), numbered from left to right in the bar |
+| Command-1 to Command-6 | Open a space (Go menu), numbered from left to right in the one-row bar |
 | Command-R, or Return on a failure | Retry the connection |
 | Command-N | Open another window, with its own connection state |
 
-Headings carry the header trait, and a failure is announced to VoiceOver when it replaces the page. The two groups of spaces are labelled with the Web client's texts (main navigation, account; in the narrowest layout, where the lines wrap and cannot show the groups apart, one list named main navigation holds all six), each space is a button named by its label, and the current one is exposed as selected; the brand is a button named Nihon. The text and icon of a space use the theme's text color, or the color shown on the accent for the current space, and the tests check the pairs the themes declare plus the text on the hover tint.
+A new window gives its first focusable view the focus; the bar clears it right after, so that no ring shows until a key asks for one. A click opens a space without leaving a ring.
+
+Tab, the eye, and assistive technology read the bar in the same order in every layout: the brand, then the groups in the order the layout shows them. That is the learning spaces then the account spaces in one row and in the narrowest layout, and the account spaces then the learning spaces in two rows (as the Web header looks, although its markup keeps the learning spaces first). The arrow keys always follow the markup order, so Right on Library goes to Profile.
+
+Headings carry the header trait, and a failure is announced to VoiceOver when it replaces the page. The two groups of spaces are labelled with the Web client's texts (main navigation, account) in every layout, each space is a button named by its label, and the current one is exposed as selected; the brand is a button named Nihon. The text and icon of a space use the theme's text color, or the color shown on the accent for the current space, and the tests check the pairs the themes declare, the text on the hover tint, and the focus ring against the whole background gradient and the accent. VoiceOver itself has not been run on the bar; only the accessibility tree was read.
 
 ## Shared Texts and Themes
 
