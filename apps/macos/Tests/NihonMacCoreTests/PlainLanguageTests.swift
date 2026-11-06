@@ -49,6 +49,36 @@ struct PlainLanguageTests {
         assertPlain(MacAccountsText.self)
     }
 
+    @Test("the shared Web shell texts that macOS shows use no technical words and no technical placeholder")
+    func sharedShellTexts() {
+        assertPlain(ShellText.self)
+    }
+
+    @Test("the shared Web account texts that macOS shows use no technical words and no technical placeholder")
+    func sharedAccountTexts() {
+        assertPlain(AccountsText.self)
+    }
+
+    @Test("names Google and GitHub, and never shows the raw identifier of another provider")
+    func providerNames() {
+        for language in Language.allCases {
+            #expect(ProviderText.continueWith("github", in: language).contains(language.text(AccountsText.providerGithub)))
+            #expect(ProviderText.starting("google", in: language).contains(language.text(AccountsText.providerGoogle)))
+            #expect(ProviderText.waiting(for: "google", in: language).contains(language.text(AccountsText.providerGoogle)))
+            let unknown = [
+                ProviderText.continueWith("oidc_corp-sso", in: language),
+                ProviderText.starting("oidc_corp-sso", in: language),
+                ProviderText.waiting(for: "oidc_corp-sso", in: language),
+            ]
+            #expect(unknown == [
+                language.text(MacAccountsText.continueWithExistingAccount),
+                language.text(MacAccountsText.startingExistingAccount),
+                language.text(MacAccountsText.waitingForExistingAccount),
+            ])
+            #expect(unknown.allSatisfy { !$0.contains("oidc") && !$0.contains("{") }, "\(language)")
+        }
+    }
+
     @Test("the removed technical texts stay removed")
     func removedKeys() {
         let shell = Set(MacShellText.allCases.map(\.rawValue))

@@ -218,7 +218,7 @@ struct RegistrationView: View {
                 Button {
                     model.continueWith(provider)
                 } label: {
-                    Text(language.text(AccountsText.continueWithProvider, ["provider": name(of: provider)]))
+                    Text(ProviderText.continueWith(provider, in: language))
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(ProviderButtonStyle())
@@ -230,18 +230,10 @@ struct RegistrationView: View {
 
     private var waitingProvider: String? {
         switch model.busy {
-        case .starting(let provider): language.text(AccountsText.startingProvider, ["provider": name(of: provider)])
-        case .waiting(let provider): language.text(MacAccountsText.waitingForProvider, ["provider": name(of: provider)])
+        case .starting(let provider): ProviderText.starting(provider, in: language)
+        case .waiting(let provider): ProviderText.waiting(for: provider, in: language)
         case .completing: language.text(MacAccountsText.completing)
         case .local, nil: nil
-        }
-    }
-
-    private func name(of provider: String) -> String {
-        switch provider {
-        case "google": language.text(AccountsText.providerGoogle)
-        case "github": language.text(AccountsText.providerGithub)
-        default: provider
         }
     }
 

@@ -572,6 +572,9 @@ public enum MacAccountsText: String, TextKey {
     case providerCancelled
     case errorListenerLost
     case waitingForProvider
+    case continueWithExistingAccount
+    case startingExistingAccount
+    case waitingForExistingAccount
     case completing
     case cancel
     case createAccountMenu
@@ -589,6 +592,9 @@ public enum MacAccountsText: String, TextKey {
             .providerCancelled: "You cancelled the sign-up. No account was created.",
             .errorListenerLost: "The sign-up stopped on this Mac. No account was created. Try again.",
             .waitingForProvider: "Waiting for {provider}… Finish in the window that opened.",
+            .continueWithExistingAccount: "Continue with an existing account",
+            .startingExistingAccount: "Opening the sign-in window…",
+            .waitingForExistingAccount: "Waiting for the sign-in… Finish in the window that opened.",
             .completing: "Completing your registration…",
             .cancel: "Cancel",
             .createAccountMenu: "Create an Account",
@@ -603,6 +609,9 @@ public enum MacAccountsText: String, TextKey {
             .providerCancelled: "Vous avez annulé l’inscription. Aucun compte n’a été créé.",
             .errorListenerLost: "L’inscription s’est interrompue sur ce Mac. Aucun compte n’a été créé. Réessayez.",
             .waitingForProvider: "En attente de {provider}… Terminez dans la fenêtre qui s’est ouverte.",
+            .continueWithExistingAccount: "Continuer avec un compte existant",
+            .startingExistingAccount: "Ouverture de la fenêtre de connexion…",
+            .waitingForExistingAccount: "En attente de la connexion… Terminez dans la fenêtre qui s’est ouverte.",
             .completing: "Finalisation de votre inscription…",
             .cancel: "Annuler",
             .createAccountMenu: "Créer un compte",
@@ -617,6 +626,9 @@ public enum MacAccountsText: String, TextKey {
             .providerCancelled: "登録をキャンセルしました。アカウントは作成されていません。",
             .errorListenerLost: "このMacで登録が中断されました。アカウントは作成されていません。もう一度お試しください。",
             .waitingForProvider: "{provider}を待っています… 開いたウインドウで手続きを完了してください。",
+            .continueWithExistingAccount: "既存のアカウントで続ける",
+            .startingExistingAccount: "ログイン画面を開いています…",
+            .waitingForExistingAccount: "ログインを待っています… 開いたウィンドウで完了してください。",
             .completing: "登録を完了しています…",
             .cancel: "キャンセル",
             .createAccountMenu: "アカウントを作成",
