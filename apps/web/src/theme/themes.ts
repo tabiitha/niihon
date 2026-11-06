@@ -16,6 +16,8 @@ export const colorRoles = [
   'accentText',
   'border',
   'focus',
+  /** Error messages under a field and the border of the faulty field. */
+  'error',
 ] as const;
 
 export type ColorRole = (typeof colorRoles)[number];

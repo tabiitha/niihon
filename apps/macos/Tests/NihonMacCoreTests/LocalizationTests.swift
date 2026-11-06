@@ -50,9 +50,10 @@ struct LocalizationTests {
             let keys = try #require(JSONSerialization.jsonObject(with: data) as? [String: String]).keys
             #expect(generated == Set(keys), "\(language): generated and shared keys differ")
         }
-        // The standing subtitle and providers note were dropped: only the help after a refusal remains.
+        // The standing subtitle and providers note were dropped, then the separate help texts: each field has one
+        // message, the rule itself.
         #expect(!generated.contains("subtitle") && !generated.contains("providersNote"))
-        #expect(generated.contains("usernameHint") && generated.contains("passwordHint"))
+        #expect(!generated.contains("usernameHint") && !generated.contains("passwordHint"))
     }
 
     @Test("names every space in every language")

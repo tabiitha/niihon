@@ -13,6 +13,7 @@ import {
   type PendingFlow,
 } from '../../src/modules/accounts/registration.ts';
 import { createApiClient, type FetchFunction } from '../../src/api/service.ts';
+import { checkPassword, checkUsername } from '../../src/modules/accounts/rules.ts';
 import { startAccountsServer, type AccountsServer } from './accounts-server.ts';
 
 // The registration operations of the Web client against the real API and database, over loopback only:
@@ -270,7 +271,7 @@ describe('registration form against the real backend', () => {
     form.setField('confirmation', secret);
   };
 
-  it('registers, then meets the duplicate and the refused password with the typed username kept', async () => {
+  it('registers, then meets the duplicate and a password refused before sending, with the typed username kept', async () => {
     const created = formFor(server.baseUrl);
     fill(created, 'Form_User');
     await created.submit();
@@ -280,12 +281,19 @@ describe('registration form against the real backend', () => {
     const duplicate = formFor(server.baseUrl);
     fill(duplicate, 'form_user');
     await duplicate.submit();
-    assert.deepEqual({ message: duplicate.getState().problem?.message, username: duplicate.getState().username }, { message: 'errorUsernameTaken', username: 'form_user' });
+    assert.deepEqual(
+      { error: duplicate.getState().errors.username, problem: duplicate.getState().problem, username: duplicate.getState().username },
+      { error: { message: 'errorUsernameTaken', from: 'server' }, problem: undefined, username: 'form_user' },
+    );
 
     const weak = formFor(server.baseUrl);
     fill(weak, 'form_weak', 'weak');
     await weak.submit();
-    assert.deepEqual({ message: weak.getState().problem?.message, field: weak.getState().problem?.field, username: weak.getState().username }, { message: 'errorPasswordInvalid', field: 'password', username: 'form_weak' });
+    assert.deepEqual(
+      { error: weak.getState().errors.password, busy: weak.getState().busy, username: weak.getState().username },
+      { error: { message: 'errorPasswordInvalid', from: 'typing' }, busy: undefined, username: 'form_weak' },
+      'refused before sending, with the message the server refusal shows',
+    );
   });
 
   it('keeps what was typed when the service cannot be reached', async () => {
@@ -297,5 +305,67 @@ describe('registration form against the real backend', () => {
     assert.equal(form.getState().problem?.message, 'errorUnavailable');
     assert.deepEqual({ u: form.getState().username, p: form.getState().password }, { u: 'form_offline', p: password });
     assert.equal(form.getState().busy, undefined);
+  });
+});
+
+describe('typing rules of the Web client against the real backend', () => {
+  let server: AccountsServer;
+  let client: ReturnType<typeof createApiClient>;
+  before(async () => {
+    server = await startAccountsServer();
+    client = createApiClient(server.baseUrl);
+  });
+  after(() => server.stop());
+
+  const passphrase = 'a long enough passphrase';
+  // Each accepted name is new, so that the server's answer depends only on the rules.
+  const cases: readonly (readonly [username: string, password: string])[] = [
+    ['', passphrase],
+    ['   ', passphrase],
+    ['ab', passphrase],
+    ['a'.repeat(33), passphrase],
+    [`agree_${'x'.repeat(26)}`, passphrase],
+    ['_agree', passphrase],
+    ['.agree', passphrase],
+    ['ag ree', passphrase],
+    ['ag/ree', passphrase],
+    ['😀😀😀', passphrase],
+    [`${' '.repeat(260)}agreeraw`, passphrase],
+    ['  agreetrim  ', passphrase],
+    ['Ａｇｒｅｅ２', passphrase],
+    ['さくら合意', passphrase],
+    ['1agree', passphrase],
+    ['agrée', passphrase],
+    ['agree3', ''],
+    ['agree4', '1234567'],
+    ['agree5', '12345678'],
+    ['agree6', 'x'.repeat(128)],
+    ['agree7', 'x'.repeat(129)],
+    ['agree8', 'x'.repeat(513)],
+    ['agree9', ' '.repeat(8)],
+    ['agree10', 'abcd\u0007efgh'],
+    ['Agree_eleven', 'AGREE_ELEVEN'],
+    ['agreefull', 'ＡＧＲＥＥＦＵＬＬ'],
+    ['agree12', 'パスワードです本当'],
+  ];
+
+  /** What the client says before sending: the first faulty field, or nothing. */
+  const local = (username: string, password: string) =>
+    checkUsername(username) !== undefined ? 'username' : checkPassword(password, username) !== undefined ? 'password' : 'accepted';
+
+  it('accept and refuse the same local registrations as the server, on the same field', async () => {
+    for (const [username, password] of cases) {
+      const outcome = await registerLocal(client, { username, password }, undefined, signal());
+      const server = outcome.ok ? 'accepted' : describeFailure(outcome.failure).field;
+      assert.equal(local(username, password), server, `${JSON.stringify(username)} / ${JSON.stringify(password)}`);
+    }
+  });
+
+  it('accept and refuse the same usernames as the server for a provider registration', async () => {
+    for (const username of ['ab', '_oauth', 'oauth agree', `${' '.repeat(260)}oauthraw`, 'oauth_agree', 'Ｏａｕｔｈ２', 'さくら連携']) {
+      const started = await startProviderRegistration(client, createPendingStore(new MemoryStorage()), { provider: 'github', username, origin: 'http://127.0.0.1:4000' }, signal());
+      const server = started.kind === 'redirect' ? 'accepted' : started.kind === 'failed' ? describeFailure(started.failure).field : started.kind;
+      assert.equal(checkUsername(username) === undefined ? 'accepted' : 'username', server, JSON.stringify(username));
+    }
   });
 });

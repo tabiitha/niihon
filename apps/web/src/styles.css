@@ -366,12 +366,15 @@ main {
 }
 
 .auth-field input[aria-invalid='true'] {
-  border-width: 2px;
+  border: 2px solid var(--color-error);
 }
 
-.field-hint {
-  color: var(--color-text-muted);
+/* The one message under a faulty field. */
+.field-error {
+  margin: 0;
+  color: var(--color-error);
   font-size: 0.875rem;
+  font-weight: 500;
 }
 
 .password-control {

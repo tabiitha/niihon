@@ -12,6 +12,8 @@ The `accounts` module registers one local Nihon profile, either from a username 
 | Atomicity | One write transaction checks uniqueness and inserts the profile with its credential or provider link. A refusal or failure rolls everything back, so there is never a partial account. Writes are serialized by the [database layer](persistence.md#concurrency-and-durability), so concurrent registrations are decided one after the other and exactly one of two racing for a username succeeds |
 | Provider identity | Identified by provider, issuer, and subject, unique in the database. Email address and display name are neither required, read, nor stored; profiles are never merged by email |
 
+The contract publishes the username and password rules in a machine-readable form, `x-nihon-rules` on the `username` and `password` fields (`usernameRules` and `passwordRules` in `contract.ts`, built from the constants the server applies), so that a client can help with typing using exactly the server's rules; the server still checks every request.
+
 ## Operations
 
 All paths are under `/api/accounts`. Errors use the standard body; `accounts_*` codes below are stable.

@@ -45,17 +45,53 @@ function setup(...answers: ((request: Request) => Response | Promise<Response>)[
 }
 
 describe('registration form', () => {
-  it('asks for what is missing without contacting the server', async () => {
+  it('asks for what is missing under each field without contacting the server, and focuses the first one', async () => {
     const { form, requests, fill } = setup(() => Response.json(profile, { status: 201 }));
     await form.submit();
-    assert.deepEqual(form.getState().problem, { message: 'usernameRequired', field: 'username' });
-    fill('sakura', '');
-    await form.submit();
-    assert.equal(form.getState().problem?.message, 'passwordRequired');
+    const typed = (message: string) => ({ message, from: 'typing' });
+    assert.deepEqual(form.getState().errors, { username: typed('usernameRequired'), password: typed('passwordRequired') });
+    assert.equal(form.getState().focus?.field, 'username');
+    assert.equal(form.getState().problem, undefined, 'nothing above the form');
     fill('sakura', 'a long enough passphrase', 'another passphrase');
     await form.submit();
-    assert.deepEqual(form.getState().problem, { message: 'passwordsDiffer', field: 'confirmation' });
+    assert.deepEqual(form.getState().errors, { confirmation: typed('passwordsDiffer') });
+    assert.equal(form.getState().focus?.field, 'confirmation');
     assert.equal(requests.length, 0);
+  });
+
+  it('checks a field when it is left after an edit, then follows the typing', () => {
+    const { form } = setup(() => Response.json(profile, { status: 201 }));
+    form.leaveField('username');
+    assert.deepEqual(form.getState().errors, {}, 'an untouched field is not checked');
+    form.setField('username', 'a!');
+    assert.deepEqual(form.getState().errors, {}, 'no error while typing a new value');
+    form.leaveField('username');
+    assert.equal(form.getState().errors.username?.message, 'errorUsernameInvalid');
+    form.setField('username', '');
+    assert.equal(form.getState().errors.username?.message, 'usernameRequired', 'the shown error follows the typing');
+    form.setField('username', 'sakura');
+    assert.equal(form.getState().errors.username, undefined, 'and goes away once the value is right');
+  });
+
+  it('updates the confirmation error when the password changes, and the password error when the username does', () => {
+    const { form } = setup(() => Response.json(profile, { status: 201 }));
+    form.setField('username', 'sakura');
+    form.setField('password', 'a long enough passphrase');
+    form.setField('confirmation', 'a long enough');
+    form.leaveField('confirmation');
+    assert.equal(form.getState().errors.confirmation?.message, 'passwordsDiffer');
+    form.setField('password', 'a long enough');
+    assert.equal(form.getState().errors.confirmation, undefined);
+    form.setField('password', 'Sakura12');
+    form.leaveField('password');
+    assert.equal(form.getState().errors.password, undefined);
+    form.setField('username', 'sakura12');
+    assert.equal(form.getState().errors.password?.message, undefined, 'no new error appears in a field that is not being typed in');
+    form.setField('password', 'SAKURA12');
+    form.leaveField('password');
+    assert.equal(form.getState().errors.password?.message, 'errorPasswordInvalid', 'the same as the username, whatever the case');
+    form.setField('username', 'sakura13');
+    assert.equal(form.getState().errors.password, undefined, 'follows the username');
   });
 
   it('drops a second submission that arrives before the first answer', async () => {
@@ -92,19 +128,48 @@ describe('registration form', () => {
     fill('Sakura');
     await form.submit();
     const state = form.getState();
-    assert.deepEqual({ message: state.problem?.message, field: state.problem?.field }, { message: 'errorUsernameTaken', field: 'username' });
+    assert.deepEqual(state.errors, { username: { message: 'errorUsernameTaken', from: 'server' } });
+    assert.equal(state.problem, undefined, 'nothing above the form');
+    assert.equal(state.focus?.field, 'username');
     assert.deepEqual({ username: state.username, password: state.password, confirmation: state.confirmation }, { username: 'Sakura', password: '', confirmation: '' });
+    form.setField('password', 'a long enough passphrase');
+    form.leaveField('username');
+    assert.equal(form.getState().errors.username?.message, 'errorUsernameTaken', 'stays until the username is edited');
     fill('Sakura2');
+    assert.equal(form.getState().errors.username, undefined);
     await form.submit();
     assert.equal(requests[1]?.headers.get('Idempotency-Key'), 'key-0000000000000002');
   });
 
-  it('shows the invalid-password message on the password field', async () => {
-    const { form, fill } = setup(() => refusal(400, 'validation_failed', [{ path: 'body.password', message: 'short' }]));
-    fill('sakura', 'short');
+  it('shows a password the server refused under the password field, the same way as a local check', async () => {
+    const { form, fill } = setup(() => refusal(400, 'validation_failed', [{ path: 'body.password', message: 'refused' }]));
+    fill('sakura');
     await form.submit();
-    assert.deepEqual({ message: form.getState().problem?.message, field: form.getState().problem?.field }, { message: 'errorPasswordInvalid', field: 'password' });
+    assert.deepEqual(form.getState().errors, { password: { message: 'errorPasswordInvalid', from: 'server' } });
+    assert.equal(form.getState().focus?.field, 'password');
     assert.equal(form.getState().username, 'sakura');
+    form.setField('password', 'another long passphrase');
+    assert.equal(form.getState().errors.password, undefined, 'typing replaces the refusal with the local check');
+  });
+
+  it('sends nothing while a field breaks the rules, and focuses the first faulty field', async () => {
+    const { form, requests, fill } = setup(() => Response.json(profile, { status: 201 }));
+    fill('ab', 'short');
+    await form.submit();
+    assert.deepEqual(Object.keys(form.getState().errors), ['username', 'password']);
+    assert.equal(form.getState().focus?.field, 'username');
+    const first = form.getState().focus?.count;
+    await form.submit();
+    assert.notEqual(form.getState().focus?.count, first, 'every blocked submit moves focus again');
+    assert.equal(requests.length, 0);
+  });
+
+  it('shows a problem of no field above the form, and no field error', async () => {
+    const { form, fill } = setup(() => refusal(503, 'accounts_busy'));
+    fill();
+    await form.submit();
+    assert.equal(form.getState().problem?.message, 'errorBusy');
+    assert.deepEqual(form.getState().errors, {});
   });
 
   it('keeps everything and the same key after a lost answer, so that a retry cannot create a second profile', async () => {
@@ -190,7 +255,11 @@ describe('provider registration from the form', () => {
   it('needs the username first and sends nothing without it', async () => {
     const { form, requests } = setup(() => Response.json({}, { status: 201 }));
     await form.continueWith('github');
-    assert.deepEqual(form.getState().problem, { message: 'usernameNeededForProvider', field: 'username' });
+    assert.deepEqual(form.getState().errors, { username: { message: 'usernameNeededForProvider', from: 'typing' } });
+    form.setField('username', '_octo');
+    await form.continueWith('github');
+    assert.deepEqual(form.getState().errors, { username: { message: 'errorUsernameInvalid', from: 'typing' } }, 'the same rules as a local account');
+    assert.equal(form.getState().focus?.field, 'username');
     assert.equal(requests.length, 0);
   });
 
@@ -211,7 +280,7 @@ describe('provider registration from the form', () => {
     const { form, opened, fill } = setup(() => refusal(409, 'accounts_username_taken'));
     fill('octocat');
     await form.continueWith('github');
-    assert.equal(form.getState().problem?.message, 'errorUsernameTaken');
+    assert.equal(form.getState().errors.username?.message, 'errorUsernameTaken');
     assert.equal(form.getState().busy, undefined);
     assert.equal(form.getState().username, 'octocat');
     assert.deepEqual(opened, []);

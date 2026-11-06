@@ -352,9 +352,7 @@ public enum AdminText: String, TextKey {
 public enum AccountsText: String, TextKey {
     case title
     case usernameLabel
-    case usernameHint
     case passwordLabel
-    case passwordHint
     case confirmationLabel
     case showPassword
     case hidePassword
@@ -407,9 +405,7 @@ public enum AccountsText: String, TextKey {
         .en: [
             .title: "Create your account",
             .usernameLabel: "Username",
-            .usernameHint: "3 to 32 characters: letters, digits, _ - or ., starting with a letter or a digit.",
             .passwordLabel: "Password",
-            .passwordHint: "8 to 128 characters, different from your username.",
             .confirmationLabel: "Confirm password",
             .showPassword: "Show password",
             .hidePassword: "Hide password",
@@ -424,14 +420,14 @@ public enum AccountsText: String, TextKey {
             .startingProvider: "Opening {provider}…",
             .usernameRequired: "Enter a username.",
             .passwordRequired: "Enter a password.",
-            .passwordsDiffer: "The two passwords are different.",
+            .passwordsDiffer: "The passwords do not match.",
             .usernameNeededForProvider: "Choose your username first.",
             .errorUnavailable: "Nihon is not responding. Check that Nihon is running, then try again. What you typed is kept.",
             .errorIncompatible: "This page is out of date. Reload it. If the problem continues, update Nihon.",
             .errorBusy: "Nihon is busy. Try again in a moment.",
-            .errorUsernameTaken: "This username is already taken. Choose another one.",
-            .errorUsernameInvalid: "This username cannot be used.",
-            .errorPasswordInvalid: "This password cannot be used.",
+            .errorUsernameTaken: "This username is already taken.",
+            .errorUsernameInvalid: "3 to 32 characters: letters, digits, _ - or ., starting with a letter or a digit.",
+            .errorPasswordInvalid: "8 to 128 characters, different from your username.",
             .errorRequestInvalid: "Nihon could not handle this. Check what you typed and try again.",
             .errorRedirectUri: "Signing up with an existing account does not work here. Use a username and a password instead.",
             .errorProviderUnavailable: "This option is not available. Use a username and a password instead.",
@@ -459,9 +455,7 @@ public enum AccountsText: String, TextKey {
         .fr: [
             .title: "Créez votre compte",
             .usernameLabel: "Nom d’utilisateur",
-            .usernameHint: "De 3 à 32 caractères : lettres, chiffres, _ - ou ., en commençant par une lettre ou un chiffre.",
             .passwordLabel: "Mot de passe",
-            .passwordHint: "De 8 à 128 caractères, différent de votre nom d’utilisateur.",
             .confirmationLabel: "Confirmer le mot de passe",
             .showPassword: "Afficher le mot de passe",
             .hidePassword: "Masquer le mot de passe",
@@ -476,14 +470,14 @@ public enum AccountsText: String, TextKey {
             .startingProvider: "Ouverture de {provider}…",
             .usernameRequired: "Saisissez un nom d’utilisateur.",
             .passwordRequired: "Saisissez un mot de passe.",
-            .passwordsDiffer: "Les deux mots de passe sont différents.",
+            .passwordsDiffer: "Les mots de passe ne correspondent pas.",
             .usernameNeededForProvider: "Choisissez d’abord votre nom d’utilisateur.",
             .errorUnavailable: "Nihon ne répond pas. Vérifiez que Nihon est lancé, puis réessayez. Votre saisie est conservée.",
             .errorIncompatible: "Cette page n’est plus à jour. Rechargez-la. Si le problème continue, mettez Nihon à jour.",
             .errorBusy: "Nihon est occupé. Réessayez dans un instant.",
-            .errorUsernameTaken: "Ce nom d’utilisateur est déjà pris. Choisissez-en un autre.",
-            .errorUsernameInvalid: "Ce nom d’utilisateur ne convient pas.",
-            .errorPasswordInvalid: "Ce mot de passe ne convient pas.",
+            .errorUsernameTaken: "Ce nom d’utilisateur est déjà pris.",
+            .errorUsernameInvalid: "De 3 à 32 caractères : lettres, chiffres, _ - ou ., en commençant par une lettre ou un chiffre.",
+            .errorPasswordInvalid: "De 8 à 128 caractères, différent de votre nom d’utilisateur.",
             .errorRequestInvalid: "Nihon n’a pas pu traiter votre demande. Vérifiez votre saisie et réessayez.",
             .errorRedirectUri: "L’inscription avec un compte existant ne fonctionne pas ici. Utilisez plutôt un nom d’utilisateur et un mot de passe.",
             .errorProviderUnavailable: "Cette option n’est pas disponible. Utilisez plutôt un nom d’utilisateur et un mot de passe.",
@@ -511,9 +505,7 @@ public enum AccountsText: String, TextKey {
         .ja: [
             .title: "アカウントを作成",
             .usernameLabel: "ユーザー名",
-            .usernameHint: "3〜32文字：文字・数字・_ - . が使えます。最初は文字か数字にしてください。",
             .passwordLabel: "パスワード",
-            .passwordHint: "8〜128文字で、ユーザー名とは違うものにしてください。",
             .confirmationLabel: "パスワードの確認",
             .showPassword: "パスワードを表示",
             .hidePassword: "パスワードを非表示",
@@ -528,14 +520,14 @@ public enum AccountsText: String, TextKey {
             .startingProvider: "{provider}を開いています…",
             .usernameRequired: "ユーザー名を入力してください。",
             .passwordRequired: "パスワードを入力してください。",
-            .passwordsDiffer: "2つのパスワードが一致しません。",
+            .passwordsDiffer: "パスワードが一致しません。",
             .usernameNeededForProvider: "先にユーザー名を決めてください。",
             .errorUnavailable: "Nihonが応答しません。Nihonが起動していることを確認して、もう一度お試しください。入力した内容はそのまま残ります。",
             .errorIncompatible: "このページは最新ではありません。再読み込みしてください。直らない場合は、Nihonを更新してください。",
             .errorBusy: "Nihonが混み合っています。少し待ってからもう一度お試しください。",
-            .errorUsernameTaken: "このユーザー名はすでに使われています。別の名前を選んでください。",
-            .errorUsernameInvalid: "このユーザー名は使えません。",
-            .errorPasswordInvalid: "このパスワードは使えません。",
+            .errorUsernameTaken: "このユーザー名はすでに使われています。",
+            .errorUsernameInvalid: "3〜32文字：文字・数字・_ - . が使えます。最初は文字か数字にしてください。",
+            .errorPasswordInvalid: "8〜128文字で、ユーザー名とは違うものにしてください。",
             .errorRequestInvalid: "Nihonで処理できませんでした。入力内容を確認して、もう一度お試しください。",
             .errorRedirectUri: "ここでは、お持ちのアカウントでの登録ができません。ユーザー名とパスワードで登録してください。",
             .errorProviderUnavailable: "この方法は利用できません。ユーザー名とパスワードで登録してください。",

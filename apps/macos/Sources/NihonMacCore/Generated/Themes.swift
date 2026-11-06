@@ -13,6 +13,7 @@ public enum ColorRole: String, CaseIterable, Sendable {
     case accentText
     case border
     case focus
+    case error
 }
 
 /// Every theme of `resources/themes`, in folder order.
@@ -35,6 +36,7 @@ public enum ThemeCatalog {
                     .accentText: RGBColor(hex: 0xB0175A),
                     .border: RGBColor(hex: 0xE8A7BE),
                     .focus: RGBColor(hex: 0x2A0F2E),
+                    .error: RGBColor(hex: 0xB3141F),
                 ]
             ),
             dark: ThemeMode(
@@ -51,6 +53,7 @@ public enum ThemeCatalog {
                     .accentText: RGBColor(hex: 0xFFB3E6),
                     .border: RGBColor(hex: 0x8C4A9E),
                     .focus: RGBColor(hex: 0xFFFFFF),
+                    .error: RGBColor(hex: 0xFFA3A3),
                 ]
             ),
             contrastPairs: [
@@ -62,6 +65,8 @@ public enum ThemeCatalog {
                 ContrastPair(foreground: .accentText, background: .backgroundAccent, minimum: 4.5),
                 ContrastPair(foreground: .onAccent, background: .accent, minimum: 4.5),
                 ContrastPair(foreground: .onSurface, background: .surface, minimum: 4.5),
+                ContrastPair(foreground: .error, background: .background, minimum: 4.5),
+                ContrastPair(foreground: .error, background: .backgroundAccent, minimum: 4.5),
                 ContrastPair(foreground: .focus, background: .background, minimum: 3.0),
                 ContrastPair(foreground: .focus, background: .backgroundAccent, minimum: 3.0),
             ]

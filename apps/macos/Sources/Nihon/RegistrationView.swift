@@ -2,7 +2,8 @@ import NihonMacCore
 import SwiftUI
 
 /// The registration screen: a card with the local form, then the optional Google and GitHub registration, as
-/// in the "Create account" mockups. Every rule is decided by the service; the view shows its answers.
+/// in the "Create account" mockups. The model checks what is typed with the service's rules and the service still
+/// decides; an error of a field is shown in red under that field, and only a problem of no field above the form.
 struct RegistrationView: View {
     let model: RegistrationModel
     let language: Language
@@ -24,10 +25,16 @@ struct RegistrationView: View {
                 .frame(maxWidth: .infinity)
         }
         .task { await model.loadProviders() }
+        // A problem of no field is announced once; an error of a field is read with the field, where focus goes.
         .onChange(of: model.problem) { _, problem in
             guard let problem else { return }
-            focus = problem.field
             AccessibilityNotification.Announcement(problem.message.text(language)).post()
+        }
+        .onChange(of: model.focusRequest) { _, request in
+            if let request { focus = request.field }
+        }
+        .onChange(of: focus) { left, _ in
+            if let left { model.leaveField(left) }
         }
         .onChange(of: model.profile) { _, profile in
             if let profile {
@@ -116,12 +123,10 @@ struct RegistrationView: View {
                 .textFieldStyle(.plain)
                 .autocorrectionDisabled()
                 .focused($focus, equals: .username)
-                .fieldBox(invalid: model.problem?.field == .username, palette: palette)
+                .fieldBox(invalid: model.errors[.username] != nil, palette: palette)
                 .accessibilityLabel(language.text(AccountsText.usernameLabel))
                 .accessibilityHint(hint(.username))
-            if let help = model.problem?.help(for: .username) {
-                hintText(help)
-            }
+            fieldError(.username)
         }
         .padding(.top, 20)
     }
@@ -156,26 +161,31 @@ struct RegistrationView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel(language.text(isShown ? hide : show))
             }
-            .fieldBox(invalid: model.problem?.field == field, palette: palette)
-            if let help = model.problem?.help(for: field) {
-                hintText(help)
-            }
+            .fieldBox(invalid: model.errors[field] != nil, palette: palette)
+            fieldError(field)
         }
         .padding(.top, 20)
     }
 
-    private func hintText(_ key: AccountsText) -> some View {
-        Text(language.text(key)).font(.callout).foregroundStyle(palette[.textMuted])
+    /// The one message of a field, in the theme's error color under it. VoiceOver reads it with the field (its
+    /// hint), so the text itself is hidden from VoiceOver and never announced a second time.
+    @ViewBuilder
+    private func fieldError(_ field: RegistrationField) -> some View {
+        if let error = model.errors[field] {
+            Label {
+                Text(error.message.text(language))
+            } icon: {
+                Image(systemName: "exclamationmark.circle.fill")
+            }
+            .font(.callout.weight(.medium))
+            .foregroundStyle(palette[.error])
+            .accessibilityHidden(true)
+        }
     }
 
-    /// What VoiceOver reads after the label: the problem of this field when it has one, then its help when the
-    /// refusal comes with one. Nothing at rest. The problem is also announced once when it appears; this is what
-    /// is read on the field itself.
+    /// What VoiceOver reads after the label: the error of this field when it has one; nothing at rest.
     private func hint(_ field: RegistrationField) -> String {
-        guard let problem = model.problem, problem.field == field else { return "" }
-        return [problem.message.text(language), problem.help(for: field).map { language.text($0) }]
-            .compactMap { $0 }
-            .joined(separator: " ")
+        model.errors[field].map { $0.message.text(language) } ?? ""
     }
 
     private func binding(_ field: RegistrationField) -> Binding<String> {
@@ -259,11 +269,14 @@ struct RegistrationView: View {
 }
 
 private extension View {
-    /// A rounded outline in the muted text color, thicker when the field has the problem.
+    /// A rounded outline in the muted text color, thicker and in the error color when the field has an error.
     func fieldBox(invalid: Bool, palette: Palette) -> some View {
         padding(.horizontal, 14)
             .frame(minHeight: 44)
-            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(palette[.textMuted], lineWidth: invalid ? 2.5 : 1))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .strokeBorder(invalid ? palette[.error] : palette[.textMuted], lineWidth: invalid ? 2 : 1)
+            )
     }
 }
 

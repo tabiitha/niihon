@@ -112,6 +112,10 @@ final class RecordingPresenter: AuthorizationPagePresenting {
 
 // MARK: Helpers
 
+private func typing(_ text: AccountsText) -> RegistrationModel.FieldError {
+    .init(.shared(text), from: .typing)
+}
+
 private let profile = RegisteredProfile(id: "p-1", username: "sakura")
 private let taken = RegistrationFailure.error(status: 409, code: "accounts_username_taken", requestID: "req-9", fields: [])
 private func start(_ state: String = "state-1") -> ProviderStart {
@@ -161,19 +165,75 @@ final class KeyCounter: @unchecked Sendable {
 @MainActor
 @Suite("Local registration form", .timeLimit(.minutes(1)))
 struct LocalRegistrationModelTests {
-    @Test("sends nothing and names the field when an input is missing or the two passwords differ")
+    @Test("sends nothing, shows each faulty field's message under it, and focuses the first one")
     func incomplete() async {
         let h = Harness()
         h.model.submit()
-        #expect(h.model.problem == RegistrationProblem(.usernameRequired, field: .username))
-        h.type("sakura", "")
+        #expect(h.model.errors == [
+            .username: typing(.usernameRequired), .password: typing(.passwordRequired),
+        ])
+        #expect(h.model.problem == nil, "a field error is never shown above the form")
+        #expect(h.model.focusRequest?.field == .username)
+
+        h.type("ab", "secret-12", confirm: "secret-21")
+        let before = h.model.focusRequest
         h.model.submit()
-        #expect(h.model.problem == RegistrationProblem(.passwordRequired, field: .password))
-        h.type("sakura", "secret-1", confirm: "secret-2")
+        #expect(h.model.errors == [.username: typing(.errorUsernameInvalid), .confirmation: typing(.passwordsDiffer)])
+        #expect(h.model.focusRequest?.field == .username && h.model.focusRequest != before, "a new request each time")
+
+        h.type("sakura", "Sakura")
         h.model.submit()
-        #expect(h.model.problem == RegistrationProblem(.passwordsDiffer, field: .confirmation))
+        #expect(h.model.errors == [.password: typing(.errorPasswordInvalid)], "too short and the same as the name")
+        #expect(h.model.focusRequest?.field == .password)
         #expect(await h.service.locals.isEmpty)
         #expect(h.model.busy == nil)
+    }
+
+    @Test("checks a field when it is left after an edit, and then follows the typing")
+    func checksWhileTyping() {
+        let h = Harness()
+        h.model.leaveField(.username)
+        #expect(h.model.errors.isEmpty, "leaving an untouched field checks nothing")
+
+        h.model.setField(.username, to: "a")
+        #expect(h.model.errors.isEmpty, "no error appears while typing")
+        h.model.leaveField(.username)
+        #expect(h.model.errors == [.username: typing(.errorUsernameInvalid)])
+        h.model.setField(.username, to: "ab")
+        #expect(h.model.errors == [.username: typing(.errorUsernameInvalid)])
+        h.model.setField(.username, to: "abc")
+        #expect(h.model.errors.isEmpty, "the error follows the typing")
+
+        h.model.setField(.password, to: "long-secret")
+        h.model.setField(.confirmation, to: "long-secre")
+        h.model.leaveField(.confirmation)
+        #expect(h.model.errors == [.confirmation: typing(.passwordsDiffer)])
+        // The confirmation depends on the password: its typing error follows an edit of the password too.
+        h.model.setField(.password, to: "long-secre")
+        #expect(h.model.errors.isEmpty)
+    }
+
+    @Test("keeps a refusal of the service under its field until that field is edited")
+    func serviceErrorStays() async {
+        let h = Harness()
+        h.type()
+        h.model.submit()
+        await waitUntil { await h.service.waitingLocal == 1 }
+        await h.service.answerLocal(.failure(taken))
+        await h.model.settle()
+        #expect(h.model.errors == [.username: .init(.shared(.errorUsernameTaken), from: .service)])
+        #expect(h.model.problem == nil)
+        #expect(h.model.focusRequest?.field == .username)
+        h.model.leaveField(.username)
+        #expect(h.model.errors[.username]?.source == .service, "leaving does not replace the service's refusal")
+        // SwiftUI writes the unchanged value back when the field gains focus: not an edit.
+        h.model.setField(.username, to: "sakura")
+        #expect(h.model.errors[.username]?.source == .service, "an unchanged value keeps the service's refusal")
+        // The passwords were cleared with the refusal: leaving them untouched checks nothing.
+        h.model.leaveField(.password)
+        #expect(h.model.errors[.password] == nil)
+        h.model.setField(.username, to: "sakura-2")
+        #expect(h.model.errors.isEmpty)
     }
 
     @Test("creates the profile, then keeps no password")
@@ -212,8 +272,8 @@ struct LocalRegistrationModelTests {
         await waitUntil { await h.service.waitingLocal == 1 }
         await h.service.answerLocal(.failure(taken))
         await h.model.settle()
-        #expect(h.model.problem?.message == .shared(.errorUsernameTaken))
-        #expect(h.model.problem?.field == .username)
+        #expect(h.model.errors[.username] == .init(.shared(.errorUsernameTaken), from: .service))
+        #expect(h.model.problem == nil)
         #expect(h.model.username == "sakura")
         #expect(h.model.password.isEmpty && h.model.confirmation.isEmpty)
         #expect(h.model.profile == nil)
@@ -272,16 +332,17 @@ struct LocalRegistrationModelTests {
         #expect(await h.service.locals.map(\.key) == ["key-1", nil])
     }
 
-    @Test("shows the field of an invalid password and keeps the username")
+    @Test("shows the service's refusal of a password under that field and keeps the username")
     func invalidPassword() async {
         let h = Harness()
-        h.type("sakura", "short")
+        h.type("sakura", "long-enough-secret")
         h.model.submit()
         await waitUntil { await h.service.waitingLocal == 1 }
         await h.service.answerLocal(.failure(.error(status: 400, code: "validation_failed", requestID: "r", fields: ["body.password"])))
         await h.model.settle()
-        #expect(h.model.problem?.message == .shared(.errorPasswordInvalid))
-        #expect(h.model.problem?.field == .password)
+        #expect(h.model.errors == [.password: .init(.shared(.errorPasswordInvalid), from: .service)])
+        #expect(h.model.problem == nil)
+        #expect(h.model.focusRequest?.field == .password)
         #expect(h.model.username == "sakura")
     }
 
@@ -328,12 +389,17 @@ struct ProviderRegistrationModelTests {
         await waitUntil { h.model.busy == .waiting(provider: "github") }
     }
 
-    @Test("asks for a username before opening a provider")
+    @Test("asks for a valid username before opening a provider, with the rules of a local account")
     func needsUsername() async {
         let h = Harness()
         h.model.continueWith("github")
-        #expect(h.model.problem == RegistrationProblem(.usernameNeededForProvider, field: .username))
+        #expect(h.model.errors == [.username: typing(.usernameNeededForProvider)])
+        #expect(h.model.focusRequest?.field == .username)
+        h.model.setField(.username, to: "_sakura")
+        h.model.continueWith("github")
+        #expect(h.model.errors == [.username: typing(.errorUsernameInvalid)])
         #expect(await h.service.starts.isEmpty)
+        #expect(h.model.busy == nil)
     }
 
     @Test("opens the provider's page, compares the state, and creates one profile")
@@ -435,7 +501,7 @@ struct ProviderRegistrationModelTests {
         await waitUntil { await h.service.waitingStart == 1 }
         await h.service.answerStart(.failure(taken))
         await h.model.settle()
-        #expect(h.model.problem?.message == .shared(.errorUsernameTaken))
+        #expect(h.model.errors[.username]?.message == .shared(.errorUsernameTaken))
         #expect(!h.model.canRepeatCompletion)
         h.model.repeatCompletion()
         #expect(await h.service.completions.count == 1)
@@ -450,7 +516,7 @@ struct ProviderRegistrationModelTests {
         await waitUntil { await h.service.waitingStart == 1 }
         await h.service.answerStart(.failure(taken))
         await h.model.settle()
-        #expect(h.model.problem?.message == .shared(.errorUsernameTaken))
+        #expect(h.model.errors[.username]?.message == .shared(.errorUsernameTaken))
         #expect(h.receiver.stops == 1)
         #expect(h.presenter.presented.isEmpty)
         #expect(h.model.username == "sakura")
