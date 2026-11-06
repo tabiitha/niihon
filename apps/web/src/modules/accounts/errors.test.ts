@@ -120,7 +120,7 @@ describe('registration failure messages', () => {
   });
 
   it('point at the field that caused the problem', () => {
-    assert.deepEqual(describeFailure(answer(409, 'accounts_username_taken')), { message: 'errorUsernameTaken', field: 'username', retry: 'new', requestId: 'req-1' });
+    assert.deepEqual(describeFailure(answer(409, 'accounts_username_taken')), { message: 'errorUsernameTaken', field: 'username', retry: 'new' });
     assert.equal(describeFailure(answer(400, 'validation_failed', ['body.password'])).field, 'password');
     assert.equal(describeFailure(answer(400, 'validation_failed', ['body.username'])).field, 'username');
     assert.equal(describeFailure(answer(400, 'validation_failed', ['body.role'])).field, undefined);
@@ -141,7 +141,6 @@ describe('interface texts of the accounts module', () => {
     for (const language of languages) {
       assert.match(accountsTexts.texts[language].successBody, /\{username\}/, language);
       assert.match(accountsTexts.texts[language].continueWithProvider, /\{provider\}/, language);
-      assert.match(accountsTexts.texts[language].errorReference, /\{requestId\}/, language);
     }
   });
 });
@@ -189,5 +188,36 @@ describe('texts of the accounts screens', () => {
     for (const removed of ['subtitle', 'providersNote']) {
       assert.equal(removed in accountsTexts.texts.en, false, `${removed} stays removed`);
     }
+  });
+});
+
+describe('what an ordinary person sees', () => {
+  it('never shows a request identifier, even when the server gave one', () => {
+    const problem = describeFailure(answer(409, 'accounts_username_taken'));
+    assert.equal('requestId' in problem, false);
+    const page = readFileSync(fileURLToPath(new URL('RegisterPage.tsx', import.meta.url)), 'utf8');
+    assert.doesNotMatch(page, /requestId/);
+  });
+
+  it('uses no technical words in any language', () => {
+    const technical: Record<string, RegExp> = {
+      en: /\b(service|server|log|request id|idempotency|key|code|http|api|localhost|provider)\b|127\.0\.0\.1/i,
+      fr: /\b(service|serveur|journal|identifiant de requête|idempotence|clé|code|http|api|localhost|fournisseur)\b|127\.0\.0\.1/i,
+      ja: /サービス|サーバー|ログ(?!イン)|参照番号|キー|コード|http|API|localhost|プロバイダー|127\.0\.0\.1/,
+    };
+    for (const language of languages) {
+      for (const [key, text] of Object.entries(accountsTexts.texts[language])) {
+        if (key === 'providerGoogle' || key === 'providerGithub') {
+          continue;
+        }
+        assert.doesNotMatch(text.replace(/\{[a-zA-Z]+\}/g, ''), technical[language] as RegExp, `${language}.${key}: ${text}`);
+      }
+    }
+  });
+
+  it('says plainly that registration is not available when the service has no registration yet', () => {
+    const problem = describeFailure(answer(404, 'not_found'));
+    assert.equal(problem.message, 'errorNotAvailable');
+    assert.equal(problem.retry, 'new', 'no immediate Try again');
   });
 });
