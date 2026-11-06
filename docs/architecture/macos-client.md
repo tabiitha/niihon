@@ -35,7 +35,7 @@ Each window checks `GET /api/health` and the API major version before showing a 
 | Checking | The check is in progress | A progress indicator (a static symbol when Reduce Motion is on) |
 | Unavailable | No HTTP answer, 503 while stopping, or 502/504 from a relay | Service not responding, the service address, Try again |
 | Incompatible | The service implements another API major version, or answers `unsupported_api_version` | Update needed, both versions when known, Try again |
-| Error | Any other answer, including a program that does not speak the contract | Error, the request identifier when available, Try again |
+| Error | Any other answer, including a program that does not speak the contract | Error, Try again (the request identifier stays in the server log and is not shown) |
 
 A check runs once when a window opens and once per retry; nothing polls. The retry cancels the pending check, a closed window cancels its own, and a late answer to a cancelled check is ignored. Requests use an ephemeral `URLSession` without cache, so nothing is written to disk, and time out after 10 seconds.
 
