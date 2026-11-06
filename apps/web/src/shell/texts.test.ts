@@ -17,9 +17,9 @@ describe('what the shell tells an ordinary person', () => {
 
   it('uses no technical words in any language', () => {
     const technical: Record<string, RegExp> = {
-      en: /\b(service|server|log|request|api|version|code|http|localhost)\b/i,
-      fr: /\b(service|serveur|journal|requête|api|version|code|http|localhost)\b/i,
-      ja: /サービス|サーバー|ログ(?!イン)|参照番号|リクエスト|API|バージョン|コード|http/,
+      en: /\b(service|server|log|request|api|version|code|http|localhost|address)\b/i,
+      fr: /\b(service|serveur|journal|requête|api|version|code|http|localhost|adresse)\b/i,
+      ja: /サービス|サーバー|ログ(?!イン)|参照番号|リクエスト|API|バージョン|コード|アドレス|http/,
     };
     for (const language of languages) {
       for (const [key, text] of Object.entries(shellTexts.texts[language])) {
