@@ -16,6 +16,14 @@ public enum RegistrationChecks {
             self.password = password
             self.confirmation = confirmation
         }
+
+        public func value(of field: RegistrationField) -> String {
+            switch field {
+            case .username: username
+            case .password: password
+            case .confirmation: confirmation
+            }
+        }
     }
 
     public static func username(_ username: String) -> AccountsText? {

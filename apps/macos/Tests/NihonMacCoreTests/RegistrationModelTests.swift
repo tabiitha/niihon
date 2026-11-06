@@ -226,6 +226,9 @@ struct LocalRegistrationModelTests {
         #expect(h.model.focusRequest?.field == .username)
         h.model.leaveField(.username)
         #expect(h.model.errors[.username]?.source == .service, "leaving does not replace the service's refusal")
+        // SwiftUI writes the unchanged value back when the field gains focus: not an edit.
+        h.model.setField(.username, to: "sakura")
+        #expect(h.model.errors[.username]?.source == .service, "an unchanged value keeps the service's refusal")
         // The passwords were cleared with the refusal: leaving them untouched checks nothing.
         h.model.leaveField(.password)
         #expect(h.model.errors[.password] == nil)

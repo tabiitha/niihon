@@ -114,6 +114,9 @@ public final class RegistrationModel {
     /// follows the typing, and so do the typing errors of the other fields (the password depends on the username,
     /// the confirmation on the password); no new error appears while typing.
     public func setField(_ field: RegistrationField, to value: String) {
+        // SwiftUI writes a field's unchanged value back when it gains focus: that is not an edit, and must neither
+        // start a new command nor replace the service's refusal shown under the field.
+        guard value != entries.value(of: field) else { return }
         key = .unset
         completion = nil
         edited.insert(field)
