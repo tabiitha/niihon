@@ -4,7 +4,7 @@ import { maxRedirectUriLength } from '../../config.ts';
 import { identifierSchema, timestampSchema } from '../../contract/conventions.ts';
 import { defineOperation } from '../../contract/operation.ts';
 import { maxPasswordLength, minPasswordLength } from './password.ts';
-import { maxUsernameLength, minUsernameLength } from './username.ts';
+import { maxUsernameLength, minUsernameLength, usernamePattern } from './username.ts';
 
 /** Raw input bounds, applied before the finer rules; the rules themselves report precise issues. */
 export const maxRawUsernameLength = 256;
@@ -14,7 +14,31 @@ export const maxStateLength = 128;
 /** Registration bodies are small: a username, a password, or one provider return. */
 export const maxRegistrationBodyBytes = 8 * 1024;
 
+/**
+ * The rules the server applies after normalization, in a machine-readable form (`x-nihon-rules`), so that a
+ * client can help with typing using exactly the server's rules; the server still decides. Lengths count Unicode
+ * code points of the NFKC form; `trim` removes surrounding white space first; `pattern` is a regular expression
+ * with the Unicode flag; `differentFromUsername` compares the lowercase NFKC forms.
+ */
+export const usernameRules = {
+  normalization: 'NFKC',
+  trim: true,
+  minLength: minUsernameLength,
+  maxLength: maxUsernameLength,
+  pattern: usernamePattern.source,
+} as const;
+
+export const passwordRules = {
+  normalization: 'NFKC',
+  minLength: minPasswordLength,
+  maxLength: maxPasswordLength,
+  notBlank: true,
+  noControlCharacters: true,
+  differentFromUsername: true,
+} as const;
+
 export const usernameField = z.string().min(1).max(maxRawUsernameLength).meta({
+  'x-nihon-rules': usernameRules,
   description: `Account name, ${minUsernameLength} to ${maxUsernameLength} characters after Unicode NFKC normalization: letters of any script, digits, \`_\`, \`-\`, \`.\`, starting with a letter or digit. Two names that normalize to the same lowercase form are the same name.`,
   examples: ['sakura_42'],
 });
@@ -44,6 +68,7 @@ export const localRegistrationSchema = z
   .strictObject({
     username: usernameField,
     password: z.string().min(1).max(maxRawPasswordLength).meta({
+      'x-nihon-rules': passwordRules,
       description: `Local password, ${minPasswordLength} to ${maxPasswordLength} characters after Unicode NFKC normalization, no control characters, different from the username. Hashed with Argon2id; never stored or returned as given.`,
     }),
   })

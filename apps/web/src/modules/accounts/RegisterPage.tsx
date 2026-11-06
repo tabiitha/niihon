@@ -8,7 +8,7 @@ import { Link, useRouter } from '../../router/Router.tsx';
 import { routes } from '../../router/routes.ts';
 import { ArrowIcon, EyeIcon, EyeOffIcon } from '../../shell/icons.tsx';
 import { Page } from '../../shell/Page.tsx';
-import { hintFor, type FormField, type Problem } from './errors.ts';
+import type { FormField, Problem } from './errors.ts';
 import { createRegistrationForm, viewOfFinish, type ReturnView } from './form.ts';
 import {
   createPendingStore,
@@ -39,11 +39,15 @@ export function RegisterPage() {
   return answer === undefined ? <RegistrationForm /> : <ProviderReturn answer={answer} />;
 }
 
-function ProblemMessage({ problem, id, notice }: { readonly problem: Problem; readonly id?: string; readonly notice: Ref<HTMLParagraphElement> }) {
+/**
+ * A problem that belongs to no field, above the form. Focus moves to it when it appears, which reads it once; it is
+ * not a live region as well, so that it is not announced twice.
+ */
+function ProblemMessage({ problem, notice }: { readonly problem: Problem; readonly notice: Ref<HTMLParagraphElement> }) {
   const t = useTexts(accountsTexts);
   return (
-    <p id={id} ref={notice} tabIndex={-1} className="form-problem" role="alert">
-      <span>{t(problem.message)}</span>
+    <p ref={notice} tabIndex={-1} className="form-problem">
+      {t(problem.message)}
     </p>
   );
 }
@@ -58,7 +62,7 @@ function RegistrationForm() {
       openProvider: (address) => window.location.assign(address),
     }),
   );
-  const { username, password, confirmation, busy, problem, profile } = useSyncExternalStore(form.subscribe, form.getState);
+  const { username, password, confirmation, busy, errors, problem, focus, profile } = useSyncExternalStore(form.subscribe, form.getState);
   const [providers] = useResource('oauth-providers', (signal) => loadProviders(apiClient, signal));
   const [reveal, setReveal] = useState({ password: false, confirmation: false });
   const inputs = {
@@ -67,7 +71,7 @@ function RegistrationForm() {
     confirmation: useRef<HTMLInputElement>(null),
   } satisfies Record<FormField, unknown>;
   const notice = useRef<HTMLParagraphElement>(null);
-  const ids = { username: useId(), password: useId(), confirmation: useId(), problem: useId(), providers: useId() };
+  const ids = { username: useId(), password: useId(), confirmation: useId(), providers: useId() };
 
   // Leaving the page cancels what is pending; the late answer is ignored.
   useEffect(() => form.connect(), [form]);
@@ -83,14 +87,18 @@ function RegistrationForm() {
     return () => window.removeEventListener('pageshow', restored);
   }, [form]);
 
-  // After a failure, focus goes to the field that caused it, or else to the message itself.
+  // A field error moves focus to its field, whose error is then read with it; a problem of no field, to itself.
   useEffect(() => {
-    if (problem?.field !== undefined) {
-      inputs[problem.field].current?.focus();
-    } else if (problem !== undefined) {
+    if (focus !== undefined) {
+      inputs[focus.field].current?.focus();
+    }
+    // The refs are stable; focus follows each request.
+  }, [focus]);
+
+  useEffect(() => {
+    if (problem !== undefined) {
       notice.current?.focus();
     }
-    // The refs are stable; focus follows each new problem.
   }, [problem]);
 
   useEffect(() => {
@@ -115,13 +123,19 @@ function RegistrationForm() {
     );
   }
 
-  // The message of the faulty field, then its help (shown only after a refusal of that field).
-  const hintIds = { username: `${ids.username}-hint`, password: `${ids.password}-hint` };
-  const hintKey = (field: FormField) => hintFor(problem, field);
-  const describedBy = (field: FormField) =>
-    [problem?.field === field ? ids.problem : undefined, hintKey(field) === undefined ? undefined : hintIds[field as 'username' | 'password']]
-      .filter((id) => id !== undefined)
-      .join(' ') || undefined;
+  // One message under a faulty field, in the error color, linked to it: read when the field gets focus. It is not
+  // a live region, so a screen reader announces it once, with the field (on submit, focus moves there).
+  const errorId = (field: FormField) => `${ids[field]}-error`;
+  const fieldError = (field: FormField) => {
+    const error = errors[field];
+    return error === undefined ? null : (
+      <p id={errorId(field)} className="field-error">
+        {t(error.message)}
+      </p>
+    );
+  };
+  const invalid = (field: FormField) =>
+    errors[field] === undefined ? {} : { 'aria-invalid': true as const, 'aria-describedby': errorId(field) };
   const offered = providers.status === 'ready' ? providers.data : [];
 
   return (
@@ -134,7 +148,7 @@ function RegistrationForm() {
         }}
         aria-busy={busy === 'local'}
       >
-        {problem !== undefined && <ProblemMessage problem={problem} id={ids.problem} notice={notice} />}
+        {problem !== undefined && <ProblemMessage problem={problem} notice={notice} />}
         <div className="auth-field">
           <label htmlFor={ids.username}>{t('usernameLabel')}</label>
           <input
@@ -147,15 +161,11 @@ function RegistrationForm() {
             spellCheck={false}
             required
             value={username}
-            aria-invalid={problem?.field === 'username' ? true : undefined}
-            aria-describedby={describedBy('username')}
+            {...invalid('username')}
             onChange={(event) => form.setField('username', event.target.value)}
+            onBlur={() => form.leaveField('username')}
           />
-          {hintKey('username') !== undefined && (
-            <span id={hintIds.username} className="field-hint">
-              {t('usernameHint')}
-            </span>
-          )}
+          {fieldError('username')}
         </div>
         {(
           [
@@ -176,9 +186,9 @@ function RegistrationForm() {
                 spellCheck={false}
                 required
                 value={value}
-                aria-invalid={problem?.field === field ? true : undefined}
-                aria-describedby={describedBy(field)}
+                {...invalid(field)}
                 onChange={(event) => form.setField(field, event.target.value)}
+                onBlur={() => form.leaveField(field)}
               />
               <button
                 type="button"
@@ -189,11 +199,7 @@ function RegistrationForm() {
                 {reveal[field] ? <EyeOffIcon /> : <EyeIcon />}
               </button>
             </div>
-            {field === 'password' && hintKey('password') !== undefined && (
-              <span id={hintIds.password} className="field-hint">
-                {t('passwordHint')}
-              </span>
-            )}
+            {fieldError(field)}
           </div>
         ))}
         <button type="submit" className="button-primary button-block" disabled={busy !== undefined}>
