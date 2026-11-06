@@ -1,10 +1,8 @@
 {
-  "incompatibleTitle": "Nihon の更新が必要です",
-  "incompatibleBody": "このアプリは別のバージョンの Nihon サービス向けに作られています。アプリまたはサービスを更新してバージョンを合わせてから、もう一度お試しください。",
-  "incompatibleVersions": "サービスの API バージョンは {serverVersion}、このアプリが必要とするバージョンは {clientVersion} です。",
-  "serviceAddress": "サービスのアドレス：{address}",
-  "addressTitle": "このサービスのアドレスは使用できません",
-  "addressBody": "Nihon はこのコンピューター上のサービスにのみ接続します。NihonServiceURL の設定を削除するか、http://127.0.0.1:4000 のようなループバックアドレスを指定してください。",
+  "incompatibleTitle": "Nihonの更新が必要です",
+  "incompatibleBody": "Nihonを更新してから、もう一度お試しください。",
+  "addressTitle": "この設定ではNihonを開けません",
+  "addressBody": "このMacに追加された設定のため、Nihonを開けません。その設定を削除してから、Nihonをもう一度開いてください。",
   "goMenu": "移動",
   "retryConnection": "接続を再試行"
 }

@@ -44,7 +44,6 @@ function ProblemMessage({ problem, id, notice }: { readonly problem: Problem; re
   return (
     <p id={id} ref={notice} tabIndex={-1} className="form-problem" role="alert">
       <span>{t(problem.message)}</span>
-      {problem.requestId !== undefined && <span className="status-detail">{t('errorReference', { requestId: problem.requestId })}</span>}
     </p>
   );
 }

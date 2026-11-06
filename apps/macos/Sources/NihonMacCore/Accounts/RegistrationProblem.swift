@@ -10,7 +10,7 @@ public enum RegistrationFailure: Error, Equatable, Sendable {
     /// The service implements another API major version than this client.
     case incompatible
     /// Any other error answer. `fields` are the paths of the invalid inputs of a `validation_failed` answer,
-    /// such as `body.password`; `requestID` locates the answer in the service log.
+    /// such as `body.password`; `requestID` locates the answer in the service log and is never shown.
     case error(status: Int?, code: String?, requestID: String?, fields: [String])
 
     /// Classifies an error answer. A 502 or 503 that carries a code the registration explains is the
@@ -78,17 +78,14 @@ public struct RegistrationProblem: Equatable, Sendable {
     public let message: RegistrationMessage
     public let field: RegistrationField?
     public let retry: RegistrationRetry?
-    /// Request identifier of the service log, shown when the service gave one.
-    public let requestID: String?
 
     public init(
         _ message: RegistrationMessage, field: RegistrationField? = nil,
-        retry: RegistrationRetry? = nil, requestID: String? = nil
+        retry: RegistrationRetry? = nil
     ) {
         self.message = message
         self.field = field
         self.retry = retry
-        self.requestID = requestID
     }
 
     public init(_ message: AccountsText, field: RegistrationField? = nil, retry: RegistrationRetry? = nil) {
@@ -130,29 +127,32 @@ public struct RegistrationProblem: Equatable, Sendable {
         "unsupported_media_type": .init(.errorRequestInvalid),
         "database_busy": .init(.errorBusy, retry: .same),
         "internal_error": .init(.errorGeneric, retry: .same),
+        // The service answers but has no registration yet (an older Nihon): nothing to retry right away.
+        "not_found": .init(.errorNotAvailable, retry: .new),
     ]
 
-    /// Chooses the message of a failed registration request. Never shows the service's English text.
+    /// Chooses the message of a failed registration request. Never shows the service's English text, its request
+    /// identifier, or any other technical detail: the screen is for people, not for developers.
     public static func describe(_ failure: RegistrationFailure) -> RegistrationProblem {
         switch failure {
         case .unavailable:
             return .init(.errorUnavailable, retry: .same)
         case .incompatible:
             return .init(.native(.errorIncompatible), retry: .new)
-        case .error(let status, let code, let requestID, let fields):
+        case .error(let status, let code, _, let fields):
             if code == "validation_failed" {
                 if fields.contains("body.password") {
-                    return .init(.shared(.errorPasswordInvalid), field: .password, retry: .new, requestID: requestID)
+                    return .init(.shared(.errorPasswordInvalid), field: .password, retry: .new)
                 }
                 if fields.contains("body.username") {
-                    return .init(.shared(.errorUsernameInvalid), field: .username, retry: .new, requestID: requestID)
+                    return .init(.shared(.errorUsernameInvalid), field: .username, retry: .new)
                 }
-                return .init(.shared(.errorRequestInvalid), retry: .new, requestID: requestID)
+                return .init(.shared(.errorRequestInvalid), retry: .new)
             }
             // A service failure that no code explains leaves it open whether the profile was created.
             let unexplained = RegistrationProblem(.errorGeneric, retry: (status ?? 500) >= 500 ? .same : .new)
             let known = code.flatMap { byCode[$0] } ?? unexplained
-            return .init(known.message, field: known.field, retry: known.retry ?? .new, requestID: requestID)
+            return .init(known.message, field: known.field, retry: known.retry ?? .new)
         }
     }
 }

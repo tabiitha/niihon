@@ -17,7 +17,7 @@ struct LocalizationTests {
     func placeholders() {
         #expect(formatText("{page} · Nihon", ["page": "Kanji"]) == "Kanji · Nihon")
         #expect(formatText("{a} and {b}", ["a": "1"]) == "1 and {b}")
-        #expect(Language.fr.text(ShellText.errorReference, ["requestId": "abc"]).hasSuffix("abc"))
+        #expect(Language.fr.text(ShellText.documentTitle, ["page": "Kanji"]) == "Kanji · Nihon")
     }
 
     @Test("every module has a non-empty text for every key in every language", arguments: [

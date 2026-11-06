@@ -214,7 +214,6 @@ struct LocalRegistrationModelTests {
         await h.model.settle()
         #expect(h.model.problem?.message == .shared(.errorUsernameTaken))
         #expect(h.model.problem?.field == .username)
-        #expect(h.model.problem?.requestID == "req-9")
         #expect(h.model.username == "sakura")
         #expect(h.model.password.isEmpty && h.model.confirmation.isEmpty)
         #expect(h.model.profile == nil)

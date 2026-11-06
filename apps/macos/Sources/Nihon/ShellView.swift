@@ -71,13 +71,13 @@ struct ShellView: View {
                 SpacePage(space: space, language: language, select: { selection = $0 }, register: { openRegistration() })
             }
         case .checking:
-            StatusView(status: .checking, language: language, address: connection.address, retry: nil)
+            StatusView(status: .checking, language: language, retry: nil)
         case .failed(let failure):
-            StatusView(status: .failed(failure), language: language, address: connection.address) {
+            StatusView(status: .failed(failure), language: language) {
                 connection.retry()
             }
         case .invalidAddress:
-            StatusView(status: .invalidAddress, language: language, address: connection.address, retry: nil)
+            StatusView(status: .invalidAddress, language: language, retry: nil)
         }
     }
 
