@@ -1,8 +1,12 @@
 import Foundation
 import Observation
 
-/// The state of one registration form, apart from SwiftUI so that its rules can be tested. It carries what the
-/// person typed to the service and shows the service's answer; it decides nothing about validity. It guarantees:
+/// The state of one registration form, apart from SwiftUI so that its rules can be tested. It checks what is typed
+/// with the server's rules (`RegistrationChecks`) to help before sending: a field is checked when it is left after
+/// an edit and on submit; once it shows an error, the error follows the typing; a submit with an error sends
+/// nothing and moves focus to the first faulty field. The service still decides: its refusal of a field is shown
+/// under that field the same way and stays until that field is edited; a problem of no field is shown above the
+/// form. The same semantics as the Web client's `form.ts`. It also guarantees:
 /// one request at a time (a second submit is dropped synchronously), the username kept after any failure, the
 /// passwords cleared after a definite refusal or a success and kept after an uncertain outcome, one idempotency
 /// key per command (reused only while the inputs are unchanged), no secret outside memory, and no state change
@@ -22,11 +26,35 @@ public final class RegistrationModel {
     public private(set) var password = ""
     public private(set) var confirmation = ""
     public private(set) var busy: Busy?
+    /// The message under each faulty field.
+    public private(set) var errors: [RegistrationField: FieldError] = [:]
+    /// A problem that belongs to no field, shown above the form.
     public private(set) var problem: RegistrationProblem?
+    /// The field to move focus to; `count` changes with every request, even for the same field.
+    public private(set) var focusRequest: FocusRequest?
     /// The created profile, once the registration is done.
     public private(set) var profile: RegisteredProfile?
     /// The providers this installation offers, once known.
     public private(set) var providers: [String] = []
+
+    /// The message under one field, and where it comes from: the check while typing, or the service's refusal.
+    public struct FieldError: Equatable, Sendable {
+        public enum Source: Equatable, Sendable { case typing, service }
+        public let message: RegistrationMessage
+        public let source: Source
+
+        public init(_ message: RegistrationMessage, from source: Source) {
+            self.message = message
+            self.source = source
+        }
+    }
+
+    public struct FocusRequest: Equatable, Sendable {
+        public let field: RegistrationField
+        public let count: Int
+    }
+
+    private static let fieldOrder: [RegistrationField] = [.username, .password, .confirmation]
 
     /// Whether the last provider completion can be repeated with the same code and key.
     public var canRepeatCompletion: Bool { completion != nil && busy == nil && problem != nil }
@@ -60,6 +88,9 @@ public final class RegistrationModel {
     /// Why the wait for the provider was stopped by the person, when it was.
     private enum Stop { case windowClosed, cancelled }
     private var stop: Stop?
+    /// Fields edited since the form opened: leaving an untouched field checks nothing.
+    private var edited: Set<RegistrationField> = []
+    private var focusCount = 0
 
     public init(
         client: any AccountRegistering,
@@ -75,15 +106,49 @@ public final class RegistrationModel {
         self.newKey = newKey
     }
 
-    /// Edits a field. Any edit makes the next attempt a new command.
+    private var entries: RegistrationChecks.Entries {
+        .init(username: username, password: password, confirmation: confirmation)
+    }
+
+    /// Edits a field. Any edit makes the next attempt a new command. An error already shown under this field
+    /// follows the typing, and so do the typing errors of the other fields (the password depends on the username,
+    /// the confirmation on the password); no new error appears while typing.
     public func setField(_ field: RegistrationField, to value: String) {
         key = .unset
         completion = nil
+        edited.insert(field)
         switch field {
         case .username: username = value
         case .password: password = value
         case .confirmation: confirmation = value
         }
+        var errors = errors
+        for other in Self.fieldOrder {
+            if let shown = errors[other], other == field || shown.source == .typing {
+                errors[other] = check(other)
+            }
+        }
+        if errors != self.errors {
+            self.errors = errors
+        }
+    }
+
+    /// The person left a field: it is checked if it was edited, unless the service's refusal of it is shown.
+    public func leaveField(_ field: RegistrationField) {
+        guard edited.contains(field), errors[field]?.source != .service else { return }
+        let error = check(field)
+        if errors[field] != error {
+            errors[field] = error
+        }
+    }
+
+    private func check(_ field: RegistrationField) -> FieldError? {
+        RegistrationChecks.check(field, entries).map { FieldError(.shared($0), from: .typing) }
+    }
+
+    private func focus(on field: RegistrationField) {
+        focusCount += 1
+        focusRequest = FocusRequest(field: field, count: focusCount)
     }
 
     /// Waits for what the model has started; tests and previews use it, the views do not need it.
@@ -117,16 +182,17 @@ public final class RegistrationModel {
 
     public func submit() {
         guard !sending else { return }
-        if username.trimmingCharacters(in: .whitespaces).isEmpty {
-            return fail(.init(.usernameRequired, field: .username))
+        var errors: [RegistrationField: FieldError] = [:]
+        for field in Self.fieldOrder {
+            errors[field] = check(field)
         }
-        if password.isEmpty {
-            return fail(.init(.passwordRequired, field: .password))
-        }
-        if password != confirmation {
-            return fail(.init(.passwordsDiffer, field: .confirmation))
+        if let first = Self.fieldOrder.first(where: { errors[$0] != nil }) {
+            self.errors = errors
+            problem = nil
+            return focus(on: first)
         }
         let generation = begin(.local)
+        self.errors = [:]
         let sentKey: String?
         switch key {
         case .unset:
@@ -159,15 +225,16 @@ public final class RegistrationModel {
             profile = created
         case .failure(let failure):
             let problem = RegistrationProblem.describe(failure)
-            self.problem = problem
             if problem.retry == .new {
                 // A definite refusal: the username stays, the secrets are typed again.
                 key = .unset
                 password = ""
                 confirmation = ""
+                edited.subtract([.password, .confirmation])
             } else if problem.retry == .withoutKey {
                 key = .omit
             }
+            show(problem)
         }
     }
 
@@ -177,8 +244,12 @@ public final class RegistrationModel {
     /// authentication window, and the answer comes back to this Mac.
     public func continueWith(_ provider: String) {
         guard !sending else { return }
-        if username.trimmingCharacters(in: .whitespaces).isEmpty {
-            return fail(.init(.usernameNeededForProvider, field: .username))
+        // The same rules as a local account: the name is checked before the provider's page opens.
+        if let invalid = RegistrationChecks.username(username) {
+            let message: AccountsText = invalid == .usernameRequired ? .usernameNeededForProvider : invalid
+            errors[.username] = FieldError(.shared(message), from: .typing)
+            problem = nil
+            return focus(on: .username)
         }
         let generation = begin(.starting(provider: provider))
         // A new attempt leaves nothing of a previous one: its code can no longer be repeated.
@@ -275,7 +346,7 @@ public final class RegistrationModel {
                 profile = created
             case .failure(let failure):
                 let problem = RegistrationProblem.describe(failure)
-                self.problem = problem
+                show(problem)
                 switch problem.retry ?? .new {
                 case .new: completion = nil
                 case .same: break
@@ -307,13 +378,20 @@ public final class RegistrationModel {
         busy = nil
     }
 
-    private func fail(_ problem: RegistrationProblem) {
-        self.problem = problem
+    /// Shows a problem: under its field when it has one, otherwise above the form.
+    private func show(_ problem: RegistrationProblem) {
+        if let field = problem.field {
+            self.problem = nil
+            errors[field] = FieldError(problem.message, from: .service)
+            focus(on: field)
+        } else {
+            self.problem = problem
+        }
     }
 
     private func fail(_ problem: RegistrationProblem, generation: Int) {
         guard generation == self.generation else { return }
-        self.problem = problem
+        show(problem)
         end()
     }
 
