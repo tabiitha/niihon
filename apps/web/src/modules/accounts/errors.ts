@@ -51,7 +51,6 @@ export const messageByCode: Readonly<Record<string, Problem>> = {
   not_found: { message: 'errorNotAvailable', retry: 'new' },
 };
 
-/** The codes `messageByCode` explains: their 502 and 503 answers come from the server, not from a relay. */
 /**
  * The help a field shows, and only after the server refused what was typed in that very field: the rule is
  * written under the refusal, never beside an empty or accepted field, and never for a name that is merely
@@ -70,6 +69,7 @@ export function hintFor(problem: Problem | undefined, field: FormField): TextKey
   return undefined;
 }
 
+/** The codes `messageByCode` explains: their 502 and 503 answers come from the server, not from a relay. */
 export const explainedCodes: ReadonlySet<string> = new Set(Object.keys(messageByCode));
 
 /**

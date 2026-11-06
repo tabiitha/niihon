@@ -201,9 +201,9 @@ describe('what an ordinary person sees', () => {
 
   it('uses no technical words in any language', () => {
     const technical: Record<string, RegExp> = {
-      en: /\b(service|server|log|request id|idempotency|key|code|http|api|localhost|provider)\b|127\.0\.0\.1/i,
-      fr: /\b(service|serveur|journal|identifiant de requête|idempotence|clé|code|http|api|localhost|fournisseur)\b|127\.0\.0\.1/i,
-      ja: /サービス|サーバー|ログ(?!イン)|参照番号|キー|コード|http|API|localhost|プロバイダー|127\.0\.0\.1/,
+      en: /\b(service|server|log|request id|idempotency|key|code|http|api|localhost|provider|address|request|version)\b|127\.0\.0\.1/i,
+      fr: /\b(service|serveur|journal|identifiant de requête|idempotence|clé|code|http|api|localhost|fournisseur|adresse|requête|version)\b|127\.0\.0\.1/i,
+      ja: /サービス|サーバー|ログ(?!イン)|参照番号|キー|コード|http|API|localhost|プロバイダー|アドレス|リクエスト|バージョン|127\.0\.0\.1/,
     };
     for (const language of languages) {
       for (const [key, text] of Object.entries(accountsTexts.texts[language])) {
