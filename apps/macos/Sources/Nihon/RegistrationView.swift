@@ -94,18 +94,9 @@ struct RegistrationView: View {
 
     private func problemBox(_ problem: RegistrationProblem) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            // The message and its reference are read as one; the button stays an element of its own.
-            VStack(alignment: .leading, spacing: 6) {
-                Text(problem.message.text(language)).fontWeight(.medium)
-                if let requestID = problem.requestID {
-                    Text(language.text(AccountsText.errorReference, ["requestId": requestID]))
-                        .font(.callout)
-                        .foregroundStyle(palette[.textMuted])
-                        .textSelection(.enabled)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .accessibilityElement(children: .combine)
+            Text(problem.message.text(language))
+                .fontWeight(.medium)
+                .frame(maxWidth: .infinity, alignment: .leading)
             if model.canRepeatCompletion {
                 Button(language.text(AccountsText.tryAgain)) { model.repeatCompletion() }
                     .buttonStyle(SecondaryButtonStyle())

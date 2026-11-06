@@ -1,9 +1,9 @@
-import NihonAPIClient
 import NihonMacCore
 import SwiftUI
 
 /// Shows why the page is missing: the check in progress, an unusable service with a retry action, or an
-/// address setting that is not allowed.
+/// address setting that is not allowed. It says it in plain words only: no address, version, code, or request
+/// identifier, which stay in the logs.
 struct StatusView: View {
     enum Status {
         case checking
@@ -13,7 +13,6 @@ struct StatusView: View {
 
     let status: Status
     let language: Language
-    let address: String
     let retry: (() -> Void)?
 
     @Environment(\.palette) private var palette
@@ -35,7 +34,6 @@ struct StatusView: View {
             case .invalidAddress:
                 heading(language.text(MacShellText.addressTitle), systemImage: "exclamationmark.triangle")
                 Text(language.text(MacShellText.addressBody)).foregroundStyle(palette[.text])
-                detail(language.text(MacShellText.serviceAddress, ["address": address]))
             }
         }
         .multilineTextAlignment(.center)
@@ -50,16 +48,9 @@ struct StatusView: View {
         case .unavailable:
             heading(Self.title(of: failure, language: language), systemImage: "bolt.horizontal.circle")
             Text(language.text(ShellText.unavailableBody)).foregroundStyle(palette[.text])
-            detail(language.text(MacShellText.serviceAddress, ["address": address]))
-        case .incompatible(let serverAPIVersion):
+        case .incompatible:
             heading(Self.title(of: failure, language: language), systemImage: "arrow.triangle.2.circlepath")
             Text(language.text(MacShellText.incompatibleBody)).foregroundStyle(palette[.text])
-            if let serverAPIVersion {
-                detail(language.text(MacShellText.incompatibleVersions, [
-                    "serverVersion": serverAPIVersion,
-                    "clientVersion": NihonAPIVersion.version,
-                ]))
-            }
         case .error:
             heading(Self.title(of: failure, language: language), systemImage: "exclamationmark.circle")
             Text(language.text(ShellText.errorBody)).foregroundStyle(palette[.text])
@@ -83,10 +74,6 @@ struct StatusView: View {
                 .foregroundStyle(palette[.text])
                 .accessibilityAddTraits(.isHeader)
         }
-    }
-
-    private func detail(_ text: String) -> some View {
-        Text(text).font(.callout).foregroundStyle(palette[.textMuted])
     }
 
     static func title(of failure: ServiceFailure, language: Language) -> String {

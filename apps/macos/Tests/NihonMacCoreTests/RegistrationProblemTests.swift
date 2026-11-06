@@ -116,7 +116,7 @@ struct RegistrationProblemTests {
     @Test("point at the field that caused the problem")
     func field() {
         #expect(RegistrationProblem.describe(answer(409, "accounts_username_taken"))
-            == RegistrationProblem(.shared(.errorUsernameTaken), field: .username, retry: .new, requestID: "req-1"))
+            == RegistrationProblem(.shared(.errorUsernameTaken), field: .username, retry: .new))
         #expect(RegistrationProblem.describe(answer(400, "validation_failed", fields: ["body.password"])).field == .password)
         #expect(RegistrationProblem.describe(answer(400, "validation_failed", fields: ["body.username"])).field == .username)
         #expect(RegistrationProblem.describe(answer(400, "validation_failed", fields: ["body.role"])).field == nil)
@@ -173,7 +173,6 @@ struct RegistrationProblemTests {
         for language in Language.allCases {
             #expect(language.text(AccountsText.successBody, ["username": "UNAME"]).contains("UNAME"), "\(language)")
             #expect(language.text(AccountsText.continueWithProvider, ["provider": "PROV"]).contains("PROV"), "\(language)")
-            #expect(language.text(AccountsText.errorReference, ["requestId": "REQ"]).contains("REQ"), "\(language)")
             #expect(language.text(MacAccountsText.waitingForProvider, ["provider": "PROV"]).contains("PROV"), "\(language)")
         }
     }
