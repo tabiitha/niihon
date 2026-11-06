@@ -93,6 +93,62 @@ struct LiveRegistrationTests {
         #expect(stopped == .failure(.unavailable))
     }
 
+    /// The cases of the Web client's agreement test (apps/web/test/unit/registration.test.ts). Each accepted name
+    /// is new, so that the service's answer depends only on the rules.
+    private static let passphrase = "a long enough passphrase"
+    private static let agreementCases: [(username: String, password: String)] = [
+        ("", passphrase), ("   ", passphrase), ("ab", passphrase), (String(repeating: "a", count: 33), passphrase),
+        ("agree_" + String(repeating: "x", count: 26), passphrase), ("_agree", passphrase), (".agree", passphrase),
+        ("ag ree", passphrase), ("ag/ree", passphrase), ("😀😀😀", passphrase),
+        (String(repeating: " ", count: 260) + "agreeraw", passphrase), ("  agreetrim  ", passphrase),
+        ("Ａｇｒｅｅ２", passphrase), ("さくら合意", passphrase), ("1agree", passphrase), ("agrée", passphrase),
+        ("agree\u{301}d", passphrase), ("ag\u{200D}ree", passphrase), ("ag_\u{301}ree", passphrase), ("agree\u{FEFF}bom", passphrase), ("\u{FEFF}agreebom2\u{FEFF}", passphrase),
+        ("agree3", ""), ("agree4", "1234567"), ("agree5", "12345678"), ("agree6", String(repeating: "x", count: 128)),
+        ("agree7", String(repeating: "x", count: 129)), ("agree8", String(repeating: "x", count: 513)),
+        ("agree9", String(repeating: " ", count: 8)), ("agree10", "abcd\u{7}efgh"), ("Agree_eleven", "AGREE_ELEVEN"),
+        ("agreefull", "ＡＧＲＥＥＦＵＬＬ"), ("agree12", "パスワードです本当"), ("agree13", "\u{85}\u{85}\u{85}\u{85}\u{85}\u{85}\u{85}\u{85}"),
+    ]
+
+    @Test("the typing checks accept and refuse the same local registrations as the service, on the same field")
+    func agreement() async throws {
+        let fixture = try await AccountsFixture.start()
+        defer { fixture.stop() }
+        let client = AccountRegistrationClient(serviceURL: fixture.url)
+        for (username, password) in Self.agreementCases {
+            let local: RegistrationField? = RegistrationChecks.username(username) != nil
+                ? .username
+                : RegistrationChecks.password(password, username: username) != nil ? .password : nil
+            let answer = try await client.registerLocal(username: username, password: password, idempotencyKey: nil)
+            let service: RegistrationField?
+            switch answer {
+            case .success: service = nil
+            case .failure(let failure):
+                let problem = RegistrationProblem.describe(failure)
+                service = try #require(problem.field, "\(username.debugDescription): \(problem)")
+            }
+            #expect(local == service, "\(username.debugDescription) / \(password.debugDescription)")
+        }
+    }
+
+    @Test("the typing checks accept and refuse the same usernames as the service for a provider registration")
+    func providerAgreement() async throws {
+        let fixture = try await AccountsFixture.start()
+        defer { fixture.stop() }
+        let client = AccountRegistrationClient(serviceURL: fixture.url)
+        let names = ["ab", "_oauth", "oauth agree", String(repeating: " ", count: 260) + "oauthraw", "oauth_agree", "Ｏａｕｔｈ２", "さくら連携"]
+        for username in names {
+            let answer = try await client.startProvider(
+                "github", username: username, returnAddress: "http://127.0.0.1:9/oauth/callback"
+            )
+            let service: RegistrationField?
+            switch answer {
+            case .success: service = nil
+            case .failure(let failure): service = RegistrationProblem.describe(failure).field
+            }
+            #expect((RegistrationChecks.username(username) == nil ? nil : RegistrationField.username) == service, "\(username.debugDescription)")
+        }
+    }
+
     @Test("lists the providers, and keeps the form usable when they cannot be read")
     func providers() async throws {
         let fixture = try await AccountsFixture.start()
