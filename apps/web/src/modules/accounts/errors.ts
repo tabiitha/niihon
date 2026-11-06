@@ -21,8 +21,6 @@ export interface Problem {
   readonly message: TextKey;
   readonly field?: FormField;
   readonly retry?: Retry;
-  /** Request identifier of the server log, shown when the server gave one. */
-  readonly requestId?: string;
 }
 
 /**
@@ -49,6 +47,8 @@ export const messageByCode: Readonly<Record<string, Problem>> = {
   unsupported_media_type: { message: 'errorRequestInvalid' },
   database_busy: { message: 'errorBusy', retry: 'same' },
   internal_error: { message: 'errorGeneric', retry: 'same' },
+  // The service answers but has no registration route (an older Nihon): nothing to retry right away.
+  not_found: { message: 'errorNotAvailable', retry: 'new' },
 };
 
 /** The codes `messageByCode` explains: their 502 and 503 answers come from the server, not from a relay. */
@@ -72,7 +72,10 @@ export function hintFor(problem: Problem | undefined, field: FormField): TextKey
 
 export const explainedCodes: ReadonlySet<string> = new Set(Object.keys(messageByCode));
 
-/** Chooses the message of a failed registration request. Never shows the server's English text. */
+/**
+ * Chooses the message of a failed registration request. Never shows the server's English text, its request
+ * identifier, or any other technical detail: the screen is for people, not for developers.
+ */
 export function describeFailure(failure: Failure): Problem {
   if (failure.kind === 'unavailable') {
     return { message: 'errorUnavailable', retry: 'same' };
@@ -80,20 +83,19 @@ export function describeFailure(failure: Failure): Problem {
   if (failure.kind === 'incompatible') {
     return { message: 'errorIncompatible', retry: 'new' };
   }
-  const requestId = failure.requestId === undefined ? {} : { requestId: failure.requestId };
   if (failure.code === 'validation_failed') {
     const fields = failure.fields ?? [];
     if (fields.includes('body.password')) {
-      return { message: 'errorPasswordInvalid', field: 'password', retry: 'new', ...requestId };
+      return { message: 'errorPasswordInvalid', field: 'password', retry: 'new' };
     }
     if (fields.includes('body.username')) {
-      return { message: 'errorUsernameInvalid', field: 'username', retry: 'new', ...requestId };
+      return { message: 'errorUsernameInvalid', field: 'username', retry: 'new' };
     }
-    return { message: 'errorRequestInvalid', retry: 'new', ...requestId };
+    return { message: 'errorRequestInvalid', retry: 'new' };
   }
   const known = failure.code === undefined ? undefined : messageByCode[failure.code];
   // A server failure that no code explains leaves it open whether the profile was created.
   const unexplained: Problem = { message: 'errorGeneric', retry: failure.status === undefined || failure.status >= 500 ? 'same' : 'new' };
   const problem = known ?? unexplained;
-  return { ...problem, retry: problem.retry ?? 'new', ...requestId };
+  return { ...problem, retry: problem.retry ?? 'new' };
 }

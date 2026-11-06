@@ -17,10 +17,8 @@ public enum ShellText: String, TextKey {
     case unavailableBody
     case incompatibleTitle
     case incompatibleBody
-    case incompatibleVersions
     case errorTitle
     case errorBody
-    case errorReference
     case retry
     case notFoundTitle
     case notFoundBody
@@ -40,18 +38,16 @@ public enum ShellText: String, TextKey {
             .navLibrary: "Library",
             .navProfile: "Profile",
             .navAdmin: "Administration",
-            .loading: "Connecting to the Nihon service…",
-            .unavailableTitle: "The Nihon service is not responding",
-            .unavailableBody: "Check that Nihon is running on this computer, then try again.",
-            .incompatibleTitle: "This page needs an update",
-            .incompatibleBody: "This page was built for another version of the Nihon service. Reload the page; if the message remains, update Nihon.",
-            .incompatibleVersions: "Service API version {serverVersion}; this page expects version {clientVersion}.",
+            .loading: "Loading…",
+            .unavailableTitle: "Nihon is not responding",
+            .unavailableBody: "Check that Nihon is running, then try again.",
+            .incompatibleTitle: "Nihon needs an update",
+            .incompatibleBody: "Reload the page. If this message stays, update Nihon.",
             .errorTitle: "Something went wrong",
-            .errorBody: "The Nihon service could not complete the request.",
-            .errorReference: "Reference for the service log: {requestId}",
+            .errorBody: "Nihon could not finish this. Try again.",
             .retry: "Try again",
             .notFoundTitle: "Page not found",
-            .notFoundBody: "No page of Nihon has this address.",
+            .notFoundBody: "This page does not exist.",
             .backHome: "Back to home",
         ],
         .fr: [
@@ -65,18 +61,16 @@ public enum ShellText: String, TextKey {
             .navLibrary: "Bibliothèque",
             .navProfile: "Profil",
             .navAdmin: "Administration",
-            .loading: "Connexion au service Nihon…",
-            .unavailableTitle: "Le service Nihon ne répond pas",
-            .unavailableBody: "Vérifiez que Nihon fonctionne sur cet ordinateur, puis réessayez.",
-            .incompatibleTitle: "Cette page doit être mise à jour",
-            .incompatibleBody: "Cette page a été construite pour une autre version du service Nihon. Rechargez la page ; si le message persiste, mettez Nihon à jour.",
-            .incompatibleVersions: "Version de l’API du service : {serverVersion} ; cette page attend la version {clientVersion}.",
+            .loading: "Chargement…",
+            .unavailableTitle: "Nihon ne répond pas",
+            .unavailableBody: "Vérifiez que Nihon est lancé, puis réessayez.",
+            .incompatibleTitle: "Une mise à jour de Nihon est nécessaire",
+            .incompatibleBody: "Rechargez la page. Si ce message reste affiché, mettez Nihon à jour.",
             .errorTitle: "Une erreur est survenue",
-            .errorBody: "Le service Nihon n’a pas pu traiter la demande.",
-            .errorReference: "Référence pour le journal du service : {requestId}",
+            .errorBody: "Nihon n’a pas pu terminer cette action. Réessayez.",
             .retry: "Réessayer",
             .notFoundTitle: "Page introuvable",
-            .notFoundBody: "Aucune page de Nihon ne correspond à cette adresse.",
+            .notFoundBody: "Cette page n’existe pas.",
             .backHome: "Retour à l’accueil",
         ],
         .ja: [
@@ -90,18 +84,16 @@ public enum ShellText: String, TextKey {
             .navLibrary: "ライブラリ",
             .navProfile: "プロフィール",
             .navAdmin: "管理",
-            .loading: "Nihon サービスに接続しています…",
-            .unavailableTitle: "Nihon サービスが応答しません",
-            .unavailableBody: "このコンピューターで Nihon が起動していることを確認して、もう一度お試しください。",
-            .incompatibleTitle: "このページの更新が必要です",
-            .incompatibleBody: "このページは別のバージョンの Nihon サービス向けに作られています。ページを再読み込みしてください。表示が消えない場合は Nihon を更新してください。",
-            .incompatibleVersions: "サービスの API バージョンは {serverVersion}、このページが必要とするバージョンは {clientVersion} です。",
+            .loading: "読み込み中…",
+            .unavailableTitle: "Nihonが応答しません",
+            .unavailableBody: "Nihonが起動していることを確認して、もう一度お試しください。",
+            .incompatibleTitle: "Nihonの更新が必要です",
+            .incompatibleBody: "ページを再読み込みしてください。表示が消えない場合は、Nihonを更新してください。",
             .errorTitle: "問題が発生しました",
-            .errorBody: "Nihon サービスはリクエストを完了できませんでした。",
-            .errorReference: "サービスログの参照番号：{requestId}",
+            .errorBody: "Nihonで処理を完了できませんでした。もう一度お試しください。",
             .retry: "再試行",
             .notFoundTitle: "ページが見つかりません",
-            .notFoundBody: "このアドレスの Nihon ページはありません。",
+            .notFoundBody: "このページはありません。",
             .backHome: "ホームに戻る",
         ],
     ]
