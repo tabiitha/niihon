@@ -4,14 +4,16 @@ import { fileURLToPath } from 'node:url';
 
 /**
  * Generates the Swift sources through which the macOS client reads the shared interface texts, the theme
- * tokens, and the registration rules of the contract (`x-nihon-rules` in contracts/openapi.json), so that the
- * JSON files stay their single source:
+ * tokens, the registration rules of the contract (`x-nihon-rules` in contracts/openapi.json), and the words the
+ * interface must not use (`forbiddenWords` in apps/web/src/i18n/voice.ts), so that those files stay their single
+ * source:
  *
  *   node apps/macos/tools/generate-shared.mjs [--check]
  *
  * Without `--check`, the generated files are written; with it, nothing is written and any difference is a
  * drift (exit code 1). A missing language, a missing or extra key, an empty text, different placeholders,
- * an incomplete theme, or a registration rule this generator does not know stops the generation (exit code 2).
+ * an incomplete theme, a registration rule this generator does not know, or a macOS text that uses a forbidden
+ * word of voice.ts stops the generation (exit code 2).
  */
 
 /** A shared JSON file that cannot produce complete Swift sources. */
@@ -39,6 +41,9 @@ const textModules = [
 
 const themesDirectory = 'resources/themes';
 const contractPath = 'contracts/openapi.json';
+const voicePath = 'apps/web/src/i18n/voice.ts';
+/** Brand names are shown as they are, as in apps/web/src/i18n/voice.test.ts. */
+const brandKeys = new Set(['providerGoogle', 'providerGithub']);
 const outputDirectory = 'apps/macos/Sources/NihonMacCore/Generated';
 const notice = 'Generated from the shared JSON files. Do not edit: run `bun run macos:generate`.';
 
@@ -55,6 +60,7 @@ try {
     [`${outputDirectory}/ModuleTexts.swift`, generateTexts()],
     [`${outputDirectory}/Themes.swift`, generateThemes()],
     [`${outputDirectory}/RegistrationRules.swift`, generateRegistrationRules()],
+    [`${outputDirectory}/ForbiddenWords.swift`, generateForbiddenWords()],
   ]);
   const drifted = [...files].filter(([path, content]) => read(path) !== content).map(([path]) => path);
   if (check) {
@@ -63,14 +69,14 @@ try {
       console.error('Run `bun run macos:generate` and commit the result.');
       process.exitCode = 1;
     } else {
-      console.log('Swift texts, themes, and registration rules are up to date.');
+      console.log('Swift texts, themes, registration rules, and forbidden words are up to date.');
     }
   } else {
     for (const [path, content] of files) {
       mkdirSync(dirname(join(root, path)), { recursive: true });
       writeFileSync(join(root, path), content);
     }
-    console.log('Swift texts, themes, and registration rules written.');
+    console.log('Swift texts, themes, registration rules, and forbidden words written.');
   }
 } catch (error) {
   if (!(error instanceof InvalidSourceError)) {
@@ -270,6 +276,52 @@ function generateRegistrationRules() {
     );
   }
   return `${lines.join('\n').trimEnd()}\n`;
+}
+
+/**
+ * The words of voice.ts, read from its regular expression literals. The macOS texts are checked here with the very
+ * same JavaScript expressions; the Swift copy lets the core tests check every generated text, shared ones included.
+ */
+function generateForbiddenWords() {
+  const source = read(voicePath);
+  if (source === undefined) {
+    throw new InvalidSourceError(`${voicePath}: missing.`);
+  }
+  const words = {};
+  for (const language of languages) {
+    const match = new RegExp(`^\\s*${language}: /(.+)/([a-z]*),$`, 'm').exec(source);
+    if (match === null || match[2].replace('i', '') !== '') {
+      throw new InvalidSourceError(`${voicePath}: forbiddenWords.${language} must be one regular expression literal, with the "i" flag at most.`);
+    }
+    words[language] = { pattern: match[1], ignoreCase: match[2] === 'i', expression: new RegExp(match[1], match[2]) };
+  }
+  for (const { type, directory } of textModules) {
+    if (!directory.startsWith('apps/macos/')) {
+      continue; // The Web's own tests check its texts with voice.ts.
+    }
+    for (const language of languages) {
+      for (const [key, text] of Object.entries(readJson(`${directory}/${language}.json`))) {
+        const found = brandKeys.has(key) ? null : words[language].expression.exec(text.replace(/\{[a-zA-Z]+\}/g, ''));
+        if (found !== null) {
+          throw new InvalidSourceError(`${directory}/${language}.json: ${type}.${key} uses "${found[0]}", a word the interface must not use (${voicePath}).`);
+        }
+      }
+    }
+  }
+  const lines = [
+    `// ${notice}`,
+    '',
+    '/// The words the interface must not use, copied from `forbiddenWords` in apps/web/src/i18n/voice.ts: JavaScript',
+    '/// regular expressions without the `u` flag, so `\\b` and `\\w` are ASCII (see `Voice`).',
+    'public enum ForbiddenWords {',
+    '    public static let patterns: [Language: (pattern: String, ignoresCase: Bool)] = [',
+    ...languages.map((language) => `        .${language}: (${swiftString(words[language].pattern)}, ${words[language].ignoreCase}),`),
+    '    ]',
+    '',
+    `    public static let brandKeys: Set<String> = [${[...brandKeys].map(swiftString).join(', ')}]`,
+    '}',
+  ];
+  return `${lines.join('\n')}\n`;
 }
 
 function readTheme(folder) {
