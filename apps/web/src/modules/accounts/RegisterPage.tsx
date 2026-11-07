@@ -9,7 +9,7 @@ import { routes } from '../../router/routes.ts';
 import { ArrowIcon, EyeIcon, EyeOffIcon } from '../../shell/icons.tsx';
 import { Page } from '../../shell/Page.tsx';
 import type { FormField, Problem } from './errors.ts';
-import { createRegistrationForm, viewOfFinish, type ReturnView } from './form.ts';
+import { createRegistrationForm, deliveryOfFieldError, viewOfFinish, type ReturnView } from './form.ts';
 import {
   createPendingStore,
   finishProviderRegistration,
@@ -76,6 +76,11 @@ function RegistrationForm() {
   // Leaving the page cancels what is pending; the late answer is ignored.
   useEffect(() => form.connect(), [form]);
 
+  // A field error announced by the live region; empty otherwise.
+  const [announcement, setAnnouncement] = useState('');
+  // An announced error is not left in the page once the person types again.
+  useEffect(() => setAnnouncement(''), [username, password, confirmation]);
+
   // A page restored from the back-forward cache keeps its busy state but lost its requests.
   useEffect(() => {
     const restored = (event: PageTransitionEvent) => {
@@ -87,12 +92,23 @@ function RegistrationForm() {
     return () => window.removeEventListener('pageshow', restored);
   }, [form]);
 
-  // A field error moves focus to its field, whose error is then read with it; a problem of no field, to itself.
+  // A field error moves focus to its field, whose error is then read with it. When the field already has focus
+  // (Enter in that field), the error is announced once by the live region instead. A problem of no field: see below.
   useEffect(() => {
-    if (focus !== undefined) {
-      inputs[focus.field].current?.focus();
+    if (focus === undefined) {
+      return;
     }
-    // The refs are stable; focus follows each request.
+    const input = inputs[focus.field].current;
+    const error = errors[focus.field];
+    // Emptied first, so that the same message repeated by a second Enter is announced again.
+    setAnnouncement('');
+    if (deliveryOfFieldError(input !== null && document.activeElement === input) === 'focus') {
+      input?.focus();
+      return;
+    }
+    const timer = window.setTimeout(() => setAnnouncement(error === undefined ? '' : t(error.message)), 100);
+    return () => window.clearTimeout(timer);
+    // The refs are stable; focus follows each request, with the errors of that request.
   }, [focus]);
 
   useEffect(() => {
@@ -148,6 +164,9 @@ function RegistrationForm() {
         }}
         aria-busy={busy === 'local'}
       >
+        <p className="visually-hidden" aria-live="polite">
+          {announcement}
+        </p>
         {problem !== undefined && <ProblemMessage problem={problem} notice={notice} />}
         <div className="auth-field">
           <label htmlFor={ids.username}>{t('usernameLabel')}</label>
