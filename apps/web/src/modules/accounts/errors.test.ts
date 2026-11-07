@@ -5,6 +5,7 @@ import { describe, it } from 'node:test';
 
 import { classifyErrorResponse } from '../../api/outcome.ts';
 import { languages } from '../../i18n/languages.ts';
+import { forbiddenWordIn } from '../../i18n/voice.ts';
 import { describeFailure, explainedCodes, messageByCode, type Retry } from './errors.ts';
 import { accountsTexts } from './texts.ts';
 
@@ -175,20 +176,22 @@ describe('what an ordinary person sees', () => {
     assert.doesNotMatch(page, /requestId/);
   });
 
-  it('uses no technical words in any language', () => {
-    const technical: Record<string, RegExp> = {
-      en: /\b(service|server|log|request id|idempotency|key|code|http|api|localhost|provider|address|request|version)\b|127\.0\.0\.1/i,
-      fr: /\b(service|serveur|journal|identifiant de requête|idempotence|clé|code|http|api|localhost|fournisseur|adresse|requête|version)\b|127\.0\.0\.1/i,
-      ja: /サービス|サーバー|ログ(?!イン)|参照番号|キー|コード|http|API|localhost|プロバイダー|アドレス|リクエスト|バージョン|127\.0\.0\.1/,
-    };
+  it('uses no technical or deployment words in any language', () => {
     for (const language of languages) {
       for (const [key, text] of Object.entries(accountsTexts.texts[language])) {
-        if (key === 'providerGoogle' || key === 'providerGithub') {
-          continue;
+        if (key !== 'providerGoogle' && key !== 'providerGithub') {
+          assert.equal(forbiddenWordIn(text, language), undefined, `${language}.${key}: ${text}`);
         }
-        assert.doesNotMatch(text.replace(/\{[a-zA-Z]+\}/g, ''), technical[language] as RegExp, `${language}.${key}: ${text}`);
       }
     }
+  });
+
+  it('welcomes the new member without talking about the computer', () => {
+    for (const language of languages) {
+      assert.match(accountsTexts.texts[language].successBody, /\{username\}/, language);
+    }
+    assert.equal(accountsTexts.texts.fr.successBody, 'Bienvenue, {username} ! Votre compte est prêt.');
+    assert.equal(accountsTexts.texts.en.successBody, 'Welcome, {username}! Your account is ready.');
   });
 
   it('says plainly that registration is not available when the service has no registration yet', () => {
