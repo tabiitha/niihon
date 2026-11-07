@@ -253,6 +253,14 @@ describe('registration form', () => {
   });
 });
 
+describe('after a successful registration', () => {
+  it('opens the Profile page in place of the sent form, from the form and from the provider return, without a success screen', () => {
+    const page = readFileSync(fileURLToPath(new URL('RegisterPage.tsx', import.meta.url)), 'utf8');
+    assert.equal(page.match(/navigate\(routes\.profile, \{ replace: true \}\)/g)?.length, 2);
+    assert.doesNotMatch(page, /success(Title|Body)|'backHome'/);
+  });
+});
+
 describe('how a field error reaches a screen reader', () => {
   it('moves focus to the field, or announces the error once when the field already has focus', () => {
     assert.equal(deliveryOfFieldError(false), 'focus');

@@ -140,7 +140,6 @@ describe('registration failure messages', () => {
 describe('interface texts of the accounts module', () => {
   it('keep the placeholders the screen fills in', () => {
     for (const language of languages) {
-      assert.match(accountsTexts.texts[language].successBody, /\{username\}/, language);
       assert.match(accountsTexts.texts[language].continueWithProvider, /\{provider\}/, language);
     }
   });
@@ -162,7 +161,7 @@ describe('texts of the accounts screens', () => {
     for (const key of Object.keys(accountsTexts.texts.en)) {
       assert.match(code, new RegExp(`'${key}'`), `${key} is never used`);
     }
-    for (const removed of ['subtitle', 'providersNote', 'usernameHint', 'passwordHint']) {
+    for (const removed of ['subtitle', 'providersNote', 'usernameHint', 'passwordHint', 'successTitle', 'successBody', 'backHome']) {
       assert.equal(removed in accountsTexts.texts.en, false, `${removed} stays removed`);
     }
   });
@@ -184,14 +183,6 @@ describe('what an ordinary person sees', () => {
         }
       }
     }
-  });
-
-  it('welcomes the new member without talking about the computer', () => {
-    for (const language of languages) {
-      assert.match(accountsTexts.texts[language].successBody, /\{username\}/, language);
-    }
-    assert.equal(accountsTexts.texts.fr.successBody, 'Bienvenue, {username} ! Votre compte est prêt.');
-    assert.equal(accountsTexts.texts.en.successBody, 'Welcome, {username}! Your account is ready.');
   });
 
   it('says plainly that registration is not available when the service has no registration yet', () => {
