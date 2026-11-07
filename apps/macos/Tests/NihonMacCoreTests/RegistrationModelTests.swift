@@ -135,6 +135,8 @@ private struct Harness {
     let service = ScriptedRegistration()
     let receiver = ScriptedReceiver()
     let presenter = RecordingPresenter()
+    /// The profiles the model reported as registered, which make the window show the Profile page.
+    let registered = RegisteredProfiles()
     let model: RegistrationModel
 
     init(listenerFails: Bool = false) {
@@ -143,7 +145,8 @@ private struct Harness {
             client: service,
             listener: ScriptedListener(receiver: receiver, fails: listenerFails),
             presenter: presenter,
-            newKey: { keys.next() }
+            newKey: { keys.next() },
+            registered: { [registered] in registered.values.append($0) }
         )
     }
 
@@ -152,6 +155,11 @@ private struct Harness {
         model.setField(.password, to: secret)
         model.setField(.confirmation, to: confirm ?? secret)
     }
+}
+
+@MainActor
+final class RegisteredProfiles {
+    var values: [RegisteredProfile] = []
 }
 
 final class KeyCounter: @unchecked Sendable {
@@ -261,6 +269,7 @@ struct LocalRegistrationModelTests {
         await h.service.answerLocal(.success(profile))
         await h.model.settle()
         #expect(h.model.profile == profile)
+        #expect(h.registered.values == [profile], "the window opens the Profile page once")
         #expect(h.model.password.isEmpty && h.model.confirmation.isEmpty)
         #expect(h.model.busy == nil)
         #expect(await h.service.locals == [.init(username: "sakura", password: "correct-horse", key: "key-1")])
@@ -289,6 +298,7 @@ struct LocalRegistrationModelTests {
         await h.model.settle()
         #expect(h.model.errors[.username] == .init(.shared(.errorUsernameTaken), from: .service))
         #expect(h.model.problem == nil)
+        #expect(h.registered.values.isEmpty, "a refusal keeps the form")
         #expect(h.model.username == "sakura")
         #expect(h.model.password.isEmpty && h.model.confirmation.isEmpty)
         #expect(h.model.profile == nil)
@@ -372,6 +382,7 @@ struct LocalRegistrationModelTests {
         await h.service.answerLocal(.success(profile))
         await h.model.settle()
         #expect(h.model.profile == nil)
+        #expect(h.registered.values.isEmpty, "a window that left the form does not jump to the Profile page")
         #expect(h.model.problem == nil)
     }
 
@@ -433,6 +444,7 @@ struct ProviderRegistrationModelTests {
         await h.service.answerCompletion(.success(profile))
         await h.model.settle()
         #expect(h.model.profile == profile)
+        #expect(h.registered.values == [profile], "the window opens the Profile page once")
         #expect(h.model.busy == nil)
         #expect(await h.service.completions == [.init(state: "state-1", code: "the-code", key: "key-1")])
         #expect(h.presenter.dismissals >= 1)

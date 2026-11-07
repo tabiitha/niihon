@@ -17,7 +17,8 @@ interface Location {
 
 interface RouterValue {
   readonly location: Location;
-  navigate(to: string): void;
+  /** Shows another page. `replace` takes the place of the current history entry, so that Back skips it. */
+  navigate(to: string, options?: { readonly replace?: boolean }): void;
 }
 
 const RouterContext = createContext<RouterValue | undefined>(undefined);
@@ -36,10 +37,15 @@ export function RouterProvider({ children }: { readonly children: ReactNode }) {
     return () => window.removeEventListener('popstate', update);
   }, []);
 
-  const navigate = useCallback((to: string) => {
+  const navigate = useCallback((to: string, options?: { readonly replace?: boolean }) => {
     const target = new URL(to, window.location.href);
     if (target.pathname + target.search !== window.location.pathname + window.location.search) {
-      window.history.pushState(null, '', target.pathname + target.search + target.hash);
+      const address = target.pathname + target.search + target.hash;
+      if (options?.replace === true) {
+        window.history.replaceState(null, '', address);
+      } else {
+        window.history.pushState(null, '', address);
+      }
       window.scrollTo(0, 0);
     }
     setLocation(currentLocation());

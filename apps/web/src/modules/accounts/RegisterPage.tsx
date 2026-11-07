@@ -54,6 +54,7 @@ function ProblemMessage({ problem, notice }: { readonly problem: Problem; readon
 
 function RegistrationForm() {
   const t = useTexts(accountsTexts);
+  const { navigate } = useRouter();
   const [form] = useState(() =>
     createRegistrationForm({
       client: apiClient,
@@ -117,27 +118,13 @@ function RegistrationForm() {
     }
   }, [problem]);
 
+  // Once the account exists, the Profile page opens in place of the sent form, so that Back does not return to it.
+  // The shell moves focus to the new page, as for any page change.
   useEffect(() => {
     if (profile !== undefined) {
-      notice.current?.focus();
+      navigate(routes.profile, { replace: true });
     }
-  }, [profile]);
-
-  if (profile !== undefined) {
-    return (
-      <Page title={t('successTitle')} className="auth-card">
-        <p ref={notice} tabIndex={-1}>
-          {t('successBody', { username: profile.username })}
-        </p>
-        <div className="actions">
-          <Link to={routes.home} className="button-primary">
-            <span>{t('backHome')}</span>
-            <ArrowIcon />
-          </Link>
-        </div>
-      </Page>
-    );
-  }
+  }, [profile, navigate]);
 
   // One message under a faulty field, in the error color, linked to it: read when the field gets focus. It is not
   // a live region, so a screen reader announces it once, with the field (on submit, focus moves there).
@@ -255,6 +242,7 @@ function RegistrationForm() {
 /** The screen the provider returns to: completes the registration, or says why it could not be completed. */
 function ProviderReturn({ answer }: { readonly answer: ProviderReturn }) {
   const t = useTexts(accountsTexts);
+  const { navigate } = useRouter();
   const [attempt, setAttempt] = useState<{ readonly count: number; readonly withoutKey: boolean }>({ count: 0, withoutKey: false });
   const [view, setView] = useState<ReturnView | undefined>(undefined);
   const notice = useRef<HTMLParagraphElement>(null);
@@ -281,26 +269,17 @@ function ProviderReturn({ answer }: { readonly answer: ProviderReturn }) {
   }, [attempt]);
 
   useEffect(() => {
-    if (view !== undefined) {
+    if (view?.kind === 'problem') {
       notice.current?.focus();
     }
   }, [view]);
 
-  if (view?.kind === 'registered') {
-    return (
-      <Page title={t('successTitle')} className="auth-card">
-        <p ref={notice} tabIndex={-1}>
-          {t('successBody', { username: view.profile.username })}
-        </p>
-        <div className="actions">
-          <Link to={routes.home} className="button-primary">
-            <span>{t('backHome')}</span>
-            <ArrowIcon />
-          </Link>
-        </div>
-      </Page>
-    );
-  }
+  useEffect(() => {
+    if (view?.kind === 'registered') {
+      navigate(routes.profile, { replace: true });
+    }
+  }, [view, navigate]);
+
   if (view?.kind === 'problem') {
     const { retry } = view;
     return (
