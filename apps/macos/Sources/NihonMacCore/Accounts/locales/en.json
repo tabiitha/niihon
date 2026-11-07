@@ -1,0 +1,17 @@
+{
+  "errorIncompatible": "This app is out of date. Update Nihon to continue.",
+  "errorRedirectUri": "Signing up with an existing account is not available right now. Create an account with a username and a password instead.",
+  "errorListener": "Signing up with an existing account could not start. Try again, or create an account with a username and a password.",
+  "providerClosed": "The sign-in window was closed before the end. No account was created.",
+  "providerCancelled": "You cancelled the sign-up. No account was created.",
+  "errorListenerLost": "The sign-up was interrupted. No account was created. Try again.",
+  "waitingForProvider": "Waiting for {provider}… Finish in the window that opened.",
+  "continueWithExistingAccount": "Continue with an existing account",
+  "startingExistingAccount": "Opening the sign-in window…",
+  "waitingForExistingAccount": "Waiting for the sign-in… Finish in the window that opened.",
+  "completing": "Finishing your sign-up…",
+  "cancel": "Cancel",
+  "createAccountMenu": "Create an Account",
+  "returnPageTitle": "Back to Nihon",
+  "returnPageBody": "Done. You can close this window and return to Nihon."
+}

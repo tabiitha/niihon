@@ -1,0 +1,17 @@
+{
+  "errorIncompatible": "Cette application n’est plus à jour. Mettez Nihon à jour pour continuer.",
+  "errorRedirectUri": "L’inscription avec un compte existant n’est pas disponible pour le moment. Créez plutôt un compte avec un nom d’utilisateur et un mot de passe.",
+  "errorListener": "L’inscription avec un compte existant n’a pas pu démarrer. Réessayez, ou créez un compte avec un nom d’utilisateur et un mot de passe.",
+  "providerClosed": "La fenêtre de connexion a été fermée avant la fin. Aucun compte n’a été créé.",
+  "providerCancelled": "Vous avez annulé l’inscription. Aucun compte n’a été créé.",
+  "errorListenerLost": "L’inscription a été interrompue. Aucun compte n’a été créé. Réessayez.",
+  "waitingForProvider": "En attente de {provider}… Terminez dans la fenêtre qui s’est ouverte.",
+  "continueWithExistingAccount": "Continuer avec un compte existant",
+  "startingExistingAccount": "Ouverture de la fenêtre de connexion…",
+  "waitingForExistingAccount": "En attente de la connexion… Terminez dans la fenêtre qui s’est ouverte.",
+  "completing": "Finalisation de votre inscription…",
+  "cancel": "Annuler",
+  "createAccountMenu": "Créer un compte",
+  "returnPageTitle": "Retour dans Nihon",
+  "returnPageBody": "C’est fait. Vous pouvez fermer cette fenêtre et revenir dans Nihon."
+}

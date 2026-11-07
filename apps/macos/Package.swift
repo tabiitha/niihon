@@ -19,8 +19,8 @@ let package = Package(
             dependencies: [
                 .product(name: "NihonAPIClient", package: "swift"),
             ],
-            // The native shell's texts, read by tools/generate-shared.mjs into Generated/ModuleTexts.swift.
-            exclude: ["Shell/locales"]
+            // The native texts, read by tools/generate-shared.mjs into Generated/ModuleTexts.swift.
+            exclude: ["Shell/locales", "Accounts/locales"]
         ),
         .executableTarget(
             name: "Nihon",

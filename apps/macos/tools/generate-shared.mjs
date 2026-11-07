@@ -3,14 +3,17 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /**
- * Generates the Swift sources through which the macOS client reads the shared interface texts and theme
- * tokens, so that the JSON files stay their single source:
+ * Generates the Swift sources through which the macOS client reads the shared interface texts, the theme
+ * tokens, the registration rules of the contract (`x-nihon-rules` in contracts/openapi.json), and the words the
+ * interface must not use (`forbiddenWords` in apps/web/src/i18n/voice.ts), so that those files stay their single
+ * source:
  *
  *   node apps/macos/tools/generate-shared.mjs [--check]
  *
  * Without `--check`, the generated files are written; with it, nothing is written and any difference is a
  * drift (exit code 1). A missing language, a missing or extra key, an empty text, different placeholders,
- * or an incomplete theme stops the generation (exit code 2).
+ * an incomplete theme, a registration rule this generator does not know, or a macOS text that uses a forbidden
+ * word of voice.ts stops the generation (exit code 2).
  */
 
 /** A shared JSON file that cannot produce complete Swift sources. */
@@ -32,9 +35,15 @@ const textModules = [
   { type: 'LibraryText', directory: 'apps/web/src/modules/library/locales' },
   { type: 'ProfileText', directory: 'apps/web/src/modules/profile/locales' },
   { type: 'AdminText', directory: 'apps/web/src/modules/admin/locales' },
+  { type: 'AccountsText', directory: 'apps/web/src/modules/accounts/locales' },
+  { type: 'MacAccountsText', directory: 'apps/macos/Sources/NihonMacCore/Accounts/locales' },
 ];
 
 const themesDirectory = 'resources/themes';
+const contractPath = 'contracts/openapi.json';
+const voicePath = 'apps/web/src/i18n/voice.ts';
+/** Brand names are shown as they are, as in apps/web/src/i18n/voice.test.ts. */
+const brandKeys = new Set(['providerGoogle', 'providerGithub']);
 const outputDirectory = 'apps/macos/Sources/NihonMacCore/Generated';
 const notice = 'Generated from the shared JSON files. Do not edit: run `bun run macos:generate`.';
 
@@ -50,6 +59,8 @@ try {
   const files = new Map([
     [`${outputDirectory}/ModuleTexts.swift`, generateTexts()],
     [`${outputDirectory}/Themes.swift`, generateThemes()],
+    [`${outputDirectory}/RegistrationRules.swift`, generateRegistrationRules()],
+    [`${outputDirectory}/ForbiddenWords.swift`, generateForbiddenWords()],
   ]);
   const drifted = [...files].filter(([path, content]) => read(path) !== content).map(([path]) => path);
   if (check) {
@@ -58,14 +69,14 @@ try {
       console.error('Run `bun run macos:generate` and commit the result.');
       process.exitCode = 1;
     } else {
-      console.log('Swift texts and themes are up to date.');
+      console.log('Swift texts, themes, registration rules, and forbidden words are up to date.');
     }
   } else {
     for (const [path, content] of files) {
       mkdirSync(dirname(join(root, path)), { recursive: true });
       writeFileSync(join(root, path), content);
     }
-    console.log('Swift texts and themes written.');
+    console.log('Swift texts, themes, registration rules, and forbidden words written.');
   }
 } catch (error) {
   if (!(error instanceof InvalidSourceError)) {
@@ -205,6 +216,131 @@ function generateThemes() {
   }
   lines.push('    ]', '}');
   return `${lines.join('\n')}\n`;
+}
+
+/**
+ * The rules the server applies to a username and a password, from the contract. Every rule name must be one the
+ * Swift checks implement (`RegistrationRules.swift` in NihonMacCore), so that a new rule in the contract stops the
+ * generation instead of being ignored; the username of a provider registration must have the same rules.
+ */
+function generateRegistrationRules() {
+  const schemas = readJson(contractPath).components?.schemas ?? {};
+  const field = (schema, name) => {
+    const value = schemas[schema]?.properties?.[name];
+    if (value?.['x-nihon-rules'] === undefined || !Number.isInteger(value.maxLength)) {
+      throw new InvalidSourceError(`${contractPath}: ${schema}.${name} needs "x-nihon-rules" and "maxLength".`);
+    }
+    return value;
+  };
+  const username = field('LocalRegistration', 'username');
+  const password = field('LocalRegistration', 'password');
+  const provider = field('OAuthRegistrationStart', 'username');
+  if (JSON.stringify(provider['x-nihon-rules']) !== JSON.stringify(username['x-nihon-rules']) || provider.maxLength !== username.maxLength) {
+    throw new InvalidSourceError(`${contractPath}: the username of OAuthRegistrationStart must have the rules of LocalRegistration.`);
+  }
+  const known = {
+    username: { normalization: 'string', trim: 'boolean', minLength: 'number', maxLength: 'number', pattern: 'string' },
+    password: {
+      normalization: 'string', minLength: 'number', maxLength: 'number', notBlank: 'boolean',
+      noControlCharacters: 'boolean', differentFromUsername: 'boolean',
+    },
+  };
+  const lines = [`// ${notice}`, ''];
+  for (const [name, schema, type] of [['username', username, 'UsernameRules'], ['password', password, 'PasswordRules']]) {
+    const rules = schema['x-nihon-rules'];
+    const expected = known[name];
+    const names = Object.keys(rules).sort().join();
+    if (names !== Object.keys(expected).sort().join()) {
+      throw new InvalidSourceError(`${contractPath}: the ${name} rules are ${names}; the macOS checks implement ${Object.keys(expected).sort().join()}.`);
+    }
+    for (const [rule, kind] of Object.entries(expected)) {
+      if (typeof rules[rule] !== kind) {
+        throw new InvalidSourceError(`${contractPath}: the ${name} rule "${rule}" must be a ${kind}.`);
+      }
+    }
+    if (rules.normalization !== 'NFKC') {
+      throw new InvalidSourceError(`${contractPath}: the macOS checks only implement NFKC normalization.`);
+    }
+    lines.push(
+      `/// The server's ${name} rules (\`x-nihon-rules\` of the contract). Lengths count Unicode code points of the`,
+      `/// normalized form; \`rawMaxLength\` is the field's \`maxLength\`, in UTF-16 code units.`,
+      `public enum ${type} {`,
+      ...Object.keys(expected).map((rule) => {
+        const value = rules[rule];
+        const literal = typeof value === 'string' ? swiftString(value) : String(value);
+        return `    public static let ${rule} = ${literal}`;
+      }),
+      `    public static let rawMaxLength = ${schema.maxLength}`,
+      '}',
+      '',
+    );
+  }
+  return `${lines.join('\n').trimEnd()}\n`;
+}
+
+/**
+ * The words of voice.ts, read from its regular expression literals. The macOS texts are checked here with the very
+ * same JavaScript expressions; the Swift copy lets the core tests check every generated text, shared ones included.
+ */
+function generateForbiddenWords() {
+  const source = read(voicePath);
+  if (source === undefined) {
+    throw new InvalidSourceError(`${voicePath}: missing.`);
+  }
+  const words = {};
+  for (const language of languages) {
+    const match = new RegExp(`^\\s*${language}: /(.+)/([a-z]*),$`, 'm').exec(source);
+    if (match === null || !match[2].includes('u') || match[2].replace('i', '').replace('u', '') !== '') {
+      throw new InvalidSourceError(`${voicePath}: forbiddenWords.${language} must be one regular expression literal with the "u" flag, and "i" at most besides.`);
+    }
+    words[language] = {
+      pattern: swiftPattern(match[1], language),
+      ignoreCase: match[2].includes('i'),
+      expression: new RegExp(match[1], match[2]),
+    };
+  }
+  for (const { type, directory } of textModules) {
+    if (!directory.startsWith('apps/macos/')) {
+      continue; // The Web's own tests check its texts with voice.ts.
+    }
+    for (const language of languages) {
+      for (const [key, text] of Object.entries(readJson(`${directory}/${language}.json`))) {
+        const found = brandKeys.has(key) ? null : words[language].expression.exec(text.replace(/\{[a-zA-Z]+\}/g, ''));
+        if (found !== null) {
+          throw new InvalidSourceError(`${directory}/${language}.json: ${type}.${key} uses "${found[0]}", a word the interface must not use (${voicePath}).`);
+        }
+      }
+    }
+  }
+  const lines = [
+    `// ${notice}`,
+    '',
+    '/// The words the interface must not use, from `forbiddenWords` in apps/web/src/i18n/voice.ts (JavaScript, `u`',
+    '/// flag). Swift Regex has no lookbehind, so each `(?<![…])` is written `(?:^|(?<lbN>[^…]))`: the same texts',
+    '/// match, and `Voice` leaves the captured preceding character out of the word it reports.',
+    'public enum ForbiddenWords {',
+    '    public static let patterns: [Language: (pattern: String, ignoresCase: Bool)] = [',
+    ...languages.map((language) => `        .${language}: (${swiftString(words[language].pattern)}, ${words[language].ignoreCase}),`),
+    '    ]',
+    '',
+    `    public static let brandKeys: Set<String> = [${[...brandKeys].map(swiftString).join(', ')}]`,
+    '}',
+  ];
+  return `${lines.join('\n')}\n`;
+}
+
+/**
+ * The Swift form of a voice.ts expression: the only lookbehind voice.ts uses, a negative one on a character class,
+ * becomes "start of text, or one character outside the class", captured as `lbN` so that it can be left out of the
+ * reported word. Any other lookbehind stops the generation.
+ */
+function swiftPattern(pattern, language) {
+  let count = 0;
+  const translated = pattern.replace(/\(\?<!\[([^\]]+)\]\)/g, (_, members) => `(?:^|(?<lb${count++}>[^${members}]))`);
+  if (/\(\?<[!=]/.test(translated)) {
+    throw new InvalidSourceError(`${voicePath}: forbiddenWords.${language} uses a lookbehind other than (?<![…]); translate it for Swift here.`);
+  }
+  return translated;
 }
 
 function readTheme(folder) {
