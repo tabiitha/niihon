@@ -33,6 +33,8 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Check the generated texts and themes
         run: bun run macos:check
+      - name: Generate the database client for the real-service registration tests
+        run: bun run db:generate
       - name: Test the client core against the conformance fixture server
         run: swift test --package-path apps/macos
       - name: Build and sign the app bundle
