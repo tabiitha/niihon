@@ -24,6 +24,8 @@
   "errorUsernameTaken": "This username is already taken.",
   "errorUsernameInvalid": "3 to 32 characters: letters, digits, _ - or ., starting with a letter or a digit.",
   "errorPasswordInvalid": "8 to 128 characters, different from your username.",
+  "passwordOnlySpaces": "Your password cannot be only spaces.",
+  "passwordCharacter": "Your password contains a character that cannot be used.",
   "errorRequestInvalid": "Nihon could not handle this. Check what you typed and try again.",
   "errorRedirectUri": "Signing up with an existing account does not work here. Use a username and a password instead.",
   "errorProviderUnavailable": "This option is not available. Use a username and a password instead.",
