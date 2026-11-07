@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 import { createApiClient, type FetchFunction } from '../../api/service.ts';
-import { createRegistrationForm, viewOfFinish } from './form.ts';
+import { createRegistrationForm, deliveryOfFieldError, viewOfFinish } from './form.ts';
 import { createPendingStore } from './registration.ts';
 
 const origin = 'http://127.0.0.1:4000';
@@ -248,6 +250,30 @@ describe('registration form', () => {
     assert.equal(form.getState().busy, 'local');
     form.restored();
     assert.equal(form.getState().busy, undefined);
+  });
+});
+
+describe('how a field error reaches a screen reader', () => {
+  it('moves focus to the field, or announces the error once when the field already has focus', () => {
+    assert.equal(deliveryOfFieldError(false), 'focus');
+    assert.equal(deliveryOfFieldError(true), 'announce');
+  });
+
+  it('asks again for each blocked submit, so that Enter twice in the same field is announced twice', async () => {
+    const { form, fill } = setup(() => Response.json(profile, { status: 201 }));
+    fill('sakura', 'a long enough passphrase', 'another passphrase');
+    await form.submit();
+    const first = form.getState().focus;
+    await form.submit();
+    assert.equal(form.getState().focus?.field, 'confirmation');
+    assert.notEqual(form.getState().focus?.count, first?.count);
+  });
+
+  it('has one polite live region for it, and no alert that would speak a second time', () => {
+    const page = readFileSync(fileURLToPath(new URL('RegisterPage.tsx', import.meta.url)), 'utf8');
+    assert.equal(page.match(/aria-live="polite"/g)?.length, 1);
+    assert.doesNotMatch(page, /role="alert"|aria-live="assertive"/);
+    assert.match(page, /deliveryOfFieldError\(/);
   });
 });
 

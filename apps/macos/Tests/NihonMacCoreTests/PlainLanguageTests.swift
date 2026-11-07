@@ -59,29 +59,48 @@ struct PlainLanguageTests {
         assertPlain(AdminText.self)
     }
 
-    @Test("judges words exactly as voice.ts does, with JavaScript's ASCII word boundaries")
+    @Test("judges words exactly as voice.ts does: whole words of any script, plurals included")
     func sameJudgementAsTheWeb() {
-        // The examples of apps/web/src/i18n/voice.test.ts.
-        let caught: [(String, Language)] = [
-            ("The account is ready on this computer.", .en), ("Open Nihon on this Mac.", .en), ("Saved locally.", .en),
-            ("You are offline.", .en), ("Install Nihon first.", .en), ("On this machine.", .en), ("Check the server.", .en),
-            ("Le compte est prêt sur cet ordinateur.", .fr), ("Ouvrez Nihon sur ce Mac.", .fr), ("Enregistré en local.", .fr),
-            ("Vous êtes hors ligne.", .fr), ("Vous êtes hors-ligne.", .fr), ("Après l’installation.", .fr),
-            ("Sur cette machine.", .fr), ("Vérifiez le serveur.", .fr),
-            ("このコンピューターに作成されました。", .ja), ("パソコンで開いてください。", .ja), ("このMacで開いてください。", .ja),
-            ("ローカルに保存しました。", .ja), ("オフラインです。", .ja), ("インストールしてください。", .ja),
-            ("サーバーを確認してください。", .ja),
+        // The cases of apps/web/src/i18n/voice.test.ts.
+        let caught: [Language: [String]] = [
+            .en: [
+                "The account is ready on this computer.", "Two computers.", "Open Nihon on this Mac.", "Use your Mac.", "Saved locally.",
+                "Saved on a local disk.", "You are offline.", "Install Nihon first.", "Uninstall Nihon.", "Reinstall it.",
+                "On this machine.", "Check the server.", "All servers.", "Two services.", "Versions differ.", "Check the addresses.",
+                "On this device.", "Use a PC.", "Logs.", "Request ID 4.", "Enter the key.", "Open 127.0.0.1.",
+            ],
+            .fr: [
+                "Le compte est prêt sur cet ordinateur.", "Deux ordinateurs.", "Ouvrez Nihon sur ce Mac.", "Utilisez un Mac.",
+                "Enregistré en local.", "Des fichiers locaux.", "Vous êtes hors ligne.", "Vous êtes hors-ligne.", "Après l’installation.",
+                "Désinstallez Nihon.", "Réinstallez Nihon.", "Sur cette machine.", "Vérifiez le serveur.", "Les serveurs.",
+                "Les adresses.", "Les versions.", "Sur cet appareil.", "Sur un PC.", "La clé.", "Entrez la clé de secours.",
+                "Le journal.",
+            ],
+            .ja: [
+                "このコンピューターに作成されました。", "パソコンで開いてください。", "このMacで開いてください。", "Macで開きます。",
+                "ローカルに保存しました。", "オフラインです。", "インストールしてください。", "アンインストールしてください。",
+                "サーバーを確認してください。", "この端末で開いてください。", "PCで開きます。", "キーを入力してください。",
+            ],
         ]
-        for (text, language) in caught {
-            #expect(Voice.forbiddenWord(in: text, language: language) != nil, "\(language): \(text)")
+        let allowed: [Language: [String]] = [
+            .en: ["Welcome, {username}!", "Use the keyboard.", "This browser blocks the rest of the sign-up.", "Macro lessons.", "Locate a kanji.", "Catalogue.", "A quick review."],
+            .fr: ["Bienvenue, {username} !", "Utilisez le clavier.", "Ce navigateur bloque la suite de l’inscription.", "Un macaron.", "La localisation.", "Les leçons de kana."],
+            .ja: ["ログインしてください。", "キーボードで入力できます。", "このブラウザでは続けられません。", "マクロ", "ようこそ、{username}さん！"],
+        ]
+        for language in Language.allCases {
+            for text in caught[language] ?? [] {
+                #expect(Voice.forbiddenWord(in: text, language: language) != nil, "\(language): \(text)")
+            }
+            for text in allowed[language] ?? [] {
+                #expect(Voice.forbiddenWord(in: text, language: language) == nil, "\(language): \(text)")
+            }
         }
-        #expect(Voice.forbiddenWord(in: "ログインしてください。", language: .ja) == nil, "logging in is not a log")
-        #expect(Voice.forbiddenWord(in: "Welcome, {username}!", language: .en) == nil)
-        // JavaScript without the `u` flag sees "é" as a boundary: "Réinstallez" is caught, as on the Web.
-        #expect(Voice.forbiddenWord(in: "Réinstallez l’application.", language: .fr) == "installez")
-        // The same judgement, gaps included: with ASCII boundaries "clé" before a space is not a word for voice.ts.
-        #expect(Voice.forbiddenWord(in: "La clé est prête.", language: .fr) == nil)
-        #expect(Voice.forbiddenWord(in: "Un Mac local.", language: .fr) == "local")
+        // The word reported is the word itself, without the character before it, as JavaScript reports it.
+        #expect(Voice.forbiddenWord(in: "La clé est prête.", language: .fr) == "clé")
+        #expect(Voice.forbiddenWord(in: "Use your Mac.", language: .en) == "Mac")
+        #expect(Voice.forbiddenWord(in: "Mac first.", language: .en) == "Mac")
+        #expect(Voice.forbiddenWord(in: "このMacで開いてください。", language: .ja) == "Mac")
+        #expect(Voice.forbiddenWord(in: "Réinstallez Nihon.", language: .fr) == "Réinstallez")
     }
 
     @Test("names Google and GitHub, and never shows the raw identifier of another provider")

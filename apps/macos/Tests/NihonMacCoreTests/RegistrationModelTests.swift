@@ -189,6 +189,21 @@ struct LocalRegistrationModelTests {
         #expect(h.model.busy == nil)
     }
 
+    @Test("a field's error is read with the field once: by moving focus to it, or announced when it already has focus")
+    func errorDelivery() {
+        #expect(RegistrationModel.delivery(fieldHasFocus: false) == .focus)
+        #expect(RegistrationModel.delivery(fieldHasFocus: true) == .announce)
+        // Return pressed twice in the same faulty field: each blocked submit is a new request, so the view announces
+        // the error again, once per press.
+        let h = Harness()
+        h.type("sakura", "long-secret", confirm: "other-secret")
+        h.model.submit()
+        let first = h.model.focusRequest
+        h.model.submit()
+        #expect(first?.field == .confirmation && h.model.focusRequest?.field == .confirmation)
+        #expect(h.model.focusRequest != first)
+    }
+
     @Test("checks a field when it is left after an edit, and then follows the typing")
     func checksWhileTyping() {
         let h = Harness()

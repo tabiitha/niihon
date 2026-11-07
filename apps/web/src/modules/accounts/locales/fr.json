@@ -24,6 +24,8 @@
   "errorUsernameTaken": "Ce nom d’utilisateur est déjà pris.",
   "errorUsernameInvalid": "De 3 à 32 caractères : lettres, chiffres, _ - ou ., en commençant par une lettre ou un chiffre.",
   "errorPasswordInvalid": "De 8 à 128 caractères, différent de votre nom d’utilisateur.",
+  "passwordOnlySpaces": "Votre mot de passe ne peut pas contenir que des espaces.",
+  "passwordCharacter": "Votre mot de passe contient un caractère qui ne peut pas être utilisé.",
   "errorRequestInvalid": "Nihon n’a pas pu traiter votre demande. Vérifiez votre saisie et réessayez.",
   "errorRedirectUri": "L’inscription avec un compte existant ne fonctionne pas ici. Utilisez plutôt un nom d’utilisateur et un mot de passe.",
   "errorProviderUnavailable": "Cette option n’est pas disponible. Utilisez plutôt un nom d’utilisateur et un mot de passe.",

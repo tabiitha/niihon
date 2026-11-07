@@ -46,35 +46,44 @@ describe('the voice of the interface', () => {
     });
   }
 
-  it('catches the words of each kind in each language', () => {
-    const caught: readonly (readonly [string, (typeof languages)[number]])[] = [
-      ['The account is ready on this computer.', 'en'],
-      ['Open Nihon on this Mac.', 'en'],
-      ['Saved locally.', 'en'],
-      ['You are offline.', 'en'],
-      ['Install Nihon first.', 'en'],
-      ['On this machine.', 'en'],
-      ['Check the server.', 'en'],
-      ['Le compte est prêt sur cet ordinateur.', 'fr'],
-      ['Ouvrez Nihon sur ce Mac.', 'fr'],
-      ['Enregistré en local.', 'fr'],
-      ['Vous êtes hors ligne.', 'fr'],
-      ['Vous êtes hors-ligne.', 'fr'],
-      ['Après l’installation.', 'fr'],
-      ['Sur cette machine.', 'fr'],
-      ['Vérifiez le serveur.', 'fr'],
-      ['このコンピューターに作成されました。', 'ja'],
-      ['パソコンで開いてください。', 'ja'],
-      ['このMacで開いてください。', 'ja'],
-      ['ローカルに保存しました。', 'ja'],
-      ['オフラインです。', 'ja'],
-      ['インストールしてください。', 'ja'],
-      ['サーバーを確認してください。', 'ja'],
-    ];
-    for (const [text, language] of caught) {
-      assert.notEqual(forbiddenWordIn(text, language), undefined, `${language}: ${text}`);
+  it('catches the words of each kind in each language, as whole words, plurals included', () => {
+    const caught: Readonly<Record<(typeof languages)[number], readonly string[]>> = {
+      en: [
+        'The account is ready on this computer.', 'Two computers.', 'Open Nihon on this Mac.', 'Use your Mac.', 'Saved locally.',
+        'Saved on a local disk.', 'You are offline.', 'Install Nihon first.', 'Uninstall Nihon.', 'Reinstall it.',
+        'On this machine.', 'Check the server.', 'All servers.', 'Two services.', 'Versions differ.', 'Check the addresses.',
+        'On this device.', 'Use a PC.', 'Logs.', 'Request ID 4.', 'Enter the key.', 'Open 127.0.0.1.',
+      ],
+      fr: [
+        'Le compte est prêt sur cet ordinateur.', 'Deux ordinateurs.', 'Ouvrez Nihon sur ce Mac.', 'Utilisez un Mac.',
+        'Enregistré en local.', 'Des fichiers locaux.', 'Vous êtes hors ligne.', 'Vous êtes hors-ligne.', 'Après l’installation.',
+        'Désinstallez Nihon.', 'Réinstallez Nihon.', 'Sur cette machine.', 'Vérifiez le serveur.', 'Les serveurs.',
+        'Les adresses.', 'Les versions.', 'Sur cet appareil.', 'Sur un PC.', 'La clé.', 'Entrez la clé de secours.',
+        'Le journal.',
+      ],
+      ja: [
+        'このコンピューターに作成されました。', 'パソコンで開いてください。', 'このMacで開いてください。', 'Macで開きます。',
+        'ローカルに保存しました。', 'オフラインです。', 'インストールしてください。', 'アンインストールしてください。',
+        'サーバーを確認してください。', 'この端末で開いてください。', 'PCで開きます。', 'キーを入力してください。',
+      ],
+    };
+    for (const language of languages) {
+      for (const text of caught[language]) {
+        assert.notEqual(forbiddenWordIn(text, language), undefined, `${language}: ${text}`);
+      }
     }
-    assert.equal(forbiddenWordIn('ログインしてください。', 'ja'), undefined, 'logging in is not a log');
-    assert.equal(forbiddenWordIn('Welcome, {username}!', 'en'), undefined);
+  });
+
+  it('lets ordinary words through', () => {
+    const allowed: Readonly<Record<(typeof languages)[number], readonly string[]>> = {
+      en: ['Welcome, {username}!', 'Use the keyboard.', 'This browser blocks the rest of the sign-up.', 'Macro lessons.', 'Locate a kanji.', 'Catalogue.', 'A quick review.'],
+      fr: ['Bienvenue, {username} !', 'Utilisez le clavier.', 'Ce navigateur bloque la suite de l’inscription.', 'Un macaron.', 'La localisation.', 'Les leçons de kana.'],
+      ja: ['ログインしてください。', 'キーボードで入力できます。', 'このブラウザでは続けられません。', 'マクロ', 'ようこそ、{username}さん！'],
+    };
+    for (const language of languages) {
+      for (const text of allowed[language]) {
+        assert.equal(forbiddenWordIn(text, language), undefined, `${language}: ${text}`);
+      }
+    }
   });
 });
