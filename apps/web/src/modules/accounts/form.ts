@@ -30,7 +30,7 @@ export interface FormState {
   readonly problem: Problem | undefined;
   /** The field to move focus to; `count` changes with every request, even for the same field. */
   readonly focus: { readonly field: FormField; readonly count: number } | undefined;
-  /** The created profile, once the registration is done. */
+  /** The created profile, once the registration is done: the page then opens the Profile page. */
   readonly profile: Profile | undefined;
 }
 
