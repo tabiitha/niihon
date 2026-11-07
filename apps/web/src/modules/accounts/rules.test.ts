@@ -41,9 +41,13 @@ describe('typing rules', () => {
     for (const accepted of ['12345678', 'パスワードです本当', 'x'.repeat(128), 'sakura12']) {
       assert.equal(checkPassword(accepted, 'sakura'), undefined, accepted);
     }
-    for (const refused of ['1234567', 'x'.repeat(129), ' '.repeat(8), 'abcd\u0007efgh', 'SAKURA_42', 'ＳＡＫＵＲＡ＿４２']) {
+    for (const refused of ['1234567', 'x'.repeat(129), 'SAKURA_42', 'ＳＡＫＵＲＡ＿４２']) {
       assert.equal(checkPassword(refused, 'Sakura_42'), 'errorPasswordInvalid', JSON.stringify(refused));
     }
+    // Refusals the length rule does not explain say why in plain words.
+    assert.equal(checkPassword(' '.repeat(8), 'Sakura_42'), 'passwordOnlySpaces');
+    assert.equal(checkPassword('\u3000'.repeat(10), 'Sakura_42'), 'passwordOnlySpaces', 'ideographic spaces too');
+    assert.equal(checkPassword('abcd\u0007efgh', 'Sakura_42'), 'passwordCharacter');
     assert.equal(checkConfirmation('a long passphrase', 'a long passphrase'), undefined);
     assert.equal(checkConfirmation('a long passphrase', 'a long passphrasE'), 'passwordsDiffer');
   });

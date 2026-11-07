@@ -24,6 +24,8 @@
   "errorUsernameTaken": "このユーザー名はすでに使われています。",
   "errorUsernameInvalid": "3〜32文字：文字・数字・_ - . が使えます。最初は文字か数字にしてください。",
   "errorPasswordInvalid": "8〜128文字で、ユーザー名とは違うものにしてください。",
+  "passwordOnlySpaces": "パスワードをスペースだけにすることはできません。",
+  "passwordCharacter": "パスワードに使用できない文字が含まれています。",
   "errorRequestInvalid": "Nihonで処理できませんでした。入力内容を確認して、もう一度お試しください。",
   "errorRedirectUri": "ここでは、お持ちのアカウントでの登録ができません。ユーザー名とパスワードで登録してください。",
   "errorProviderUnavailable": "この方法は利用できません。ユーザー名とパスワードで登録してください。",

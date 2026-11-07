@@ -59,12 +59,17 @@ export function checkPassword(password: string, username: string): TextKey | und
   }
   const normalized = password.normalize('NFKC');
   const length = codePoints(normalized);
+  // Two refusals the length rule does not explain get their own words.
+  if (normalized.trim() === '') {
+    return 'passwordOnlySpaces';
+  }
+  if (/\p{Cc}/u.test(normalized)) {
+    return 'passwordCharacter';
+  }
   if (
     password.length > passwordRules.rawMaxLength ||
     length < passwordRules.minLength ||
     length > passwordRules.maxLength ||
-    normalized.trim() === '' ||
-    /\p{Cc}/u.test(normalized) ||
     normalized.toLowerCase() === usernameKey(username)
   ) {
     return 'errorPasswordInvalid';

@@ -253,6 +253,15 @@ export function createRegistrationForm(dependencies: FormDependencies) {
 
 export type RegistrationForm = ReturnType<typeof createRegistrationForm>;
 
+/**
+ * How a field error reaches a screen reader. Moving focus to the field reads its error (`aria-describedby`) once. When
+ * the field already has focus, as after Enter in that field, moving focus does nothing, so the error is announced
+ * once through a polite live region instead. Never both, so that it is not announced twice.
+ */
+export function deliveryOfFieldError(fieldHasFocus: boolean): 'focus' | 'announce' {
+  return fieldHasFocus ? 'announce' : 'focus';
+}
+
 /** What the page the provider returns to shows for the outcome of the completion. */
 export type ReturnView =
   | { readonly kind: 'registered'; readonly profile: Profile }
