@@ -25,13 +25,22 @@ struct RegistrationView: View {
                 .frame(maxWidth: .infinity)
         }
         .task { await model.loadProviders() }
-        // A problem of no field is announced once; an error of a field is read with the field, where focus goes.
+        // A problem of no field is announced once. An error of a field is read with the field, where focus goes; when
+        // the field already has focus, it is announced once instead.
         .onChange(of: model.problem) { _, problem in
             guard let problem else { return }
             AccessibilityNotification.Announcement(problem.message.text(language)).post()
         }
         .onChange(of: model.focusRequest) { _, request in
-            if let request { focus = request.field }
+            guard let request else { return }
+            switch RegistrationModel.delivery(fieldHasFocus: focus == request.field) {
+            case .focus:
+                focus = request.field
+            case .announce:
+                if let error = model.errors[request.field] {
+                    AccessibilityNotification.Announcement(error.message.text(language)).post()
+                }
+            }
         }
         .onChange(of: focus) { left, _ in
             if let left { model.leaveField(left) }

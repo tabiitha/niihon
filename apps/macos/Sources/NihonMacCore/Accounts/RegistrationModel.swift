@@ -54,6 +54,18 @@ public final class RegistrationModel {
         public let count: Int
     }
 
+    /// How a field error reaches VoiceOver. Moving focus to the field reads its error (its hint) once. When the field
+    /// already has focus, as after Return in that field, moving focus does nothing, so the error is announced once
+    /// instead. Never both, so that it is not read twice. The same rule as the Web client's `deliveryOfFieldError`.
+    public enum FieldErrorDelivery: Equatable, Sendable {
+        case focus
+        case announce
+    }
+
+    public static func delivery(fieldHasFocus: Bool) -> FieldErrorDelivery {
+        fieldHasFocus ? .announce : .focus
+    }
+
     private static let fieldOrder: [RegistrationField] = [.username, .password, .confirmation]
 
     /// Whether the last provider completion can be repeated with the same code and key.
@@ -116,7 +128,7 @@ public final class RegistrationModel {
     public func setField(_ field: RegistrationField, to value: String) {
         // SwiftUI writes a field's unchanged value back when it gains focus: that is not an edit, and must neither
         // start a new command nor replace the service's refusal shown under the field.
-        guard value != entries.value(of: field) else { return }
+        guard !RegistrationChecks.same(value, entries.value(of: field)) else { return }
         key = .unset
         completion = nil
         edited.insert(field)

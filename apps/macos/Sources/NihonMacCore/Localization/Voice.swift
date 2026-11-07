@@ -3,16 +3,21 @@
 /// interface must not use; the core tests check every generated text with it.
 public enum Voice {
     /// The first forbidden word of a text, or `nil`. Placeholders such as `{username}` are removed first. The
-    /// expressions are matched as JavaScript does without the `u` flag: word characters and boundaries are ASCII,
-    /// so that "clé" or "Réinstallez" are judged exactly as by the Web tests.
+    /// expressions are matched as JavaScript does with the `u` flag: on Unicode scalars, with Unicode letter and
+    /// digit classes. The character a translated lookbehind captured (`lbN`) is not part of the reported word.
     public static func forbiddenWord(in text: String, language: Language) -> String? {
         guard let entry = ForbiddenWords.patterns[language], let regex = try? Regex(entry.pattern) else { return nil }
         let words = text.replacing(/\{[a-zA-Z]+\}/, with: "")
-        let matcher = regex
-            .ignoresCase(entry.ignoresCase)
-            .asciiOnlyWordCharacters()
-            .wordBoundaryKind(.simple)
-            .matchingSemantics(.unicodeScalar)
-        return (try? matcher.firstMatch(in: words)).map { String(words[$0.range]) }
+        let matcher = regex.ignoresCase(entry.ignoresCase).matchingSemantics(.unicodeScalar)
+        guard let found = try? matcher.firstMatch(in: words) else { return nil }
+        var start = found.range.lowerBound
+        for index in 0... {
+            let name = "lb\(index)"
+            guard entry.pattern.contains("(?<\(name)>") else { break }
+            if let before = found.output[name]?.range, before.lowerBound == start {
+                start = before.upperBound
+            }
+        }
+        return String(words.unicodeScalars[start..<found.range.upperBound])
     }
 }

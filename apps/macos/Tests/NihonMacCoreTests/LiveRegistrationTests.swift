@@ -30,6 +30,8 @@ private final class AccountsFixture: @unchecked Sendable {
         try process.run()
         struct Listening: Decodable { let port: Int }
         guard let line = try await output.fileHandleForReading.bytes.lines.first(where: { _ in true }) else {
+            // The output ended: the process is exiting; its status can only be read once it has exited.
+            process.waitUntilExit()
             throw FixtureError.exited(process.terminationStatus)
         }
         let port = try JSONDecoder().decode(Listening.self, from: Data(line.utf8)).port
@@ -107,6 +109,8 @@ struct LiveRegistrationTests {
         ("agree7", String(repeating: "x", count: 129)), ("agree8", String(repeating: "x", count: 513)),
         ("agree9", String(repeating: " ", count: 8)), ("agree10", "abcd\u{7}efgh"), ("Agree_eleven", "AGREE_ELEVEN"),
         ("agreefull", "ＡＧＲＥＥＦＵＬＬ"), ("agree12", "パスワードです本当"), ("agree13", "\u{85}\u{85}\u{85}\u{85}\u{85}\u{85}\u{85}\u{85}"),
+        ("agree14", "   "), ("agree15", String(repeating: "\u{3000}", count: 10)), ("agree16", "ab\u{7}"),
+        ("ΟΔΥΣΣΕΥΣ", "οδυσσευς"), ("ΑΣΣΟΣ", "ασσοσ12"), ("ΣΟΦΙΑ_ΣΑΣ", "σοφια_σας"),
     ]
 
     @Test("the typing checks accept and refuse the same local registrations as the service, on the same field")

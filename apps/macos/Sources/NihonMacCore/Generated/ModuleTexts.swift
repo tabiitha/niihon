@@ -375,6 +375,8 @@ public enum AccountsText: String, TextKey {
     case errorUsernameTaken
     case errorUsernameInvalid
     case errorPasswordInvalid
+    case passwordOnlySpaces
+    case passwordCharacter
     case errorRequestInvalid
     case errorRedirectUri
     case errorProviderUnavailable
@@ -428,6 +430,8 @@ public enum AccountsText: String, TextKey {
             .errorUsernameTaken: "This username is already taken.",
             .errorUsernameInvalid: "3 to 32 characters: letters, digits, _ - or ., starting with a letter or a digit.",
             .errorPasswordInvalid: "8 to 128 characters, different from your username.",
+            .passwordOnlySpaces: "Your password cannot be only spaces.",
+            .passwordCharacter: "Your password contains a character that cannot be used.",
             .errorRequestInvalid: "Nihon could not handle this. Check what you typed and try again.",
             .errorRedirectUri: "Signing up with an existing account does not work here. Use a username and a password instead.",
             .errorProviderUnavailable: "This option is not available. Use a username and a password instead.",
@@ -478,6 +482,8 @@ public enum AccountsText: String, TextKey {
             .errorUsernameTaken: "Ce nom d’utilisateur est déjà pris.",
             .errorUsernameInvalid: "De 3 à 32 caractères : lettres, chiffres, _ - ou ., en commençant par une lettre ou un chiffre.",
             .errorPasswordInvalid: "De 8 à 128 caractères, différent de votre nom d’utilisateur.",
+            .passwordOnlySpaces: "Votre mot de passe ne peut pas contenir que des espaces.",
+            .passwordCharacter: "Votre mot de passe contient un caractère qui ne peut pas être utilisé.",
             .errorRequestInvalid: "Nihon n’a pas pu traiter votre demande. Vérifiez votre saisie et réessayez.",
             .errorRedirectUri: "L’inscription avec un compte existant ne fonctionne pas ici. Utilisez plutôt un nom d’utilisateur et un mot de passe.",
             .errorProviderUnavailable: "Cette option n’est pas disponible. Utilisez plutôt un nom d’utilisateur et un mot de passe.",
@@ -528,6 +534,8 @@ public enum AccountsText: String, TextKey {
             .errorUsernameTaken: "このユーザー名はすでに使われています。",
             .errorUsernameInvalid: "3〜32文字：文字・数字・_ - . が使えます。最初は文字か数字にしてください。",
             .errorPasswordInvalid: "8〜128文字で、ユーザー名とは違うものにしてください。",
+            .passwordOnlySpaces: "パスワードをスペースだけにすることはできません。",
+            .passwordCharacter: "パスワードに使用できない文字が含まれています。",
             .errorRequestInvalid: "Nihonで処理できませんでした。入力内容を確認して、もう一度お試しください。",
             .errorRedirectUri: "ここでは、お持ちのアカウントでの登録ができません。ユーザー名とパスワードで登録してください。",
             .errorProviderUnavailable: "この方法は利用できません。ユーザー名とパスワードで登録してください。",

@@ -47,13 +47,18 @@ public enum RegistrationChecks {
             return .passwordRequired
         }
         let normalized = nfkc(password)
+        // Two refusals the length rule does not explain get their own words, as on the Web.
+        if PasswordRules.notBlank && trim(normalized).isEmpty {
+            return .passwordOnlySpaces
+        }
+        if PasswordRules.noControlCharacters && normalized.unicodeScalars.contains(where: { $0.properties.generalCategory == .control }) {
+            return .passwordCharacter
+        }
         let length = normalized.unicodeScalars.count
         if password.utf16.count > PasswordRules.rawMaxLength
             || length < PasswordRules.minLength
             || length > PasswordRules.maxLength
-            || (PasswordRules.notBlank && trim(normalized).isEmpty)
-            || (PasswordRules.noControlCharacters && normalized.unicodeScalars.contains { $0.properties.generalCategory == .control })
-            || (PasswordRules.differentFromUsername && lowercase(normalized) == usernameKey(username))
+            || (PasswordRules.differentFromUsername && same(lowercase(normalized), usernameKey(username)))
         {
             return .errorPasswordInvalid
         }
@@ -61,7 +66,7 @@ public enum RegistrationChecks {
     }
 
     public static func confirmation(_ confirmation: String, password: String) -> AccountsText? {
-        confirmation == password ? nil : .passwordsDiffer
+        same(confirmation, password) ? nil : .passwordsDiffer
     }
 
     /// The check of one field, given everything typed.
@@ -90,9 +95,33 @@ public enum RegistrationChecks {
         nfkc(lowercase(usernameForm(username)))
     }
 
-    /// Unicode default lowercase mapping, independent of the locale, as JavaScript's `toLowerCase`.
-    private static func lowercase(_ text: String) -> String {
-        text.lowercased()
+    /// JavaScript's `===` on strings: the same code units. Swift's `==` treats canonically equivalent strings as equal
+    /// (a precomposed "é" and "e" with a combining accent), which JavaScript does not.
+    public static func same(_ left: String, _ right: String) -> Bool {
+        left.unicodeScalars.elementsEqual(right.unicodeScalars)
+    }
+
+    /// JavaScript's `toLowerCase`: the default full lowercase mapping, independent of the locale, with the one
+    /// context rule it applies, a final capital sigma becoming "ς". Swift's `lowercased()` always gives "σ".
+    public static func lowercase(_ text: String) -> String {
+        let scalars = Array(text.unicodeScalars)
+        var lower = String.UnicodeScalarView()
+        for (index, scalar) in scalars.enumerated() {
+            if scalar.value == 0x3A3, isFinalSigma(scalars, at: index) {
+                lower.append("\u{3C2}")
+            } else {
+                lower.append(contentsOf: scalar.properties.lowercaseMapping.unicodeScalars)
+            }
+        }
+        return String(lower)
+    }
+
+    /// The Final_Sigma condition of the Unicode standard (3.13): a cased letter before it, and none after it,
+    /// case-ignorable characters being skipped on both sides.
+    private static func isFinalSigma(_ scalars: [Unicode.Scalar], at index: Int) -> Bool {
+        let before = scalars[..<index].reversed().first { !$0.properties.isCaseIgnorable }
+        let after = scalars[(index + 1)...].first { !$0.properties.isCaseIgnorable }
+        return before?.properties.isCased == true && after?.properties.isCased != true
     }
 
     /// JavaScript's `String.prototype.trim`: white space (`Zs`, tab, vertical tab, form feed, U+FEFF) and line

@@ -290,10 +290,14 @@ function generateForbiddenWords() {
   const words = {};
   for (const language of languages) {
     const match = new RegExp(`^\\s*${language}: /(.+)/([a-z]*),$`, 'm').exec(source);
-    if (match === null || match[2].replace('i', '') !== '') {
-      throw new InvalidSourceError(`${voicePath}: forbiddenWords.${language} must be one regular expression literal, with the "i" flag at most.`);
+    if (match === null || !match[2].includes('u') || match[2].replace('i', '').replace('u', '') !== '') {
+      throw new InvalidSourceError(`${voicePath}: forbiddenWords.${language} must be one regular expression literal with the "u" flag, and "i" at most besides.`);
     }
-    words[language] = { pattern: match[1], ignoreCase: match[2] === 'i', expression: new RegExp(match[1], match[2]) };
+    words[language] = {
+      pattern: swiftPattern(match[1], language),
+      ignoreCase: match[2].includes('i'),
+      expression: new RegExp(match[1], match[2]),
+    };
   }
   for (const { type, directory } of textModules) {
     if (!directory.startsWith('apps/macos/')) {
@@ -311,8 +315,9 @@ function generateForbiddenWords() {
   const lines = [
     `// ${notice}`,
     '',
-    '/// The words the interface must not use, copied from `forbiddenWords` in apps/web/src/i18n/voice.ts: JavaScript',
-    '/// regular expressions without the `u` flag, so `\\b` and `\\w` are ASCII (see `Voice`).',
+    '/// The words the interface must not use, from `forbiddenWords` in apps/web/src/i18n/voice.ts (JavaScript, `u`',
+    '/// flag). Swift Regex has no lookbehind, so each `(?<![…])` is written `(?:^|(?<lbN>[^…]))`: the same texts',
+    '/// match, and `Voice` leaves the captured preceding character out of the word it reports.',
     'public enum ForbiddenWords {',
     '    public static let patterns: [Language: (pattern: String, ignoresCase: Bool)] = [',
     ...languages.map((language) => `        .${language}: (${swiftString(words[language].pattern)}, ${words[language].ignoreCase}),`),
@@ -322,6 +327,20 @@ function generateForbiddenWords() {
     '}',
   ];
   return `${lines.join('\n')}\n`;
+}
+
+/**
+ * The Swift form of a voice.ts expression: the only lookbehind voice.ts uses, a negative one on a character class,
+ * becomes "start of text, or one character outside the class", captured as `lbN` so that it can be left out of the
+ * reported word. Any other lookbehind stops the generation.
+ */
+function swiftPattern(pattern, language) {
+  let count = 0;
+  const translated = pattern.replace(/\(\?<!\[([^\]]+)\]\)/g, (_, members) => `(?:^|(?<lb${count++}>[^${members}]))`);
+  if (/\(\?<[!=]/.test(translated)) {
+    throw new InvalidSourceError(`${voicePath}: forbiddenWords.${language} uses a lookbehind other than (?<![…]); translate it for Swift here.`);
+  }
+  return translated;
 }
 
 function readTheme(folder) {
