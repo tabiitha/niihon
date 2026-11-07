@@ -32,7 +32,7 @@ public final class RegistrationModel {
     public private(set) var problem: RegistrationProblem?
     /// The field to move focus to; `count` changes with every request, even for the same field.
     public private(set) var focusRequest: FocusRequest?
-    /// The created profile, once the registration is done.
+    /// The created profile, once the registration is done; `registered` has then been called once.
     public private(set) var profile: RegisteredProfile?
     /// The providers this installation offers, once known.
     public private(set) var providers: [String] = []
@@ -90,6 +90,9 @@ public final class RegistrationModel {
     private let presenter: any AuthorizationPagePresenting
     private let language: () -> Language
     private let newKey: @Sendable () -> String
+    /// Called once when the account exists, locally or through a provider: the window then shows the Profile page
+    /// in place of the form (owner's request; the Web client opens the Profile page the same way).
+    private let registered: (RegisteredProfile) -> Void
 
     private var sending = false
     private var generation = 0
@@ -109,13 +112,15 @@ public final class RegistrationModel {
         listener: any ProviderReturnListening,
         presenter: any AuthorizationPagePresenting,
         language: @escaping () -> Language = { .en },
-        newKey: @escaping @Sendable () -> String = { UUID().uuidString }
+        newKey: @escaping @Sendable () -> String = { UUID().uuidString },
+        registered: @escaping (RegisteredProfile) -> Void = { _ in }
     ) {
         self.client = client
         self.listener = listener
         self.presenter = presenter
         self.language = language
         self.newKey = newKey
+        self.registered = registered
     }
 
     private var entries: RegistrationChecks.Entries {
@@ -238,6 +243,7 @@ public final class RegistrationModel {
             password = ""
             confirmation = ""
             profile = created
+            registered(created)
         case .failure(let failure):
             let problem = RegistrationProblem.describe(failure)
             if problem.retry == .new {
@@ -359,6 +365,7 @@ public final class RegistrationModel {
             case .success(let created):
                 completion = nil
                 profile = created
+                registered(created)
             case .failure(let failure):
                 let problem = RegistrationProblem.describe(failure)
                 show(problem)

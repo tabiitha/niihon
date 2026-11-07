@@ -390,9 +390,6 @@ public enum AccountsText: String, TextKey {
     case errorProviderDenied
     case errorStorage
     case errorGeneric
-    case successTitle
-    case successBody
-    case backHome
     case callbackTitle
     case callbackProgress
     case callbackFailedTitle
@@ -445,9 +442,6 @@ public enum AccountsText: String, TextKey {
             .errorProviderDenied: "The sign-in was not allowed. No account was created.",
             .errorStorage: "This browser blocks the rest of the sign-up. Use a username and a password instead.",
             .errorGeneric: "The account could not be created. Try again.",
-            .successTitle: "Account created",
-            .successBody: "Welcome, {username}! Your account is ready.",
-            .backHome: "Back to home",
             .callbackTitle: "Completing your registration",
             .callbackProgress: "One moment…",
             .callbackFailedTitle: "Registration not completed",
@@ -497,9 +491,6 @@ public enum AccountsText: String, TextKey {
             .errorProviderDenied: "La connexion n’a pas été autorisée. Aucun compte n’a été créé.",
             .errorStorage: "Ce navigateur bloque la suite de l’inscription. Utilisez plutôt un nom d’utilisateur et un mot de passe.",
             .errorGeneric: "Le compte n’a pas pu être créé. Réessayez.",
-            .successTitle: "Compte créé",
-            .successBody: "Bienvenue, {username} ! Votre compte est prêt.",
-            .backHome: "Retour à l’accueil",
             .callbackTitle: "Finalisation de votre inscription",
             .callbackProgress: "Un instant…",
             .callbackFailedTitle: "Inscription non terminée",
@@ -549,9 +540,6 @@ public enum AccountsText: String, TextKey {
             .errorProviderDenied: "ログインが許可されませんでした。アカウントは作成されていません。",
             .errorStorage: "このブラウザーでは登録を続けられません。ユーザー名とパスワードで登録してください。",
             .errorGeneric: "アカウントを作成できませんでした。もう一度お試しください。",
-            .successTitle: "アカウントを作成しました",
-            .successBody: "ようこそ、{username}さん！アカウントの準備ができました。",
-            .backHome: "ホームに戻る",
             .callbackTitle: "登録を完了しています",
             .callbackProgress: "少々お待ちください…",
             .callbackFailedTitle: "登録は完了していません",

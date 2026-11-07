@@ -144,7 +144,6 @@ struct RegistrationProblemTests {
     @Test("keep the placeholders the screen fills in")
     func placeholders() {
         for language in Language.allCases {
-            #expect(language.text(AccountsText.successBody, ["username": "UNAME"]).contains("UNAME"), "\(language)")
             #expect(language.text(AccountsText.continueWithProvider, ["provider": "PROV"]).contains("PROV"), "\(language)")
             #expect(language.text(MacAccountsText.waitingForProvider, ["provider": "PROV"]).contains("PROV"), "\(language)")
         }

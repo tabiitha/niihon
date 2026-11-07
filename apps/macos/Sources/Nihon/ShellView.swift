@@ -71,7 +71,7 @@ struct ShellView: View {
         switch connection.state {
         case .connected:
             if let registration, space == .profile {
-                RegistrationView(model: registration, language: language) { closeRegistration() }
+                RegistrationView(model: registration, language: language)
             } else {
                 SpacePage(space: space, language: language, select: { selection = $0 }, register: { openRegistration() })
             }
@@ -99,8 +99,17 @@ struct ShellView: View {
             client: AccountRegistrationClient(serviceURL: serviceURL),
             listener: LoopbackProviderReturnListener(),
             presenter: WebAuthenticationPresenter(),
-            language: { [settings] in settings.language }
+            language: { [settings] in settings.language },
+            registered: { _ in showProfileAfterRegistration() }
         )
+    }
+
+    /// Once the account exists, the registration screen closes and the window shows the Profile page, as a page
+    /// change: the window title becomes the Profile page's and VoiceOver announces that page once.
+    private func showProfileAfterRegistration() {
+        closeRegistration()
+        selection = .profile
+        AccessibilityNotification.Announcement(settings.language.text(Space.profile.label)).post()
     }
 
     private func closeRegistration() {

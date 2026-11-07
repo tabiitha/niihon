@@ -7,8 +7,6 @@ import SwiftUI
 struct RegistrationView: View {
     let model: RegistrationModel
     let language: Language
-    /// Leaves the screen for the page it came from.
-    let finish: () -> Void
 
     @Environment(\.palette) private var palette
     @Environment(\.colorScheme) private var colorScheme
@@ -45,22 +43,11 @@ struct RegistrationView: View {
         .onChange(of: focus) { left, _ in
             if let left { model.leaveField(left) }
         }
-        .onChange(of: model.profile) { _, profile in
-            if let profile {
-                AccessibilityNotification.Announcement(
-                    language.text(AccountsText.successBody, ["username": profile.username])
-                ).post()
-            }
-        }
     }
 
     private var card: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if let profile = model.profile {
-                success(profile)
-            } else {
-                form
-            }
+            form
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 32)
@@ -254,26 +241,6 @@ struct RegistrationView: View {
         case .completing: language.text(MacAccountsText.completing)
         case .local, nil: nil
         }
-    }
-
-    // MARK: Success
-
-    @ViewBuilder
-    private func success(_ profile: RegisteredProfile) -> some View {
-        Text(language.text(AccountsText.successTitle))
-            .font(.largeTitle.bold())
-            .accessibilityAddTraits(.isHeader)
-        Text(language.text(AccountsText.successBody, ["username": profile.username]))
-            .padding(.top, 12)
-        Button(action: finish) {
-            HStack(spacing: 12) {
-                Text(language.text(AccountsText.backHome))
-                Image(systemName: "arrow.right").accessibilityHidden(true)
-            }
-        }
-        .buttonStyle(PrimaryButtonStyle())
-        .keyboardShortcut(.defaultAction)
-        .padding(.top, 28)
     }
 }
 
