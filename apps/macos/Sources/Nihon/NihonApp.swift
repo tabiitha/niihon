@@ -10,7 +10,10 @@ struct NihonApp: App {
             ShellView()
                 .environment(settings)
         }
-        .defaultSize(width: 1040, height: 700)
+        // A standard title bar above the navigation bar: it keeps the window buttons, the drag area, and full screen
+        // exactly as in any Mac app, and shows the current space as the window title.
+        .windowResizability(.contentMinSize)
+        .defaultSize(width: 1200, height: 720)
         .commands {
             ShellCommands(language: settings.language)
         }
