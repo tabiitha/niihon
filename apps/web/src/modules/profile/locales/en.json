@@ -2,7 +2,7 @@
   "title": "Profile",
   "body": "Your profile and account settings will appear here.",
   "displayTitle": "Display",
-  "displayNote": "These choices apply to this page until profile preferences are available.",
+  "displayNote": "These settings apply to this page and are not saved to your profile yet.",
   "language": "Language",
   "style": "Style",
   "mode": "Mode",

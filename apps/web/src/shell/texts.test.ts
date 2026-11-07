@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, it } from 'node:test';
 
 import { languages } from '../i18n/languages.ts';
+import { forbiddenWordIn } from '../i18n/voice.ts';
 import { shellTexts } from './texts.ts';
 
 describe('what the shell tells an ordinary person', () => {
@@ -15,15 +16,10 @@ describe('what the shell tells an ordinary person', () => {
     }
   });
 
-  it('uses no technical words in any language', () => {
-    const technical: Record<string, RegExp> = {
-      en: /\b(service|server|log|request|api|version|code|http|localhost|address)\b/i,
-      fr: /\b(service|serveur|journal|requête|api|version|code|http|localhost|adresse)\b/i,
-      ja: /サービス|サーバー|ログ(?!イン)|参照番号|リクエスト|API|バージョン|コード|アドレス|http/,
-    };
+  it('uses no technical or deployment words in any language', () => {
     for (const language of languages) {
       for (const [key, text] of Object.entries(shellTexts.texts[language])) {
-        assert.doesNotMatch(text.replace(/\{[a-zA-Z]+\}/g, ''), technical[language] as RegExp, `${language}.${key}: ${text}`);
+        assert.equal(forbiddenWordIn(text, language), undefined, `${language}.${key}: ${text}`);
       }
     }
   });
