@@ -2,30 +2,20 @@ import Foundation
 import NihonMacCore
 import Testing
 
-/// Words that only a developer needs. They stay in the logs; the interface never shows them.
-private func technical(_ language: Language) -> Regex<AnyRegexOutput> {
-    let words: [Language: Regex<AnyRegexOutput>] = [
-    .en: try! Regex(#"(?i)\b(service|server|log|request|api|version|code|http|https|localhost|url|address|loopback|key|idempotency|provider)\b|127\.0\.0\.1|NihonServiceURL"#),
-    .fr: try! Regex(#"(?i)\b(service|serveur|journal|requête|api|version|code|http|https|localhost|url|adresse|bouclage|clé|idempotence|fournisseur)\b|127\.0\.0\.1|NihonServiceURL"#),
-    .ja: try! Regex(#"サービス|サーバー|ログ(?!イン)|参照番号|リクエスト|API|バージョン|コード|http|URL|アドレス|ループバック|キー|プロバイダー|127\.0\.0\.1|NihonServiceURL"#),
-    ]
-    return words[language]!
-}
-
 /// Placeholders that would put an address, a version, or a request identifier on screen.
 private func technicalPlaceholders() -> Regex<(Substring, Substring)> {
     /\{(address|serverVersion|clientVersion|requestId|code|status)\}/
 }
 
+/// Checks every text of a module with the words of `voice.ts` (generated as `ForbiddenWords`), except brand names.
 private func assertPlain<Key: TextKey>(_ module: Key.Type) {
     for language in Language.allCases {
-        for key in Key.allCases {
+        for key in Key.allCases where !ForbiddenWords.brandKeys.contains(key.rawValue) {
             let text = Key.table[language]?[key] ?? ""
             #expect(!text.isEmpty, "\(Key.source) \(language).\(key.rawValue) is missing")
             #expect(text.firstMatch(of: technicalPlaceholders()) == nil, "\(Key.source) \(language).\(key.rawValue): \(text)")
-            // Other placeholders (a provider's or a person's name) are filled with ordinary words.
-            let words = text.replacing(/\{[a-zA-Z]+\}/, with: "")
-            #expect(words.firstMatch(of: technical(language)) == nil, "\(Key.source) \(language).\(key.rawValue): \(text)")
+            let word = Voice.forbiddenWord(in: text, language: language)
+            #expect(word == nil, "\(Key.source) \(language).\(key.rawValue) uses \"\(word ?? "")\": \(text)")
         }
     }
 }
@@ -57,6 +47,41 @@ struct PlainLanguageTests {
     @Test("the shared Web account texts that macOS shows use no technical words and no technical placeholder")
     func sharedAccountTexts() {
         assertPlain(AccountsText.self)
+    }
+
+    @Test("the other shared Web texts that macOS shows use no forbidden word")
+    func otherSharedTexts() {
+        assertPlain(HomeText.self)
+        assertPlain(LearningText.self)
+        assertPlain(KanjiText.self)
+        assertPlain(LibraryText.self)
+        assertPlain(ProfileText.self)
+        assertPlain(AdminText.self)
+    }
+
+    @Test("judges words exactly as voice.ts does, with JavaScript's ASCII word boundaries")
+    func sameJudgementAsTheWeb() {
+        // The examples of apps/web/src/i18n/voice.test.ts.
+        let caught: [(String, Language)] = [
+            ("The account is ready on this computer.", .en), ("Open Nihon on this Mac.", .en), ("Saved locally.", .en),
+            ("You are offline.", .en), ("Install Nihon first.", .en), ("On this machine.", .en), ("Check the server.", .en),
+            ("Le compte est prêt sur cet ordinateur.", .fr), ("Ouvrez Nihon sur ce Mac.", .fr), ("Enregistré en local.", .fr),
+            ("Vous êtes hors ligne.", .fr), ("Vous êtes hors-ligne.", .fr), ("Après l’installation.", .fr),
+            ("Sur cette machine.", .fr), ("Vérifiez le serveur.", .fr),
+            ("このコンピューターに作成されました。", .ja), ("パソコンで開いてください。", .ja), ("このMacで開いてください。", .ja),
+            ("ローカルに保存しました。", .ja), ("オフラインです。", .ja), ("インストールしてください。", .ja),
+            ("サーバーを確認してください。", .ja),
+        ]
+        for (text, language) in caught {
+            #expect(Voice.forbiddenWord(in: text, language: language) != nil, "\(language): \(text)")
+        }
+        #expect(Voice.forbiddenWord(in: "ログインしてください。", language: .ja) == nil, "logging in is not a log")
+        #expect(Voice.forbiddenWord(in: "Welcome, {username}!", language: .en) == nil)
+        // JavaScript without the `u` flag sees "é" as a boundary: "Réinstallez" is caught, as on the Web.
+        #expect(Voice.forbiddenWord(in: "Réinstallez l’application.", language: .fr) == "installez")
+        // The same judgement, gaps included: with ASCII boundaries "clé" before a space is not a word for voice.ts.
+        #expect(Voice.forbiddenWord(in: "La clé est prête.", language: .fr) == nil)
+        #expect(Voice.forbiddenWord(in: "Un Mac local.", language: .fr) == "local")
     }
 
     @Test("names Google and GitHub, and never shows the raw identifier of another provider")

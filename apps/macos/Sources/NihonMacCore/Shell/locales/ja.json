@@ -1,8 +1,8 @@
 {
   "incompatibleTitle": "Nihonの更新が必要です",
-  "incompatibleBody": "Nihonを更新してから、もう一度お試しください。",
-  "addressTitle": "この設定ではNihonを開けません",
-  "addressBody": "このMacに追加された設定のため、Nihonを開けません。その設定を削除してから、Nihonをもう一度開いてください。",
+  "incompatibleBody": "続けるにはNihonを更新してください。",
+  "addressTitle": "Nihonを起動できませんでした",
+  "addressBody": "問題が発生したため、Nihonを起動できません。Nihonを終了してから、もう一度開いてください。問題が続く場合は、サポートにお問い合わせください。",
   "goMenu": "移動",
-  "retryConnection": "接続を再試行"
+  "retryConnection": "再試行"
 }

@@ -1,8 +1,8 @@
 {
   "incompatibleTitle": "Une mise à jour de Nihon est nécessaire",
-  "incompatibleBody": "Mettez Nihon à jour, puis réessayez.",
-  "addressTitle": "Nihon ne peut pas s’ouvrir avec ce réglage",
-  "addressBody": "Un réglage ajouté sur ce Mac empêche Nihon de s’ouvrir. Retirez ce réglage, puis rouvrez Nihon.",
+  "incompatibleBody": "Mettez Nihon à jour pour continuer.",
+  "addressTitle": "Nihon n’a pas pu démarrer",
+  "addressBody": "Un problème empêche Nihon de démarrer. Quittez Nihon, puis rouvrez-le. Si le problème continue, demandez de l’aide.",
   "goMenu": "Aller",
-  "retryConnection": "Réessayer la connexion"
+  "retryConnection": "Réessayer"
 }
