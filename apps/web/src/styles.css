@@ -411,7 +411,12 @@ main {
   font-weight: 500;
 }
 
+/* A message that receives focus to be read shows the ring only when the person navigates with the keyboard. */
 .auth-card [tabindex='-1']:focus {
+  outline: none;
+}
+
+.auth-card [tabindex='-1']:focus-visible {
   outline: var(--focus-ring);
   outline-offset: 3px;
 }

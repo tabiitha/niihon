@@ -110,7 +110,7 @@ function RegistrationForm() {
   if (profile !== undefined) {
     return (
       <Page title={t('successTitle')} className="auth-card">
-        <p ref={notice} tabIndex={-1} role="status">
+        <p ref={notice} tabIndex={-1}>
           {t('successBody', { username: profile.username })}
         </p>
         <div className="actions">
@@ -270,7 +270,7 @@ function ProviderReturn({ answer }: { readonly answer: ProviderReturn }) {
   if (view?.kind === 'registered') {
     return (
       <Page title={t('successTitle')} className="auth-card">
-        <p ref={notice} tabIndex={-1} role="status">
+        <p ref={notice} tabIndex={-1}>
           {t('successBody', { username: view.profile.username })}
         </p>
         <div className="actions">
