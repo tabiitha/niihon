@@ -17,10 +17,8 @@ public enum ShellText: String, TextKey {
     case unavailableBody
     case incompatibleTitle
     case incompatibleBody
-    case incompatibleVersions
     case errorTitle
     case errorBody
-    case errorReference
     case retry
     case notFoundTitle
     case notFoundBody
@@ -40,18 +38,16 @@ public enum ShellText: String, TextKey {
             .navLibrary: "Library",
             .navProfile: "Profile",
             .navAdmin: "Administration",
-            .loading: "Connecting to the Nihon service…",
-            .unavailableTitle: "The Nihon service is not responding",
-            .unavailableBody: "Check that Nihon is running on this computer, then try again.",
-            .incompatibleTitle: "This page needs an update",
-            .incompatibleBody: "This page was built for another version of the Nihon service. Reload the page; if the message remains, update Nihon.",
-            .incompatibleVersions: "Service API version {serverVersion}; this page expects version {clientVersion}.",
+            .loading: "Loading…",
+            .unavailableTitle: "Nihon is temporarily unavailable",
+            .unavailableBody: "Try again in a moment.",
+            .incompatibleTitle: "This page needs to be reloaded",
+            .incompatibleBody: "Reload the page to continue.",
             .errorTitle: "Something went wrong",
-            .errorBody: "The Nihon service could not complete the request.",
-            .errorReference: "Reference for the service log: {requestId}",
+            .errorBody: "Nihon could not finish this. Try again.",
             .retry: "Try again",
             .notFoundTitle: "Page not found",
-            .notFoundBody: "No page of Nihon has this address.",
+            .notFoundBody: "This page does not exist.",
             .backHome: "Back to home",
         ],
         .fr: [
@@ -65,18 +61,16 @@ public enum ShellText: String, TextKey {
             .navLibrary: "Bibliothèque",
             .navProfile: "Profil",
             .navAdmin: "Administration",
-            .loading: "Connexion au service Nihon…",
-            .unavailableTitle: "Le service Nihon ne répond pas",
-            .unavailableBody: "Vérifiez que Nihon fonctionne sur cet ordinateur, puis réessayez.",
-            .incompatibleTitle: "Cette page doit être mise à jour",
-            .incompatibleBody: "Cette page a été construite pour une autre version du service Nihon. Rechargez la page ; si le message persiste, mettez Nihon à jour.",
-            .incompatibleVersions: "Version de l’API du service : {serverVersion} ; cette page attend la version {clientVersion}.",
+            .loading: "Chargement…",
+            .unavailableTitle: "Nihon est momentanément indisponible",
+            .unavailableBody: "Réessayez dans un instant.",
+            .incompatibleTitle: "Cette page doit être rechargée",
+            .incompatibleBody: "Rechargez la page pour continuer.",
             .errorTitle: "Une erreur est survenue",
-            .errorBody: "Le service Nihon n’a pas pu traiter la demande.",
-            .errorReference: "Référence pour le journal du service : {requestId}",
+            .errorBody: "Nihon n’a pas pu terminer cette action. Réessayez.",
             .retry: "Réessayer",
             .notFoundTitle: "Page introuvable",
-            .notFoundBody: "Aucune page de Nihon ne correspond à cette adresse.",
+            .notFoundBody: "Cette page n’existe pas.",
             .backHome: "Retour à l’accueil",
         ],
         .ja: [
@@ -90,18 +84,16 @@ public enum ShellText: String, TextKey {
             .navLibrary: "ライブラリ",
             .navProfile: "プロフィール",
             .navAdmin: "管理",
-            .loading: "Nihon サービスに接続しています…",
-            .unavailableTitle: "Nihon サービスが応答しません",
-            .unavailableBody: "このコンピューターで Nihon が起動していることを確認して、もう一度お試しください。",
-            .incompatibleTitle: "このページの更新が必要です",
-            .incompatibleBody: "このページは別のバージョンの Nihon サービス向けに作られています。ページを再読み込みしてください。表示が消えない場合は Nihon を更新してください。",
-            .incompatibleVersions: "サービスの API バージョンは {serverVersion}、このページが必要とするバージョンは {clientVersion} です。",
+            .loading: "読み込み中…",
+            .unavailableTitle: "Nihonは一時的に利用できません",
+            .unavailableBody: "しばらくしてから、もう一度お試しください。",
+            .incompatibleTitle: "ページの再読み込みが必要です",
+            .incompatibleBody: "ページを再読み込みして続けてください。",
             .errorTitle: "問題が発生しました",
-            .errorBody: "Nihon サービスはリクエストを完了できませんでした。",
-            .errorReference: "サービスログの参照番号：{requestId}",
+            .errorBody: "Nihonで処理を完了できませんでした。もう一度お試しください。",
             .retry: "再試行",
             .notFoundTitle: "ページが見つかりません",
-            .notFoundBody: "このアドレスの Nihon ページはありません。",
+            .notFoundBody: "このページはありません。",
             .backHome: "ホームに戻る",
         ],
     ]
@@ -257,7 +249,7 @@ public enum LibraryText: String, TextKey {
             .body: "Your media and collections will appear here.",
             .readerTitle: "Reader",
             .readerMedia: "Media {mediaId}",
-            .readerPending: "The player for this media arrives with the media features.",
+            .readerPending: "This media cannot be played yet.",
             .readerMissing: "No media is selected. Open a media item from the library.",
             .backToLibrary: "Back to the library",
         ],
@@ -266,7 +258,7 @@ public enum LibraryText: String, TextKey {
             .body: "Vos médias et vos collections apparaîtront ici.",
             .readerTitle: "Lecteur",
             .readerMedia: "Média {mediaId}",
-            .readerPending: "Le lecteur de ce média arrivera avec les fonctionnalités médias.",
+            .readerPending: "Ce média ne peut pas encore être lu.",
             .readerMissing: "Aucun média n’est sélectionné. Ouvrez un média depuis la bibliothèque.",
             .backToLibrary: "Retour à la bibliothèque",
         ],
@@ -275,7 +267,7 @@ public enum LibraryText: String, TextKey {
             .body: "メディアとコレクションがここに表示されます。",
             .readerTitle: "プレーヤー",
             .readerMedia: "メディア {mediaId}",
-            .readerPending: "このメディアのプレーヤーはメディア機能とともに提供されます。",
+            .readerPending: "このメディアはまだ再生できません。",
             .readerMissing: "メディアが選択されていません。ライブラリからメディアを開いてください。",
             .backToLibrary: "ライブラリに戻る",
         ],
@@ -294,6 +286,7 @@ public enum ProfileText: String, TextKey {
     case modeSystem
     case modeLight
     case modeDark
+    case createAccount
 
     public static let source = "apps/web/src/modules/profile/locales"
 
@@ -302,37 +295,40 @@ public enum ProfileText: String, TextKey {
             .title: "Profile",
             .body: "Your profile and account settings will appear here.",
             .displayTitle: "Display",
-            .displayNote: "These choices apply to this page until profile preferences are available.",
+            .displayNote: "These settings apply to this page and are not saved to your profile yet.",
             .language: "Language",
             .style: "Style",
             .mode: "Mode",
             .modeSystem: "System",
             .modeLight: "Light",
             .modeDark: "Dark",
+            .createAccount: "Create an account",
         ],
         .fr: [
             .title: "Profil",
             .body: "Votre profil et les réglages de votre compte apparaîtront ici.",
             .displayTitle: "Affichage",
-            .displayNote: "Ces choix s’appliquent à cette page jusqu’à l’arrivée des préférences du profil.",
+            .displayNote: "Ces réglages s’appliquent à cette page et ne sont pas encore enregistrés dans votre profil.",
             .language: "Langue",
             .style: "Style",
             .mode: "Mode",
             .modeSystem: "Système",
             .modeLight: "Clair",
             .modeDark: "Sombre",
+            .createAccount: "Créer un compte",
         ],
         .ja: [
             .title: "プロフィール",
             .body: "プロフィールとアカウント設定がここに表示されます。",
             .displayTitle: "表示",
-            .displayNote: "プロフィールの設定が利用できるようになるまで、これらの選択はこのページにのみ適用されます。",
+            .displayNote: "これらの設定はこのページにのみ適用され、まだプロフィールには保存されません。",
             .language: "言語",
             .style: "スタイル",
             .mode: "モード",
             .modeSystem: "システム",
             .modeLight: "ライト",
             .modeDark: "ダーク",
+            .createAccount: "アカウントを作成",
         ],
     ]
 }

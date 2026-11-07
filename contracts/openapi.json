@@ -212,6 +212,13 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 256,
+            "x-nihon-rules": {
+              "normalization": "NFKC",
+              "trim": true,
+              "minLength": 3,
+              "maxLength": 32,
+              "pattern": "^[\\p{L}\\p{N}][\\p{L}\\p{N}\\p{M}_.-]*$"
+            },
             "description": "Account name, 3 to 32 characters after Unicode NFKC normalization: letters of any script, digits, `_`, `-`, `.`, starting with a letter or digit. Two names that normalize to the same lowercase form are the same name.",
             "examples": [
               "sakura_42"
@@ -221,6 +228,14 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 512,
+            "x-nihon-rules": {
+              "normalization": "NFKC",
+              "minLength": 8,
+              "maxLength": 128,
+              "notBlank": true,
+              "noControlCharacters": true,
+              "differentFromUsername": true
+            },
             "description": "Local password, 8 to 128 characters after Unicode NFKC normalization, no control characters, different from the username. Hashed with Argon2id; never stored or returned as given."
           }
         },
@@ -302,6 +317,13 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 256,
+            "x-nihon-rules": {
+              "normalization": "NFKC",
+              "trim": true,
+              "minLength": 3,
+              "maxLength": 32,
+              "pattern": "^[\\p{L}\\p{N}][\\p{L}\\p{N}\\p{M}_.-]*$"
+            },
             "description": "Account name, 3 to 32 characters after Unicode NFKC normalization: letters of any script, digits, `_`, `-`, `.`, starting with a letter or digit. Two names that normalize to the same lowercase form are the same name.",
             "examples": [
               "sakura_42"
@@ -447,6 +469,13 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 256,
+            "x-nihon-rules": {
+              "normalization": "NFKC",
+              "trim": true,
+              "minLength": 3,
+              "maxLength": 32,
+              "pattern": "^[\\p{L}\\p{N}][\\p{L}\\p{N}\\p{M}_.-]*$"
+            },
             "description": "Account name, 3 to 32 characters after Unicode NFKC normalization: letters of any script, digits, `_`, `-`, `.`, starting with a letter or digit. Two names that normalize to the same lowercase form are the same name.",
             "examples": [
               "sakura_42"

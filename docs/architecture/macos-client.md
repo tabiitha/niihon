@@ -35,7 +35,7 @@ Each window checks `GET /api/health` and the API major version before showing a 
 | Checking | The check is in progress | A progress indicator (a static symbol when Reduce Motion is on) |
 | Unavailable | No HTTP answer, 503 while stopping, or 502/504 from a relay | Service not responding, the service address, Try again |
 | Incompatible | The service implements another API major version, or answers `unsupported_api_version` | Update needed, both versions when known, Try again |
-| Error | Any other answer, including a program that does not speak the contract | Error, the request identifier when available, Try again |
+| Error | Any other answer, including a program that does not speak the contract | Error, Try again (the request identifier stays in the server log and is not shown) |
 
 A check runs once when a window opens and once per retry; nothing polls. The retry cancels the pending check, a closed window cancels its own, and a late answer to a cancelled check is ignored. Requests use an ephemeral `URLSession` without cache, so nothing is written to disk, and time out after 10 seconds.
 
@@ -70,7 +70,7 @@ The client reads the same JSON texts and theme tokens as the Web client; they re
 
 Each key becomes an enumeration case, so a text used by the client cannot be missing at compile time. The generator stops (exit code 2) when a `locales` folder lacks a language, has a missing or extra key, an empty text, or different `{placeholders}`, or when a theme misses a color role in either mode. `bun run macos:check` fails (exit code 1) when the committed Swift sources differ from the JSON files, so a change of the shared texts or tokens must be regenerated and committed with it. To give the client a new module's texts, add its `locales` folder to `textModules` in `tools/generate-shared.mjs`.
 
-Views only use the color roles of the selected theme, described in the [Web client](web-client.md#themes): the background gradient, text, accent, and focus colors. The Sakura style applies Sakura Milk or Neon Sorbet and follows the system appearance, including changes while the app runs. Selecting the style and mode and storing them in the profile belong to [#81](https://github.com/tabiitha/niihon/issues/81). The core tests check every declared contrast pair in both modes, as the Web tests do.
+Views only use the color roles of the selected theme, described in the [Web client](web-client.md#themes): the background gradient, text, accent, focus, and error colors (`error` is generated with the others; no macOS view uses it yet). The Sakura style applies Sakura Milk or Neon Sorbet and follows the system appearance, including changes while the app runs. Selecting the style and mode and storing them in the profile belong to [#81](https://github.com/tabiitha/niihon/issues/81). The core tests check every declared contrast pair in both modes, as the Web tests do.
 
 ## Build, Run, and Test
 

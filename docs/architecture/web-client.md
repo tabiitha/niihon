@@ -28,7 +28,7 @@ When `NIHON_WEB_DIR` is unset (development, tests), the API serves only `/api`. 
 | Path | Responsibility |
 | --- | --- |
 | `apps/web/src/index.html`, `frontend.tsx`, `App.tsx` | Entry page, React root, providers, and the page table |
-| `apps/web/src/router/` | Routes and a History API router; links stay real URLs |
+| `apps/web/src/router/` | Routes and a History API router; links stay real URLs, and `navigate(to, { replace: true })` takes the place of the current history entry |
 | `apps/web/src/api/` | The single API client, failure classification, and the `useResource` hook |
 | `apps/web/src/shell/` | Header, navigation, page frame, and the loading and failure states |
 | `apps/web/src/modules/<space>/` | One folder per space: its pages and `locales/` |
@@ -47,9 +47,12 @@ When `NIHON_WEB_DIR` is unset (development, tests), the API serves only `/api`. 
 | Library | `/library` |
 | Reader (library) | `/reader?media=<id>` |
 | Profile | `/profile` |
+| Account registration, and the return address of a provider | `/register` |
 | Administration | `/admin` |
 
 Every address is the same static page; the server returns `index.html` for each, so a direct load, a reload, or a shared link opens the right page. Resources created after the build, such as media, are never path segments: they are addressed by a query identifier on a fixed page, such as `/reader?media=<id>`. An unknown address shows a "Page not found" page. A page change moves focus to the main content and updates the document title.
+
+Registration is not an entry of the navigation: the Profile page links to it, and the Profile entry stays highlighted while it is open.
 
 The administration entry is visible to everyone until accounts and roles exist ([#7](https://github.com/tabiitha/niihon/issues/7), [#77](https://github.com/tabiitha/niihon/issues/77)); the server alone will decide who may use an administration feature.
 
@@ -59,11 +62,35 @@ Pages never call `fetch`: they use the client from `src/api/client.ts`, generate
 
 | Failure | Cause | Displayed state |
 | --- | --- | --- |
-| `unavailable` | No HTTP answer (stopped or unreachable service), 503 while stopping, or 502/504 from a relay | Service unavailable, with Retry |
-| `incompatible` | The health check reports another API major version, or the server answers `unsupported_api_version` | Incompatible client, with Retry; shows both versions when known |
-| `error` | Any other error answer | Error, with Retry and the request identifier for the server log |
+| `unavailable` | No HTTP answer (stopped or unreachable service), 503 while stopping, or 502/504 from a relay | "Nihon is temporarily unavailable", with Retry |
+| `incompatible` | The health check reports another API major version, or the server answers `unsupported_api_version` | "This page needs to be reloaded", with Retry; no version number is shown |
+| `error` | Any other error answer | "Something went wrong", with Retry; the request identifier stays in the server log and is not shown |
 
-Before showing a page, the shell checks `GET /api/health` and the API major version; the navigation stays usable meanwhile. `useResource(key, load)` cancels the previous load with an `AbortSignal` when the page unmounts, when its key changes (a new route or identifier), or on retry, and ignores late answers. Data lives in component state only: leaving a page releases it, and a reload rebuilds it from the API. Nothing is persisted in the browser.
+Texts shown to people are written like a professional consumer website, for ordinary users, not developers: no request identifier, version number, address, or error code, no words such as "service" or "log", and nothing about how Nihon is deployed (the computer, the Mac, local, offline, installation, machine). `forbiddenWords` in `src/i18n/voice.ts` lists these words for en, fr, and ja, as whole words with Unicode boundaries (so "clé" is caught and "keyboard" or 「キーボード」 is not), plurals and prefixed forms included (uninstall, désinstaller), plus the device and the PC; "browser" stays allowed; `src/i18n/voice.test.ts` applies it to every `locales` folder (the shell and every module), and the shell and accounts tests apply it to their own texts. Before showing a page, the shell checks `GET /api/health` and the API major version; the navigation stays usable meanwhile. `useResource(key, load)` cancels the previous load with an `AbortSignal` when the page unmounts, when its key changes (a new route or identifier), or on retry, and ignores late answers. Data lives in component state only: leaving a page releases it, and a reload rebuilds it from the API. The only thing the browser keeps is the pending provider registration of the registration screen, in the tab's `sessionStorage` while the provider's page is open (see Account Registration below for its content); no cookie, no `localStorage`, and no other data is kept.
+
+## Account Registration
+
+`/register` is delivered by [issue #234](https://github.com/tabiitha/niihon/issues/234) on the contract of [#233](https://github.com/tabiitha/niihon/issues/233) (see [accounts](accounts.md)). Its code is `src/modules/accounts/`: `RegisterPage.tsx` (the screen, over the state of `form.ts`, which holds the form rules apart from React so that they are tested), `registration.ts` (the four operations, the pending provider registration, and the reading of the provider's answer), `errors.ts` (the message of each failure), `rules.ts` (the typing check), and `locales/`. The server alone decides which usernames and passwords are valid, whether a name is taken, and which providers exist. To help before sending, as an ordinary website does, the screen checks what is typed with the server's own rules, read from the contract: the `x-nihon-rules` of the `username` and `password` fields of `LocalRegistration` and `OAuthRegistrationStart` (NFKC normalization, surrounding spaces removed from the name, lengths counted in code points: a name of 3 to 32 letters of any script, digits, marks, `_`, `-`, `.`, starting with a letter or digit; a password of 8 to 128 characters, not only spaces, without control characters, and other than the name compared in lowercase NFKC), and the raw `maxLength` of these fields. This check is only a typing aid: the server checks again, and its refusals are shown the same way. `rules.test.ts` fails when `rules.ts` differs from the contract, and `test/unit/registration.test.ts` sends a set of accepted and refused values to the real server and requires the same verdict, on the same field, as the client, for a local and a provider registration.
+
+| Behavior | How |
+| --- | --- |
+| Local registration | Username, password, and confirmation (each password field has a show/hide button) are sent to `registerLocalAccount`. Success opens the Profile page directly, without a success screen, through the router (no reload) and in place of the history entry of the sent form, so that Back does not return to it; the shell then moves focus to the new page, as for any page change. A successful provider return does the same, from its already cleaned address. No session is opened, because sign-in is a separate screen ([#76](https://github.com/tabiitha/niihon/issues/76)) |
+| Field errors | The screen shows no standing instructions: no subtitle, no note under the provider buttons, and nothing under an untouched field. A problem of one field (missing, invalid or taken name, refused password, passwords that do not match) is one message in the error color directly under that field, which gets an error border; it states the rule itself, such as "3 to 32 characters: letters, digits, _ - or ., starting with a letter or a digit." (a password of only spaces or with a character that cannot be used gets its own sentence, which the length rule would not explain), and nothing is shown above the form. A field is checked when it is left after an edit and on submit; once it shows an error, the error follows the typing and disappears when the value is right, and no new error appears while typing. A submit with an error sends nothing and focuses the first faulty field. A refusal of a field by the server is shown the same way and stays until that field is edited. The box above the form is kept for problems of no field: Nihon temporarily unavailable or busy, registration not available, a provider problem. A test fails when a text is not used by any screen |
+| Providers | `listOAuthProviders` decides which buttons appear. Without credentials, or when the list cannot be read, only the local form is shown and registration still works offline |
+| Provider username | The username field is shared: a provider button needs it filled first, because the provider's own name or email is never used. `startOAuthRegistration` also reports a taken name before the provider page opens |
+| Provider return | The provider returns to `/register?code=…&state=…` on this origin (a loopback address, as the server requires). The screen compares `state` with the one the server issued to this tab, removes `code` and `state` from the address and the history at once, and only then calls `completeOAuthRegistration`. A `state` that is missing or different sends nothing. A refusal by the provider (`error=…`) creates nothing |
+| Errors | Each stable code of the registration operations has a message in en, fr, and ja (`errors.ts`); `validation_failed` is told apart by the invalid field (`body.username`, `body.password`). A `502` or `503` that carries one of these codes (`accounts_oauth_provider_failed`, `accounts_oauth_flow_consumed`, `accounts_busy`, `idempotency_capacity_reached`) is the server answering, not a stopped service, so it is not reported as "cannot reach the service"; without such a code those statuses (and `stopping`) still mean a stopped service or a failing relay. `not_found` (a running Nihon that has no registration yet) says that registration is not available right now, without an immediate Try again. The server's English text, the request identifier, and any other technical detail are never displayed. A test reads every code and its real HTTP status from `contracts/openapi.json` and fails when one has no message |
+| Typed data and retries | The username is always kept. Each failure says how to go on: after a definite refusal (taken or invalid name, refused password, a provider registration that ended) the passwords are cleared, the next attempt is a new command, and a provider registration starts again; after a lost answer, an unexplained or `internal_error` server failure, `accounts_busy`, `database_busy`, or `idempotency_key_in_use` (a registration of the same key is still running) everything is kept and the same command can be repeated with the same key; after `idempotency_capacity_reached` the next attempt is sent without a key, as the contract says |
+| Double submission | A synchronous guard rejects a second submit before the busy state is rendered; the buttons are disabled meanwhile |
+| Stale answers | Every request has an `AbortController`. Leaving the page cancels it and the page ignores a late answer, as with `useResource` |
+| Lost answers | The commands that create a profile carry an `Idempotency-Key`. A retry with the same key (inputs unchanged) returns the profile that was created instead of "username taken", so a lost answer never leaves a second profile. Editing a field starts a new command |
+| Keyboard and assistive technology | Real labels; the message of a faulty field is linked with `aria-describedby` and the field has `aria-invalid`. The message is not a live region: it is read once, with its field, when the field gets focus, and a submit with an error moves focus there; a field left with an error is read again when the user comes back to it. When the faulty field already has focus (Enter in that field), moving focus would say nothing, so the message is announced once by a hidden polite live region instead (`deliveryOfFieldError` in `form.ts`); each new attempt announces it again, and typing empties the region. A problem of no field gets focus (with a focus ring when the person uses the keyboard, `:focus-visible`) and is read once, without a live region either, so that nothing is announced twice. Show/hide buttons are named for their action. A page restored from the back-forward cache is made usable again (`pageshow`) |
+
+**What the browser keeps.** The password and the confirmation live only in component state: they are cleared after a definite answer and are never put in the address, `localStorage`, `sessionStorage`, a cookie, or a log. The only storage used is the tab's `sessionStorage` entry `nihon.registration.pending` while the provider's page is open: `{ state, provider, idempotencyKey, username }`. `state` is the single-use reference of the flow (the server stores only its hash, and it authorizes nothing without the provider's one-time code), and the key only lets a retry return the same profile. Neither the authorization code nor a token is stored; the entry is removed as soon as the registration ends, and kept only while a lost answer leaves open whether the profile exists. When a provider registration ends without a profile, the username (public) alone is left in `nihon.registration.username` so that "Start again" shows the form already filled in; the form forgets it as soon as it is shown. A browser that blocks storage cannot continue a provider registration and says so; the local form still works.
+
+**Trying it by hand.** After `bun run build`, `NIHON_WEB_DIR=apps/web/dist node apps/api/test/fixtures/accounts-serve.ts` serves the interface and the real accounts module on a temporary database, with Google and GitHub played by a local fake whose authorization pages approve at once (GitHub user 42, Google subject `g-42`). The printed port is the one to open at `/register`. Nothing leaves the machine.
+
+**Appearances.** The card (a lighter card in light mode, as in the Sakura Milk mockup), fields, buttons, and messages use only the theme variables (`--color-*`), so they follow Sakura Milk and Neon Sorbet today and any style registered later; a test rejects a color literal in the account styles. Fields and buttons use `textMuted` for their outline (at least 3:1 against the background in both modes) instead of the decorative `border`; a faulty field and its message use `error`. The Landscape style (Bloom Hour, Petal Afterglow) is not a registered theme yet ([#81](https://github.com/tabiitha/niihon/issues/81)), so it is not selectable. Known differences from the mockups, to be validated by the owner: the mockups show only the brand and a "Sign in" link above the card, whereas the screen sits inside the application's own shell and navigation, and has no "Sign in" link until the sign-in screen exists, the card is taller because of the provider section, and the Neon Sorbet gradient follows the shared tokens rather than the brighter fuchsia corner of the mockup.
 
 ## Interface Languages
 
@@ -84,18 +111,19 @@ A theme is one folder, `resources/themes/<style>/tokens.json`, holding its color
 | `accentText` | Links and accent icons on the background |
 | `border` | Decorative separators |
 | `focus` | Keyboard focus ring |
+| `error` | Message under a faulty field and its border |
 
 `ThemeProvider` applies the selected style and mode as CSS variables (`--color-<role>`) on the document; layout, components, typography, and behavior are shared by every theme. The mode is Light, Dark, or System, which follows the operating system and its changes. The Sakura style provides Sakura Milk (light) and Neon Sorbet (dark). The Profile page offers style and mode selectors for the open page; storing them in the profile and adding the Landscape style belong to [#81](https://github.com/tabiitha/niihon/issues/81).
 
-`src/theme/themes.test.ts` checks that each folder is registered in `src/theme/themes.ts`, that every role exists in both modes, and that every declared pair reaches its WCAG 2.2 contrast minimum in both modes: 4.5:1 for text pairs and 3:1 for the focus ring. Animations stop when the system requests reduced motion.
+`src/theme/themes.test.ts` checks that each folder is registered in `src/theme/themes.ts`, that every role exists in both modes, and that every declared pair reaches its WCAG 2.2 contrast minimum in both modes: 4.5:1 for text pairs and 3:1 for the focus ring. It also checks `error` against the account card as the stylesheet mixes it, at both ends of the page gradient: at least 4.5:1, which also covers the 3:1 of the field border. Animations stop when the system requests reduced motion.
 
 ## Tests
 
 | Command | Checks |
 | --- | --- |
-| `bun run --cwd apps/web test` | Language selection, text completeness, routes, theme tokens and contrast, and the health check against the real API adapter and simulated failures |
+| `bun run --cwd apps/web test` | Language selection, text completeness, routes, theme tokens and contrast, and the health check against the real API adapter and simulated failures; the registration operations against the real API and a fake Google and GitHub on loopback (`apps/api/test/fixtures/accounts-serve.ts`, which needs the Prisma client generated by an API build or test), including duplicates, refused passwords, lost answers, replays, and a stopped service |
 | `bun run --cwd apps/api test` | Static serving: page fallback, cache headers, security headers, 404s, `/api` isolation, Web directory validation |
-| `bun run test:production` | After `bun run build`: the compiled API serves the Web build; every space opens directly; the shell references only same-origin files |
+| `bun run test:production` | After `bun run build`: the compiled API serves the Web build; every space opens directly; the shell references only same-origin files; a local account is registered offline through the compiled API |
 | `bun run test:container` | The image serves the interface, including a reload of `/reader?media=…`, also without network access |
 
 Component rendering and keyboard navigation are verified manually in a browser; an automated browser test tool is not selected yet.
@@ -104,9 +132,9 @@ Component rendering and keyboard navigation are verified manually in a browser; 
 
 | Resource | Bound |
 | --- | --- |
-| Bundle | One JavaScript file (about 235 KiB minified) and one style sheet; no runtime download |
+| Bundle | One JavaScript file (about 259 KiB minified) and one style sheet; no runtime download |
 | Static files | Streamed by Express; nothing is held in memory per request |
-| Pending reads | One per mounted page; cancelled on page change |
+| Pending requests | One read per mounted page. The registration screen can hold two: the provider list read and at most one registration command (local registration, provider start, or provider completion) at a time. All are cancelled on page change |
 
 These bounds are a starting point; tune them after measurement.
 

@@ -7,10 +7,13 @@ import { shellTexts } from './texts.ts';
 export function Page({
   title,
   titleHidden = false,
+  className,
   children,
 }: {
   readonly title: string;
   readonly titleHidden?: boolean;
+  /** Extra class of the page frame, for pages that present their content in a card. */
+  readonly className?: string;
   readonly children?: ReactNode;
 }) {
   const t = useTexts(shellTexts);
@@ -19,7 +22,7 @@ export function Page({
   }, [t, title]);
 
   return (
-    <article className="page" aria-labelledby="page-title">
+    <article className={className === undefined ? 'page' : `page ${className}`} aria-labelledby="page-title">
       <h1 id="page-title" className={titleHidden ? 'visually-hidden' : undefined}>
         {title}
       </h1>

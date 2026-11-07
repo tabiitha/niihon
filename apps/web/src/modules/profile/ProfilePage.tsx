@@ -2,6 +2,8 @@ import { useId } from 'react';
 
 import { useLanguage, useTexts } from '../../i18n/I18n.tsx';
 import { isLanguage, languageNames, languages } from '../../i18n/languages.ts';
+import { Link } from '../../router/Router.tsx';
+import { routes } from '../../router/routes.ts';
 import { Page } from '../../shell/Page.tsx';
 import { useTheme } from '../../theme/Theme.tsx';
 import { appearanceModes, themes, type AppearanceMode } from '../../theme/themes.ts';
@@ -18,6 +20,9 @@ export function ProfilePage() {
   return (
     <Page title={t('title')}>
       <p className="muted">{t('body')}</p>
+      <Link to={routes.register} className="button-secondary">
+        {t('createAccount')}
+      </Link>
       <section className="panel" aria-labelledby="display-title">
         <h2 id="display-title">{t('displayTitle')}</h2>
         <p className="muted">{t('displayNote')}</p>

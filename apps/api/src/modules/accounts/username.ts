@@ -11,7 +11,7 @@ export const maxUsernameLength = 32;
  * Usernames are letters (any script, so Japanese works), digits, marks, and `_ - .`, starting with
  * a letter or digit.
  */
-const usernamePattern = /^[\p{L}\p{N}][\p{L}\p{N}\p{M}_.-]*$/u;
+export const usernamePattern = /^[\p{L}\p{N}][\p{L}\p{N}\p{M}_.-]*$/u;
 
 /**
  * Normalizes a username the way uniqueness is judged: Unicode compatibility composition (NFKC) so

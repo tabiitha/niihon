@@ -10,6 +10,7 @@ describe('routes', () => {
     assert.equal(matchRoute('/kanji/'), 'kanji');
     assert.equal(matchRoute('/library'), 'library');
     assert.equal(matchRoute('/profile'), 'profile');
+    assert.equal(matchRoute('/register'), 'register');
     assert.equal(matchRoute('/admin'), 'admin');
     assert.equal(matchRoute('/reader'), 'reader');
   });

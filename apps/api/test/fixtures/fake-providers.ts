@@ -32,6 +32,12 @@ export interface FakeProviders {
   googleToken: (form: Readonly<Record<string, string>>) => FakeAnswer | Promise<FakeAnswer>;
   githubToken: (form: Readonly<Record<string, string>>) => FakeAnswer | Promise<FakeAnswer>;
   githubUser: (headers: IncomingMessage['headers']) => FakeAnswer | Promise<FakeAnswer>;
+  /**
+   * Answer of the provider's authorization page, which receives the browser (query parameters of the
+   * authorization address). Absent by default: the page does not exist. A test or fixture server that
+   * plays the user's approval answers with a redirect to the return address.
+   */
+  authorize?: (provider: 'google' | 'github', query: URLSearchParams) => FakeAnswer;
   /** Signs an ID token with the key the fake publishes (or `key` when given). */
   signIdToken(claims: Record<string, unknown>, options?: { key?: KeyObject; kid?: string; alg?: string }): string;
   /** Keys published at `jwksUri`. */
@@ -73,7 +79,7 @@ export async function startFakeProviders(): Promise<FakeProviders> {
     request.on('data', (chunk: Buffer) => chunks.push(chunk));
     request.on('end', () => {
       void (async () => {
-        const path = new URL(request.url ?? '/', 'http://fake').pathname;
+        const { pathname: path, searchParams } = new URL(request.url ?? '/', 'http://fake');
         const form = Object.fromEntries(new URLSearchParams(Buffer.concat(chunks).toString('utf8')));
         requests.push({ method: request.method ?? 'GET', path, headers: request.headers, form });
         let answer: FakeAnswer = { status: 404, body: { error: 'not_found' } };
@@ -85,6 +91,8 @@ export async function startFakeProviders(): Promise<FakeProviders> {
           answer = await state.githubToken(form);
         } else if (path === '/github/user') {
           answer = await state.githubUser(request.headers);
+        } else if ((path === '/google/authorize' || path === '/github/authorize') && state.authorize !== undefined) {
+          answer = state.authorize(path.startsWith('/google') ? 'google' : 'github', searchParams);
         }
         if (answer.delayMs !== undefined) {
           await new Promise((resolve) => setTimeout(resolve, answer.delayMs));

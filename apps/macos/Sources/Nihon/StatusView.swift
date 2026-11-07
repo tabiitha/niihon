@@ -60,13 +60,9 @@ struct StatusView: View {
                     "clientVersion": NihonAPIVersion.version,
                 ]))
             }
-        case .error(_, _, let requestID):
+        case .error:
             heading(Self.title(of: failure, language: language), systemImage: "exclamationmark.circle")
             Text(language.text(ShellText.errorBody)).foregroundStyle(palette[.text])
-            if let requestID {
-                detail(language.text(ShellText.errorReference, ["requestId": requestID]))
-                    .textSelection(.enabled)
-            }
         }
         if let retry {
             Button(language.text(ShellText.retry), action: retry)

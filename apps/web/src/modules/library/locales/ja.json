@@ -3,7 +3,7 @@
   "body": "メディアとコレクションがここに表示されます。",
   "readerTitle": "プレーヤー",
   "readerMedia": "メディア {mediaId}",
-  "readerPending": "このメディアのプレーヤーはメディア機能とともに提供されます。",
+  "readerPending": "このメディアはまだ再生できません。",
   "readerMissing": "メディアが選択されていません。ライブラリからメディアを開いてください。",
   "backToLibrary": "ライブラリに戻る"
 }

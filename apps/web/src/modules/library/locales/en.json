@@ -3,7 +3,7 @@
   "body": "Your media and collections will appear here.",
   "readerTitle": "Reader",
   "readerMedia": "Media {mediaId}",
-  "readerPending": "The player for this media arrives with the media features.",
+  "readerPending": "This media cannot be played yet.",
   "readerMissing": "No media is selected. Open a media item from the library.",
   "backToLibrary": "Back to the library"
 }

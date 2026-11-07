@@ -87,3 +87,17 @@ export const SakuraLogo = () => (
     <circle cx="16" cy="16" r="2.2" fill="var(--color-on-accent)" />
   </svg>
 );
+
+export const EyeIcon = () => (
+  <Icon>
+    <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z" />
+    <circle cx="12" cy="12" r="3" />
+  </Icon>
+);
+
+export const EyeOffIcon = () => (
+  <Icon>
+    <path d="M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4M6.4 6.4C3.7 8.2 2 12 2 12s3.6 7 10 7c1.7 0 3.2-.5 4.6-1.2" />
+    <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2M3 3l18 18" />
+  </Icon>
+);
